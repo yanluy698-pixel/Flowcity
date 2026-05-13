@@ -1,0 +1,216 @@
+{
+  "examples": [
+    {
+      "id": "family_half_day",
+      "name": "亲子半日游",
+      "userInput": "周六下午 2 点到 6 点，带 5 岁孩子和老婆出去玩，老婆在减肥，别太远，预算 400。",
+      "expectedStructuredDemand": {
+        "rawInput": "周六下午 2 点到 6 点，带 5 岁孩子和老婆出去玩，老婆在减肥，别太远，预算 400。",
+        "scene": {
+          "primaryType": "family",
+          "confidence": 0.95,
+          "tags": ["亲子", "半日游", "儿童友好", "低脂", "近距离"]
+        },
+        "timeWindow": {
+          "dateText": "周六",
+          "startTime": "14:00",
+          "endTime": "18:00",
+          "durationHours": 4,
+          "isFlexible": false
+        },
+        "people": {
+          "total": 3,
+          "adults": 2,
+          "children": [
+            {
+              "age": 5
+            }
+          ],
+          "seniors": [],
+          "relationship": "family",
+          "specialNeeds": ["妻子减肥，餐饮需要偏低脂或清淡", "孩子 5 岁，活动需要适龄"]
+        },
+        "budget": {
+          "maxTotal": 400,
+          "perPerson": null,
+          "currency": "CNY",
+          "flexibility": "strict"
+        },
+        "location": {
+          "startPoint": null,
+          "preferredArea": null,
+          "maxTravelMinutes": null,
+          "transportPreference": null,
+          "distancePreference": "别太远"
+        },
+        "preferences": {
+          "activityTypes": ["亲子", "轻松", "适合儿童"],
+          "foodTags": ["低脂", "清淡", "儿童友好"],
+          "experienceTags": ["少排队", "少走路", "路线轻松"],
+          "avoidTags": ["太远", "排队久", "超预算"]
+        },
+        "constraints": {
+          "hard": ["时间必须在 14:00-18:00 内", "总预算不超过 400 元", "活动必须适合 5 岁儿童", "餐饮需要兼顾低脂或清淡"],
+          "soft": ["距离不要太远", "尽量少排队", "路线轻松", "儿童友好"],
+          "dynamic": ["活动余票状态", "餐厅座位状态", "实时排队时间", "预约时段"]
+        },
+        "potentialConflicts": [
+          {
+            "type": "budget_vs_scope",
+            "description": "400 元预算需要覆盖 3 人活动和餐饮，可能偏紧。"
+          },
+          {
+            "type": "family_vs_queue",
+            "description": "亲子场景不适合长时间排队，需要控制等待风险。"
+          },
+          {
+            "type": "diet_vs_child_friendly",
+            "description": "餐厅需要同时满足低脂/清淡和儿童友好，候选范围可能变窄。"
+          }
+        ],
+        "expectedOutput": {
+          "planFormat": "timeline_plan",
+          "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "推荐理由", "风险提示", "预约/排队状态"]
+        },
+        "assumptions": ["用户未提供出发地，暂不假设具体位置。", "用户未给出明确可接受通勤分钟数，只记录“别太远”的距离偏好。"],
+        "clarificationQuestions": ["请问从哪里出发？"]
+      }
+    },
+    {
+      "id": "couple_date",
+      "name": "情侣约会",
+      "userInput": "周日傍晚想约会 3 小时，想拍照、安静一点，不要太贵，最好能订到座。",
+      "expectedStructuredDemand": {
+        "rawInput": "周日傍晚想约会 3 小时，想拍照、安静一点，不要太贵，最好能订到座。",
+        "scene": {
+          "primaryType": "couple",
+          "confidence": 0.93,
+          "tags": ["约会", "拍照", "安静", "氛围", "可订座"]
+        },
+        "timeWindow": {
+          "dateText": "周日傍晚",
+          "startTime": null,
+          "endTime": null,
+          "durationHours": 3,
+          "isFlexible": true
+        },
+        "people": {
+          "total": 2,
+          "adults": 2,
+          "children": [],
+          "seniors": [],
+          "relationship": "couple",
+          "specialNeeds": ["需要适合约会氛围", "希望餐厅可订座"]
+        },
+        "budget": {
+          "maxTotal": null,
+          "perPerson": null,
+          "currency": "CNY",
+          "flexibility": "flexible"
+        },
+        "location": {
+          "startPoint": null,
+          "preferredArea": null,
+          "maxTravelMinutes": null,
+          "transportPreference": null,
+          "distancePreference": null
+        },
+        "preferences": {
+          "activityTypes": ["拍照", "轻活动", "约会"],
+          "foodTags": ["氛围餐厅", "可订座"],
+          "experienceTags": ["安静", "有氛围", "不要太贵"],
+          "avoidTags": ["太贵", "太吵", "无座"]
+        },
+        "constraints": {
+          "hard": ["总时长约 3 小时", "餐厅最好支持订座"],
+          "soft": ["适合拍照", "安静一点", "不要太贵", "有约会氛围"],
+          "dynamic": ["餐厅座位状态", "预约时段", "热门地点拥挤程度"]
+        },
+        "potentialConflicts": [
+          {
+            "type": "photo_vs_quiet",
+            "description": "适合拍照的热门地点可能人多，不一定安静。"
+          },
+          {
+            "type": "ambience_vs_budget",
+            "description": "有氛围且可订座的餐厅可能价格偏高。"
+          }
+        ],
+        "expectedOutput": {
+          "planFormat": "timeline_plan",
+          "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "推荐理由", "风险提示", "预约/排队状态", "备选方案"]
+        },
+        "assumptions": ["用户未说明具体预算金额，不能假设预算上限。", "用户未说明具体出发地或约会区域。"],
+        "clarificationQuestions": ["大概希望人均预算是多少？", "希望在哪个区域附近约会？"]
+      }
+    },
+    {
+      "id": "friends_citywalk",
+      "name": "朋友小聚",
+      "userInput": "今晚 4 个人聚会，2 男 2 女，想 citywalk 加小吃，别走太多路，最后找个地方坐下来聊。",
+      "expectedStructuredDemand": {
+        "rawInput": "今晚 4 个人聚会，2 男 2 女，想 citywalk 加小吃，别走太多路，最后找个地方坐下来聊。",
+        "scene": {
+          "primaryType": "friends",
+          "confidence": 0.94,
+          "tags": ["朋友聚会", "citywalk", "小吃", "少走路", "坐下聊天"]
+        },
+        "timeWindow": {
+          "dateText": "今晚",
+          "startTime": null,
+          "endTime": null,
+          "durationHours": null,
+          "isFlexible": true
+        },
+        "people": {
+          "total": 4,
+          "adults": 4,
+          "children": [],
+          "seniors": [],
+          "relationship": "friends",
+          "specialNeeds": ["不想走太多路", "最后需要能坐下聊天的地点"]
+        },
+        "budget": {
+          "maxTotal": null,
+          "perPerson": null,
+          "currency": "CNY",
+          "flexibility": "unknown"
+        },
+        "location": {
+          "startPoint": null,
+          "preferredArea": null,
+          "maxTravelMinutes": null,
+          "transportPreference": "walk",
+          "distancePreference": "别走太多路"
+        },
+        "preferences": {
+          "activityTypes": ["citywalk", "小吃", "轻松聚会"],
+          "foodTags": ["小吃", "适合多人"],
+          "experienceTags": ["少走路", "路线集中", "能坐下聊天", "轻松"],
+          "avoidTags": ["走太多路", "没有座位", "路线分散"]
+        },
+        "constraints": {
+          "hard": ["适合 4 人同行", "路线不能过度分散", "最后需要有可坐下聊天的地点"],
+          "soft": ["小吃选择丰富", "步行距离少", "氛围轻松"],
+          "dynamic": ["小吃点排队时间", "最后落脚点座位状态", "今晚营业时间"]
+        },
+        "potentialConflicts": [
+          {
+            "type": "citywalk_vs_less_walk",
+            "description": "citywalk 通常需要步行，但用户明确不想走太多路。"
+          },
+          {
+            "type": "snack_street_vs_chat",
+            "description": "小吃街可能嘈杂或座位少，不一定适合最后坐下聊天。"
+          }
+        ],
+        "expectedOutput": {
+          "planFormat": "timeline_plan",
+          "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "推荐理由", "风险提示", "预约/排队状态"]
+        },
+        "assumptions": ["用户未说明预算，不能假设具体金额。", "用户未说明集合地点或区域。"],
+        "clarificationQuestions": ["今晚大概几点开始？", "希望在哪个区域集合？", "大概人均预算是多少？"]
+      }
+    }
+  ]
+}

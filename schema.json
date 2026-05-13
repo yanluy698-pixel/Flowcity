@@ -1,0 +1,344 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flowcity.local/schemas/structured-demand.schema.json",
+  "title": "FlowCity Structured Demand Schema",
+  "description": "阶段二使用的需求结构化 Schema：把用户自然语言需求拆成稳定 JSON，供后续 Mock API、Planner、Validator 使用。本 Schema 不包含具体 POI、路线或订单结果。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "rawInput",
+    "scene",
+    "timeWindow",
+    "people",
+    "budget",
+    "location",
+    "preferences",
+    "constraints",
+    "potentialConflicts",
+    "expectedOutput",
+    "assumptions",
+    "clarificationQuestions"
+  ],
+  "properties": {
+    "rawInput": {
+      "type": "string",
+      "description": "用户原始自然语言输入。"
+    },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primaryType", "confidence", "tags"],
+      "properties": {
+        "primaryType": {
+          "type": "string",
+          "enum": [
+            "family",
+            "couple",
+            "friends",
+            "solo",
+            "elderly",
+            "open"
+          ],
+          "description": "场景类型。三个 Demo 样例可落在 family/couple/friends，但产品能力不限制在这三类。"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "模型对场景判断的置信度。"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "从用户需求中识别出的场景标签，例如亲子、约会、citywalk、放松、拍照、聚餐。"
+        }
+      }
+    },
+    "timeWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dateText",
+        "startTime",
+        "endTime",
+        "durationHours",
+        "isFlexible"
+      ],
+      "properties": {
+        "dateText": {
+          "type": ["string", "null"],
+          "description": "用户表达的日期，例如周六、今晚、明天下午。无法确定时为 null。"
+        },
+        "startTime": {
+          "type": ["string", "null"],
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "description": "开始时间，24 小时制 HH:mm。用户未说明时为 null。"
+        },
+        "endTime": {
+          "type": ["string", "null"],
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "description": "结束时间，24 小时制 HH:mm。用户未说明时为 null。"
+        },
+        "durationHours": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "用户期望活动时长，单位小时。"
+        },
+        "isFlexible": {
+          "type": "boolean",
+          "description": "时间是否可弹性调整。"
+        }
+      }
+    },
+    "people": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "adults",
+        "children",
+        "seniors",
+        "relationship",
+        "specialNeeds"
+      ],
+      "properties": {
+        "total": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "总人数。用户未说明时为 null。"
+        },
+        "adults": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "成年人数量。"
+        },
+        "children": {
+          "type": "array",
+          "description": "儿童信息。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["age"],
+            "properties": {
+              "age": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "maximum": 17,
+                "description": "儿童年龄。"
+              }
+            }
+          }
+        },
+        "seniors": {
+          "type": "array",
+          "description": "老人信息，阶段二可只记录年龄或体力限制。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["age", "mobilityLimit"],
+            "properties": {
+              "age": {
+                "type": ["integer", "null"],
+                "minimum": 55,
+                "description": "老人年龄，未知时为 null。"
+              },
+              "mobilityLimit": {
+                "type": ["string", "null"],
+                "description": "体力或行动限制，例如少走路、不能爬楼。"
+              }
+            }
+          }
+        },
+        "relationship": {
+          "type": ["string", "null"],
+          "enum": [
+            "family",
+            "couple",
+            "friends",
+            "colleagues",
+            "solo",
+            "mixed",
+            null
+          ],
+          "description": "同行人关系。"
+        },
+        "specialNeeds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "特殊需求，例如减脂、忌口、少走路、儿童友好、安静。"
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxTotal", "perPerson", "currency", "flexibility"],
+      "properties": {
+        "maxTotal": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "总预算上限。"
+        },
+        "perPerson": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "人均预算。"
+        },
+        "currency": {
+          "type": "string",
+          "const": "CNY",
+          "description": "币种，比赛 Demo 默认人民币。"
+        },
+        "flexibility": {
+          "type": "string",
+          "enum": ["strict", "flexible", "unknown"],
+          "description": "预算是否严格。"
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "startPoint",
+        "preferredArea",
+        "maxTravelMinutes",
+        "transportPreference",
+        "distancePreference"
+      ],
+      "properties": {
+        "startPoint": {
+          "type": ["string", "null"],
+          "description": "出发地，例如用户当前位置、小区、商圈。未知时为 null。"
+        },
+        "preferredArea": {
+          "type": ["string", "null"],
+          "description": "偏好区域或商圈。"
+        },
+        "maxTravelMinutes": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "用户可接受单程通勤时间，单位分钟。"
+        },
+        "transportPreference": {
+          "type": ["string", "null"],
+          "enum": ["walk", "taxi", "public_transport", "drive", "no_preference", null],
+          "description": "交通偏好。"
+        },
+        "distancePreference": {
+          "type": ["string", "null"],
+          "description": "用户原话中的距离表达，例如别太远、附近、同商圈。"
+        }
+      }
+    },
+    "preferences": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activityTypes", "foodTags", "experienceTags", "avoidTags"],
+      "properties": {
+        "activityTypes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "活动偏好，例如亲子、展览、citywalk、拍照、室内。"
+        },
+        "foodTags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "餐饮偏好，例如低脂、清淡、儿童友好、小吃、氛围餐厅。"
+        },
+        "experienceTags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "体验偏好，例如少排队、少走路、安静、路线轻松、有氛围。"
+        },
+        "avoidTags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "用户明确不想要的内容，例如太远、太贵、太吵、排队久。"
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hard", "soft", "dynamic"],
+      "properties": {
+        "hard": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "硬约束：必须满足，不满足则后续应过滤或重排。"
+        },
+        "soft": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "软偏好：尽量满足，用于后续排序打分。"
+        },
+        "dynamic": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "动态约束：执行前可能变化，例如座位、余票、排队、天气。"
+        }
+      }
+    },
+    "potentialConflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "description"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "冲突类型，例如 budget_vs_quality、photo_vs_quiet、citywalk_vs_less_walk。"
+          },
+          "description": {
+            "type": "string",
+            "description": "冲突解释。"
+          }
+        }
+      },
+      "description": "潜在冲突点，用于后续方案取舍和解释。"
+    },
+    "expectedOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planFormat", "mustInclude"],
+      "properties": {
+        "planFormat": {
+          "type": "string",
+          "enum": ["timeline_plan", "options_comparison", "open"],
+          "description": "后续 Planner 应输出的方案形态。阶段二通常为 timeline_plan。"
+        },
+        "mustInclude": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "时间轴",
+              "活动安排",
+              "餐饮安排",
+              "路线/通勤",
+              "预算估算",
+              "推荐理由",
+              "风险提示",
+              "预约/排队状态",
+              "备选方案",
+              "分享文案"
+            ]
+          },
+          "description": "后续方案必须包含的内容。"
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "在用户未明确说明时，模型做出的轻量假设。不能编造具体商家、路线或订单。"
+    },
+    "clarificationQuestions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "如果关键信息缺失，需要向用户追问的问题。"
+    }
+  }
+}
