@@ -1,0 +1,33 @@
+{
+  "version": "stage3_mock_v1",
+  "city": "西安",
+  "dataType": "route_time_matrix",
+  "note": "Mock 路线数据。基于西安商圈相对位置做简化通勤模拟，不代表真实导航结果。",
+  "routes": [
+    { "fromAreaId": "area_xa_xiaozhai", "toAreaId": "area_xa_xiaozhai", "transport": "walk", "minutes": 8, "distanceKm": 0.8, "walkMinutesInsideArea": 8 },
+    { "fromAreaId": "area_xa_qujiang", "toAreaId": "area_xa_qujiang", "transport": "walk", "minutes": 10, "distanceKm": 1.0, "walkMinutesInsideArea": 10 },
+    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_zhonglou", "transport": "walk", "minutes": 12, "distanceKm": 1.1, "walkMinutesInsideArea": 12 },
+    { "fromAreaId": "area_xa_gaoxin", "toAreaId": "area_xa_gaoxin", "transport": "walk", "minutes": 9, "distanceKm": 0.9, "walkMinutesInsideArea": 9 },
+    { "fromAreaId": "area_xa_xingzheng", "toAreaId": "area_xa_xingzheng", "transport": "walk", "minutes": 8, "distanceKm": 0.8, "walkMinutesInsideArea": 8 },
+    { "fromAreaId": "area_xa_daminggong", "toAreaId": "area_xa_daminggong", "transport": "walk", "minutes": 12, "distanceKm": 1.2, "walkMinutesInsideArea": 12 },
+
+    { "fromAreaId": "area_xa_xiaozhai", "toAreaId": "area_xa_qujiang", "transport": "taxi", "minutes": 18, "distanceKm": 5.2, "walkMinutesInsideArea": 7 },
+    { "fromAreaId": "area_xa_qujiang", "toAreaId": "area_xa_xiaozhai", "transport": "taxi", "minutes": 20, "distanceKm": 5.2, "walkMinutesInsideArea": 7 },
+    { "fromAreaId": "area_xa_xiaozhai", "toAreaId": "area_xa_gaoxin", "transport": "taxi", "minutes": 22, "distanceKm": 7.5, "walkMinutesInsideArea": 6 },
+    { "fromAreaId": "area_xa_gaoxin", "toAreaId": "area_xa_xiaozhai", "transport": "taxi", "minutes": 24, "distanceKm": 7.5, "walkMinutesInsideArea": 6 },
+    { "fromAreaId": "area_xa_xiaozhai", "toAreaId": "area_xa_zhonglou", "transport": "public_transport", "minutes": 18, "distanceKm": 4.5, "walkMinutesInsideArea": 12 },
+    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_xiaozhai", "transport": "public_transport", "minutes": 20, "distanceKm": 4.5, "walkMinutesInsideArea": 12 },
+    { "fromAreaId": "area_xa_qujiang", "toAreaId": "area_xa_zhonglou", "transport": "taxi", "minutes": 25, "distanceKm": 8.0, "walkMinutesInsideArea": 14 },
+    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_qujiang", "transport": "taxi", "minutes": 27, "distanceKm": 8.0, "walkMinutesInsideArea": 14 },
+    { "fromAreaId": "area_xa_gaoxin", "toAreaId": "area_xa_qujiang", "transport": "taxi", "minutes": 30, "distanceKm": 11.0, "walkMinutesInsideArea": 8 },
+    { "fromAreaId": "area_xa_qujiang", "toAreaId": "area_xa_gaoxin", "transport": "taxi", "minutes": 32, "distanceKm": 11.0, "walkMinutesInsideArea": 8 },
+    { "fromAreaId": "area_xa_xingzheng", "toAreaId": "area_xa_daminggong", "transport": "taxi", "minutes": 16, "distanceKm": 5.5, "walkMinutesInsideArea": 10 },
+    { "fromAreaId": "area_xa_daminggong", "toAreaId": "area_xa_xingzheng", "transport": "taxi", "minutes": 18, "distanceKm": 5.5, "walkMinutesInsideArea": 10 },
+    { "fromAreaId": "area_xa_xingzheng", "toAreaId": "area_xa_xiaozhai", "transport": "public_transport", "minutes": 35, "distanceKm": 12.0, "walkMinutesInsideArea": 8 },
+    { "fromAreaId": "area_xa_xiaozhai", "toAreaId": "area_xa_xingzheng", "transport": "public_transport", "minutes": 36, "distanceKm": 12.0, "walkMinutesInsideArea": 8 },
+    { "fromAreaId": "area_xa_daminggong", "toAreaId": "area_xa_zhonglou", "transport": "taxi", "minutes": 20, "distanceKm": 6.5, "walkMinutesInsideArea": 13 },
+    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_daminggong", "transport": "taxi", "minutes": 22, "distanceKm": 6.5, "walkMinutesInsideArea": 13 },
+    { "fromAreaId": "area_xa_gaoxin", "toAreaId": "area_xa_zhonglou", "transport": "taxi", "minutes": 28, "distanceKm": 9.5, "walkMinutesInsideArea": 12 },
+    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_gaoxin", "transport": "taxi", "minutes": 30, "distanceKm": 9.5, "walkMinutesInsideArea": 12 }
+  ]
+}

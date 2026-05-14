@@ -132,19 +132,36 @@ JSON Output: enabled
 
 阶段二输出的结构化 JSON 会作为阶段三输入。
 
-阶段三将基于这些字段设计：
+阶段三已经基于这些字段实现第一版函数式 Mock API：
 
-- Mock POI 数据。
-- Mock 路线/通勤时间。
-- Mock 排队状态。
-- Mock 预约时段。
-- Mock 团购库存。
-- Mock 执行动作。
+- `data/mock_areas.json`：西安商圈数据。
+- `data/mock_activities.json`：活动 POI。
+- `data/mock_restaurants.json`：餐厅 POI。
+- `data/mock_routes.json`：路线/通勤时间。
+- `data/mock_availability.json`：排队、余票、座位和预约状态。
+- `data/mock_deals.json`：团购/套餐库存。
+- `mock_api.py`：读取 Mock 数据，完成硬约束过滤和软偏好打分。
+- `run_flow.py`：串联阶段二和阶段三，支持自然语言输入后直接查询 Mock 供给。
 
 也就是说：
 
 ```text
 阶段二：把用户需求拆清楚
-阶段三：准备能响应这些需求的数据和工具
+阶段三：用本地 Mock 数据和工具响应这些需求
 ```
 
+阶段三当前不调用大模型。它是确定性工具层，模拟本地生活平台的供给查询能力。
+
+阶段三输出：
+
+```text
+activityCandidates
+restaurantCandidates
+routeCandidates
+filteredOut
+toolLogs
+```
+
+其中 `filteredOut` 用于解释为什么某些活动或餐厅不可用，例如不适龄、超预算、无票、无座、排队过久或缺少目标日期动态状态。
+
+后续阶段四 Planner 将基于阶段三候选供给生成时间轴方案。

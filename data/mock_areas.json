@@ -1,0 +1,68 @@
+{
+  "version": "stage3_mock_v1",
+  "city": "西安",
+  "dataType": "areas",
+  "note": "Mock 商圈数据。商圈名称参考西安真实消费区域，用于路线、距离和 POI 归属模拟。",
+  "areas": [
+    {
+      "areaId": "area_xa_xiaozhai",
+      "name": "小寨商圈",
+      "district": "雁塔区",
+      "landmarks": ["赛格国际购物中心", "MOMOPARK艺术购物中心", "陕西历史博物馆"],
+      "tags": ["年轻消费", "商场密集", "餐饮密集", "亲子", "地铁便利"],
+      "defaultTransport": ["taxi", "public_transport", "walk"],
+      "suitableScenes": ["family", "couple", "friends"],
+      "mockDescription": "西安高频消费商圈，适合作为亲子、轻食、商场型活动的主力供给池。"
+    },
+    {
+      "areaId": "area_xa_qujiang",
+      "name": "大雁塔-曲江商圈",
+      "district": "雁塔区",
+      "landmarks": ["大雁塔", "曲江大悦城", "大唐不夜城", "大唐芙蓉园"],
+      "tags": ["拍照", "夜游", "文旅", "约会", "游客密集"],
+      "defaultTransport": ["taxi", "public_transport", "walk"],
+      "suitableScenes": ["couple", "friends", "family"],
+      "mockDescription": "适合夜间拍照、约会和游客型 citywalk，但需要模拟拥挤和排队风险。"
+    },
+    {
+      "areaId": "area_xa_zhonglou",
+      "name": "钟楼-回民街商圈",
+      "district": "莲湖区/碑林区",
+      "landmarks": ["钟楼", "鼓楼", "回民街", "南门城墙"],
+      "tags": ["小吃", "citywalk", "游客密集", "夜间热闹", "历史街区"],
+      "defaultTransport": ["public_transport", "walk", "taxi"],
+      "suitableScenes": ["friends", "couple", "open"],
+      "mockDescription": "适合朋友小吃和城市漫步，也适合作为排队久、嘈杂、路线拥挤的反例来源。"
+    },
+    {
+      "areaId": "area_xa_gaoxin",
+      "name": "高新商圈",
+      "district": "雁塔区/高新区",
+      "landmarks": ["科技路", "高新大都荟", "高新万达", "丈八北路"],
+      "tags": ["白领", "轻食", "品质餐饮", "约会", "停车便利"],
+      "defaultTransport": ["taxi", "drive", "public_transport"],
+      "suitableScenes": ["couple", "solo", "friends"],
+      "mockDescription": "适合轻食、咖啡、简餐和安静约会，亲子活动相对少。"
+    },
+    {
+      "areaId": "area_xa_xingzheng",
+      "name": "行政中心-熙地港商圈",
+      "district": "未央区",
+      "landmarks": ["CityOn熙地港", "西安大融城", "行政中心"],
+      "tags": ["亲子", "商场", "停车便利", "家庭餐饮", "室内"],
+      "defaultTransport": ["taxi", "drive", "public_transport"],
+      "suitableScenes": ["family", "elderly", "friends"],
+      "mockDescription": "适合家庭、儿童乐园、商场餐饮和低风险室内活动。"
+    },
+    {
+      "areaId": "area_xa_daminggong",
+      "name": "大明宫-龙首原商圈",
+      "district": "未央区/新城区",
+      "landmarks": ["大明宫国家遗址公园", "龙首原", "大明宫万达"],
+      "tags": ["户外", "低预算", "亲子散步", "公园", "空间开阔"],
+      "defaultTransport": ["taxi", "public_transport", "drive"],
+      "suitableScenes": ["family", "elderly", "solo"],
+      "mockDescription": "适合低预算、户外轻活动和亲子散步，也能模拟天气、体力和步行风险。"
+    }
+  ]
+}

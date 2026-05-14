@@ -1,0 +1,20 @@
+{
+  "version": "stage3_mock_v1",
+  "city": "西安",
+  "dataType": "deals",
+  "note": "Mock 团购/套餐库存。用于模拟预算控制、库存判断和后续执行动作，不代表真实团购。",
+  "deals": [
+    { "dealId": "deal_xa_001", "poiId": "res_xa_001", "name": "双人低脂沙拉轻食套餐", "price": 118, "peopleCount": 2, "stockLeft": 10, "validTime": "10:30-20:30", "tags": ["低脂", "清淡"] },
+    { "dealId": "deal_xa_002", "poiId": "res_xa_003", "name": "双人轻食Bistro套餐", "price": 148, "peopleCount": 2, "stockLeft": 6, "validTime": "11:00-20:30", "tags": ["低脂", "约会"] },
+    { "dealId": "deal_xa_003", "poiId": "res_xa_005", "name": "三人汤包家常套餐", "price": 168, "peopleCount": 3, "stockLeft": 8, "validTime": "10:30-20:30", "tags": ["家庭", "儿童友好"] },
+    { "dealId": "deal_xa_004", "poiId": "res_xa_006", "name": "三人陕菜体验套餐", "price": 258, "peopleCount": 3, "stockLeft": 4, "validTime": "11:00-21:00", "tags": ["陕菜", "游客"] },
+    { "dealId": "deal_xa_005", "poiId": "res_xa_012", "name": "三人清淡家常套餐", "price": 198, "peopleCount": 3, "stockLeft": 12, "validTime": "11:00-20:30", "tags": ["清淡", "儿童友好", "家庭"] },
+    { "dealId": "deal_xa_006", "poiId": "res_xa_014", "name": "家庭陕菜双大一小套餐", "price": 188, "peopleCount": 3, "stockLeft": 5, "validTime": "11:00-20:30", "tags": ["家庭", "陕菜"] },
+    { "dealId": "deal_xa_007", "poiId": "res_xa_016", "name": "双人茶食聊天套餐", "price": 168, "peopleCount": 2, "stockLeft": 7, "validTime": "14:00-21:30", "tags": ["安静", "约会", "朋友聊天"] },
+    { "dealId": "deal_xa_008", "poiId": "res_xa_018", "name": "亲子咖啡简餐套餐", "price": 138, "peopleCount": 2, "stockLeft": 9, "validTime": "10:00-20:30", "tags": ["简餐", "儿童友好"] },
+    { "dealId": "deal_xa_009", "poiId": "act_xa_001", "name": "一大一小亲子入场票", "price": 138, "peopleCount": 2, "stockLeft": 12, "validTime": "09:30-18:00", "tags": ["亲子", "室内"] },
+    { "dealId": "deal_xa_010", "poiId": "act_xa_005", "name": "三人水族体验票", "price": 168, "peopleCount": 3, "stockLeft": 15, "validTime": "10:00-18:00", "tags": ["亲子", "科普"] },
+    { "dealId": "deal_xa_011", "poiId": "act_xa_009", "name": "双人唐风手作体验", "price": 198, "peopleCount": 2, "stockLeft": 3, "validTime": "11:00-20:30", "tags": ["手作", "约会"] },
+    { "dealId": "deal_xa_012", "poiId": "act_xa_016", "name": "亲子自然课堂单次体验", "price": 228, "peopleCount": 2, "stockLeft": 4, "validTime": "10:00-18:00", "tags": ["亲子", "科普"] }
+  ]
+}
