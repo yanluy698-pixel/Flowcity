@@ -158,9 +158,11 @@
             "colleagues",
             "solo",
             "mixed",
+            "ambiguous",
+            "pursuing",
             null
           ],
-          "description": "同行人关系。"
+          "description": "同行人关系。ambiguous 表示关系不明确，pursuing 表示正在追求/单向好感等非稳定情侣关系。"
         },
         "specialNeeds": {
           "type": "array",
@@ -201,7 +203,9 @@
       "additionalProperties": false,
       "required": [
         "startPoint",
+        "originPoints",
         "preferredArea",
+        "crossCityIntent",
         "maxTravelMinutes",
         "transportPreference",
         "distancePreference"
@@ -211,9 +215,47 @@
           "type": ["string", "null"],
           "description": "出发地，例如用户当前位置、小区、商圈。未知时为 null。"
         },
+        "originPoints": {
+          "type": "array",
+          "description": "多人不同出发地时记录每个出发点。单一出发地或未知时可为空数组。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "point"],
+            "properties": {
+              "label": {
+                "type": ["string", "null"],
+                "description": "出发主体标识，例如我、朋友A、长安大学同学。"
+              },
+              "point": {
+                "type": "string",
+                "description": "出发地文本，例如长安大学渭水校区、西安交大、咸阳市区。"
+              }
+            }
+          }
+        },
         "preferredArea": {
           "type": ["string", "null"],
           "description": "偏好区域或商圈。"
+        },
+        "crossCityIntent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "fromCity", "toCity"],
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "是否存在跨城/入城出行意图，例如咸阳到西安。"
+            },
+            "fromCity": {
+              "type": ["string", "null"],
+              "description": "出发城市，未知时为 null。"
+            },
+            "toCity": {
+              "type": ["string", "null"],
+              "description": "目标城市，未知时为 null。"
+            }
+          }
         },
         "maxTravelMinutes": {
           "type": ["integer", "null"],

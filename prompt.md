@@ -43,6 +43,14 @@
 - 列表字段填空数组 `[]`。
 - 不要自行编造具体值。
 
+## 抽取总原则
+
+- 只抽取用户明确表达或强烈暗示的信息。
+- 不要把常见推荐经验自动补成用户偏好。例如用户没说“少排队”，就不要把“少排队”放入 `preferences`；可以在 `assumptions` 中说明“未表达排队偏好”。
+- 不要把“去市区玩”自动改写成 `citywalk`，除非用户明确说了 citywalk、逛街、步行路线、走走。
+- 不要把“和喜欢的女生”“正在追求的人”“暧昧对象”直接判断为稳定情侣关系。可以把场景判断为 `couple` 或轻约会，但 `people.relationship` 应使用 `pursuing` 或 `ambiguous`。
+- 对于模糊表达，优先保留原话、降低置信度，并在 `clarificationQuestions` 里提出关键追问。
+
 ## 字段判断规则
 
 ### scene
@@ -60,6 +68,7 @@
 
 - 出现孩子、父母、老婆、家庭出行时，优先判断为 `family`。
 - 出现约会、情侣、对象、氛围餐厅时，优先判断为 `couple`。
+- 出现“喜欢的女生”“正在追求”“暧昧但未确认”等关系模糊表达时，`scene.primaryType` 可以是 `couple`，但 `people.relationship` 不要写 `couple`，应写 `pursuing` 或 `ambiguous`，并在 `scene.tags` 中写“轻约会”“关系模糊”“追求中”等。
 - 出现朋友、多人聚会、同学、同事轻聚时，优先判断为 `friends`。
 - 出现独自、一个人、自己放松时，优先判断为 `solo`。
 - 出现老人、爸妈、长辈、少走路等强相关表达时，可判断为 `elderly`。
@@ -85,6 +94,9 @@
 
 - 如果用户明确说了孩子年龄，填入 `children.age`。
 - 如果用户说“老婆减肥”“老人走不动”“朋友想拍照”等，写入 `specialNeeds`。
+- `relationship` 可以使用：`family`、`couple`、`friends`、`colleagues`、`solo`、`mixed`、`ambiguous`、`pursuing`。
+- 只有用户明确表达情侣、对象、男女朋友、约会对象等稳定关系时，才把 `relationship` 写为 `couple`。
+- 用户表达“喜欢的女生/男生”“正在追求”“不确定关系”时，优先写 `pursuing`；关系完全不清楚时写 `ambiguous`。
 - 如果人数无法确定，相关数字字段填 `null`。
 
 ### budget
@@ -103,7 +115,12 @@
 
 - 用户说“别太远”“附近”，写入 `distancePreference`。
 - 如果没有具体出发地，`startPoint` 填 `null`。
+- 如果只有一个明确出发地，写入 `startPoint`，`originPoints` 填空数组 `[]`。
+- 如果多人分别从不同地点出发，把地点写入 `originPoints`；`startPoint` 可填 `null` 或主要发起人的出发地。
 - 如果没有具体区域，`preferredArea` 填 `null`。
+- 如果用户表达从一个城市到另一个城市，例如“咸阳去西安”“在西安旁边的咸阳，想去西安玩”，把 `crossCityIntent.enabled` 写为 `true`，并填写 `fromCity` 和 `toCity`。
+- 如果没有跨城/入城意图，`crossCityIntent.enabled` 写为 `false`，`fromCity` 和 `toCity` 填 `null`。
+- 识别跨城意图不等于生成路线，不要擅自假设高铁、地铁、打车线路，除非用户明确说明交通方式。
 - 如果用户没有给出明确通勤分钟数，`maxTravelMinutes` 填 `null`，不要擅自假设。
 
 ### preferences
@@ -114,6 +131,13 @@
 - `foodTags`：餐饮偏好，例如低脂、清淡、儿童友好、小吃、氛围餐厅。
 - `experienceTags`：体验偏好，例如少排队、少走路、安静、路线轻松。
 - `avoidTags`：明确不想要的内容，例如太远、太贵、排队久、太吵。
+
+注意：
+
+- 只有用户明确说了“不排队”“别排队”“排队别太久”，才写入少排队或排队久相关偏好。
+- 只有用户明确说了 citywalk、逛街、走走、步行路线，才写入 citywalk/城市漫步。
+- 只有用户明确说了氛围、浪漫、有感觉、适合聊天等，才写入氛围相关偏好。
+- 从关系或场景中推测出的合理体验诉求，应优先写入 `assumptions`，不要直接放进 `preferences`。
 
 ### constraints
 
@@ -130,6 +154,7 @@
 - 儿童适龄
 - 老人体力限制
 - 明确忌口
+- 定向活动，例如“就想滑雪”“就想去酒吧”“一定要看展”
 
 常见软偏好：
 
@@ -158,8 +183,46 @@
 - 想 citywalk 但又不想走太多路。
 - 亲子场景但存在长排队风险。
 - 时间较短但想安排多个环节。
+- 多人分别从不同地点出发，集合点和通勤公平性可能冲突。
+- 不想花钱/预算很低，但又不想累或想要较好体验。
+- 跨城出行时，时间和预算可能被通勤消耗。
 
 如果没有明显冲突，输出空数组 `[]`。
+
+## 开放式复杂需求规则
+
+### 多地点相聚
+
+当用户说几个人分别在不同大学、不同校区或不同城市区域：
+
+- 把每个出发地写入 `location.originPoints`。
+- 不要自行决定集合点。
+- 在 `potentialConflicts` 中说明“多出发地导致集合点、通勤成本和预算公平性需要后续规划权衡”。
+- 如果每个人预算不同，预算策略应偏向较低预算者；同时在冲突中说明预算不一致。
+
+### 城市群/跨城
+
+当用户表达从咸阳、西安周边、临近城市进入西安市区：
+
+- `location.crossCityIntent.enabled` 写为 `true`。
+- 只记录 fromCity/toCity 和用户明确交通方式。
+- 不要擅自推荐西安路线或判断一定能去；是否可行留给后续 Mock API/Planner。
+
+### 自相矛盾需求
+
+当用户表达“不想花钱但不想累”“想走走但走不了太多”“时间短但想安排很多”：
+
+- 不要强行消除矛盾。
+- 把冲突写入 `potentialConflicts`。
+- 在 `expectedOutput.mustInclude` 中保留“风险提示”。
+
+### 定向活动
+
+当用户说“就想去酒吧”“就想滑雪”“一定要看展”“只想吃火锅”：
+
+- 把该活动/餐饮类型写入 `preferences.activityTypes` 或 `preferences.foodTags`。
+- 同时写入 `constraints.hard`，表示后续方案必须围绕这个定向需求展开。
+- 不要泛化成普通周末推荐。
 
 ### expectedOutput
 

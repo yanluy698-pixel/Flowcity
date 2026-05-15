@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -173,37 +174,101 @@ def parse_json_object(text: str) -> dict[str, Any]:
     return json.loads(stripped)
 
 
-def basic_validate(result: dict[str, Any], schema: dict[str, Any]) -> list[str]:
-    """
-    阶段二的轻量校验。
-    现在先检查顶层字段和 scene 关键字段；后续可替换为完整 JSON Schema 校验器。
-    """
+def _json_type(value: Any) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int) and not isinstance(value, bool):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return type(value).__name__
+
+
+def _type_matches(value: Any, expected: str) -> bool:
+    if expected == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "object":
+        return isinstance(value, dict)
+    if expected == "null":
+        return value is None
+    return True
+
+
+def _validate_schema(value: Any, schema: dict[str, Any], path: str) -> list[str]:
+    """Validate the JSON Schema subset used by schema.json."""
     errors: list[str] = []
 
-    required = schema.get("required", [])
-    for field in required:
-        if field not in result:
-            errors.append(f"Missing top-level field: {field}")
+    expected_type = schema.get("type")
+    if expected_type is not None:
+        allowed_types = expected_type if isinstance(expected_type, list) else [expected_type]
+        if not any(_type_matches(value, item) for item in allowed_types):
+            errors.append(f"{path}: expected {'/'.join(allowed_types)}, got {_json_type(value)}")
+            return errors
 
-    allowed = set(schema.get("properties", {}).keys())
-    for field in result:
-        if field not in allowed:
-            errors.append(f"Unexpected top-level field: {field}")
+    if "enum" in schema and value not in schema["enum"]:
+        errors.append(f"{path}: value {value!r} is not in enum {schema['enum']!r}")
 
-    scene = result.get("scene")
-    if isinstance(scene, dict):
-        primary_type = scene.get("primaryType")
-        allowed_scene_types = schema["properties"]["scene"]["properties"]["primaryType"]["enum"]
-        if primary_type not in allowed_scene_types:
-            errors.append(f"Invalid scene.primaryType: {primary_type}")
+    if "const" in schema and value != schema["const"]:
+        errors.append(f"{path}: value {value!r} does not equal const {schema['const']!r}")
 
-        confidence = scene.get("confidence")
-        if not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
-            errors.append("scene.confidence must be a number between 0 and 1")
-    elif "scene" in result:
-        errors.append("scene must be an object")
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if "minimum" in schema and value < schema["minimum"]:
+            errors.append(f"{path}: value {value!r} is below minimum {schema['minimum']!r}")
+        if "maximum" in schema and value > schema["maximum"]:
+            errors.append(f"{path}: value {value!r} is above maximum {schema['maximum']!r}")
+
+    if isinstance(value, str) and "pattern" in schema:
+        if not re.match(schema["pattern"], value):
+            errors.append(f"{path}: value {value!r} does not match pattern {schema['pattern']!r}")
+
+    if isinstance(value, dict):
+        properties = schema.get("properties", {})
+        for field in schema.get("required", []):
+            if field not in value:
+                errors.append(f"{path}.{field}: missing required field")
+
+        if schema.get("additionalProperties") is False:
+            allowed = set(properties)
+            for field in value:
+                if field not in allowed:
+                    errors.append(f"{path}.{field}: unexpected field")
+
+        for field, child_schema in properties.items():
+            if field in value:
+                errors.extend(_validate_schema(value[field], child_schema, f"{path}.{field}"))
+
+    if isinstance(value, list) and "items" in schema:
+        for index, item in enumerate(value):
+            errors.extend(_validate_schema(item, schema["items"], f"{path}[{index}]"))
 
     return errors
+
+
+def basic_validate(result: dict[str, Any], schema: dict[str, Any]) -> list[str]:
+    """
+    Validate model output against schema.json.
+
+    This small built-in validator covers the schema keywords used in this
+    project: type, required, properties, additionalProperties, enum, const,
+    minimum, maximum, pattern, and items.
+    """
+    return _validate_schema(result, schema, "$")
 
 
 def main() -> int:

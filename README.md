@@ -2,35 +2,35 @@
 
 FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型。
 
-项目目标不是做一个普通聊天机器人或固定场景推荐器，而是让用户用一句自然语言表达目标后，系统能够逐步完成：
+项目目标不是做普通聊天机器人，也不是固定场景推荐器，而是让用户用一句自然语言表达目标后，系统逐步完成：
 
 ```text
 自然语言输入 -> 多约束拆解 -> 本地生活工具调用 -> 方案规划 -> 履约校验 -> 确认执行
 ```
 
-当前进度处于阶段三：数据与 Mock API。
+当前进度：**阶段三：数据与 Mock API**。
 
-## 当前阶段
+## 当前能力
 
-阶段二已经能把用户自然语言需求拆成稳定 JSON。
-阶段三已经加入本地 Mock 供给数据和函数版 Mock API，用于模拟活动、餐厅、路线、排队、预约和团购库存查询。
+阶段二已经完成需求结构化器，能把用户自然语言需求拆成稳定 JSON。阶段三已经加入本地 Mock 供给数据和函数版 Mock API，用于模拟活动、餐厅、路线、排队、预约和团购库存查询。
 
-当前已完成：
+已完成：
 
-- `schema.json`：定义结构化需求字段。
-- `prompt.md`：定义大模型抽取需求的 Prompt 模板。
-- `examples.json`：提供 3 套标准输入样例和期望结构化输出。
-- `extractor.py`：调用 DeepSeek OpenAI 兼容 API，将用户输入转成 JSON，并做基础校验。
+- `schema.json`：结构化需求 Schema，包含时间、人群、预算、位置、偏好、约束、潜在冲突等字段。
+- `prompt.md`：大模型需求抽取 Prompt，强调不脑补、不生成 POI、不做路线规划。
+- `examples.json`：8 套标准样例，覆盖亲子、情侣、朋友，以及多地点相聚、关系模糊、跨城、矛盾需求、定向活动。
+- `extractor.py`：调用 DeepSeek OpenAI 兼容 API，把用户输入转成 JSON，并做 Schema 校验。
+- `test_examples.py`：批量校验样例，不调用模型也能检查 Schema 和阶段三兼容性；可选 `--llm` 调用模型评测。
 - `data/*.json`：西安本地生活 Mock 数据，包括商圈、活动、餐厅、路线、动态状态和团购。
 - `mock_api.py`：函数版 Mock API，读取本地 JSON，完成硬约束过滤和软偏好打分。
-- `run_flow.py`：一条命令串联阶段二和阶段三。
+- `run_flow.py`：串联阶段二和阶段三，一条命令从自然语言输入跑到 Mock 供给查询。
 - `api.py`：可选 FastAPI 包装层，后续前端或 HTTP 工具调用时使用。
 
 当前不做：
 
 - 不接真实美团 API。
-- 不做预约、排队、下单。
-- 不做完整行程规划。
+- 不做真实预约、排队、下单。
+- 不做完整行程时间轴规划。
 
 这些会在后续阶段推进。
 
@@ -45,8 +45,9 @@ Flowcity/
   TODO.md           # 后续任务清单
   schema.json       # 结构化需求 Schema
   prompt.md         # 需求抽取 Prompt 模板
-  examples.json     # 标准样例
-  extractor.py      # 需求结构化最小原型
+  examples.json     # 标准样例和期望结构化输出
+  extractor.py      # 阶段二需求结构化原型
+  test_examples.py  # 阶段二批量测试脚本
   data/             # 阶段三 Mock 数据
   mock_api.py       # 阶段三函数版 Mock API
   run_flow.py       # 阶段二 + 阶段三串联脚本
@@ -69,13 +70,13 @@ FLOWCITY_LLM_MAX_TOKENS=4096
 
 ## 运行方式
 
-在 PowerShell 中进入项目目录：
+进入项目目录：
 
 ```powershell
 cd "D:\产品\美团\周末闲时活动规划\Flowcity"
 ```
 
-试运行，不调用模型，只查看最终 Prompt：
+只查看最终 Prompt，不调用模型：
 
 ```powershell
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' extractor.py --input "周六下午2点到6点，带5岁孩子和老婆出去玩，预算400。" --dry-run
@@ -87,7 +88,17 @@ cd "D:\产品\美团\周末闲时活动规划\Flowcity"
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' extractor.py --input "周六下午2点到6点，带5岁孩子和老婆出去玩，老婆在减肥，别太远，预算400。"
 ```
 
-成功后会输出结构化 JSON。
+批量测试样例，不调用模型：
+
+```powershell
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' test_examples.py
+```
+
+批量调用模型评测样例：
+
+```powershell
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' test_examples.py --llm
+```
 
 完整链路试运行：自然语言 -> 阶段二结构化 -> 阶段三 Mock 供给查询。
 
@@ -101,43 +112,13 @@ cd "D:\产品\美团\周末闲时活动规划\Flowcity"
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' .\mock_api.py --example-id friends_citywalk --limit 3
 ```
 
-`run_flow.py` 输出结构：
-
-```text
-input
-structuredDemand
-mockSupply
-  activityCandidates
-  restaurantCandidates
-  routeCandidates
-  filteredOut
-  toolLogs
-```
-
-## FastAPI 可选层
-
-当前阶段优先使用 `mock_api.py` 和 `run_flow.py`。
-如果后续要让前端或其他服务通过 HTTP 调用，可安装：
-
-```powershell
-pip install fastapi uvicorn
-```
-
-然后在 `Flowcity` 目录启动：
-
-```powershell
-uvicorn api:app --reload
-```
-
 ## 当前技术选择
 
-当前暂不使用 LangChain 或多 Agent 框架。
-
-原因是当前任务很单一：
+当前暂不使用 LangChain 或多 Agent 框架。原因是当前任务边界清楚：
 
 ```text
 阶段二：自然语言 -> 结构化 JSON
 阶段三：结构化 JSON -> Mock 工具查询
 ```
 
-直接调用模型 API 和本地确定性工具更清楚，也更适合学习和调试。后续进入 Planner、Validator 和 Replanner 循环后，再评估是否引入 Agent 框架。
+直接调用模型 API 和本地确定性工具更清晰，也更适合学习、调试和比赛 Demo 快速推进。后续进入 Planner、Validator、Replanner 循环后，再评估是否引入 Agent 框架。
