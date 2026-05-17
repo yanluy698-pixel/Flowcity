@@ -89,6 +89,11 @@ def _budget_limit(demand: dict[str, Any]) -> float | None:
     return None
 
 
+def _budget_is_strict(demand: dict[str, Any]) -> bool:
+    budget = demand.get("budget", {})
+    return budget.get("flexibility") == "strict" or _budget_limit(demand) == 0
+
+
 def _compact_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
     availability = candidate.get("availability") or {}
     return {
@@ -356,29 +361,50 @@ def _select_pair(
         return activities[0], None
 
     budget_limit = _budget_limit(demand)
+    strict_budget = _budget_is_strict(demand)
     best_pair: tuple[float, dict[str, Any], dict[str, Any]] | None = None
+    best_feasible_pair: tuple[float, dict[str, Any], dict[str, Any]] | None = None
     for activity in activities[:8]:
         for restaurant in restaurants[:8]:
             activity_cost = float(activity.get("estimatedCost", 0))
             restaurant_cost = float(restaurant.get("estimatedCost", 0))
-            route_cost = float(activity.get("estimatedRouteCost", 0))
+            first_route = _route_for_area(mock_supply, activity.get("areaId"))
+            if first_route and not first_route.get("isCrossCityInbound"):
+                first_route = None
+            transfer_route = _route_between(
+                mock_supply,
+                activity.get("areaId"),
+                restaurant.get("areaId"),
+            )
+            route_cost = float((first_route or {}).get("estimatedCostTotal", 0)) + float(
+                (transfer_route or {}).get("estimatedCostTotal", 0)
+            )
             total = activity_cost + restaurant_cost + route_cost
             score = float(activity.get("score", 0)) + float(restaurant.get("score", 0))
             if activity.get("areaId") == restaurant.get("areaId"):
                 score += 4
-            elif _route_between(mock_supply, activity.get("areaId"), restaurant.get("areaId")):
+            elif transfer_route:
                 score += 1
             else:
-                score -= 8
+                continue
             if budget_limit is not None:
                 if total <= budget_limit:
-                    score += 3
+                    score += 8 if strict_budget else 3
                 else:
-                    score -= min(6, (total - budget_limit) / 50)
+                    over_budget = total - budget_limit
+                    if strict_budget:
+                        score -= 100 + over_budget
+                    else:
+                        score -= min(6, over_budget / 50)
             score -= total / 300
             if best_pair is None or score > best_pair[0]:
                 best_pair = (score, activity, restaurant)
+            if budget_limit is not None and total <= budget_limit:
+                if best_feasible_pair is None or score > best_feasible_pair[0]:
+                    best_feasible_pair = (score, activity, restaurant)
 
+    if strict_budget and best_feasible_pair:
+        return best_feasible_pair[1], best_feasible_pair[2]
     if best_pair:
         return best_pair[1], best_pair[2]
     return activities[0], restaurants[0]

@@ -2,7 +2,7 @@
 FlowCity local pipeline runner.
 
 Natural language input -> Stage 2 extractor -> Stage 3 mock supply search
--> Stage 4 timeline planner.
+-> Stage 4 timeline planner -> Stage 5 validator and local replanner.
 
 This script is the glue layer. Stage 2 still lives in extractor.py, and Stage 3
 still lives in mock_api.py.
@@ -19,6 +19,7 @@ from typing import Any
 import extractor
 import mock_api
 import planner
+import validator
 
 
 def _limit_supply(result: dict[str, Any], limit: int) -> dict[str, Any]:
@@ -63,11 +64,14 @@ def run_from_natural_language(
         fallback_on_error=not strict_planner_llm,
         limit=max(limit, 1),
     )
+    stage5 = validator.validate_and_replan(structured_demand, full_supply, timeline_plan)
     return {
         "input": user_input,
         "structuredDemand": structured_demand,
         "mockSupply": mock_supply,
         "timelinePlan": timeline_plan,
+        "validationResult": stage5["validationResult"],
+        "replanResult": stage5["replanResult"],
     }
 
 
@@ -86,17 +90,20 @@ def run_from_structured_demand(
         fallback_on_error=not strict_planner_llm,
         limit=max(limit, 1),
     )
+    stage5 = validator.validate_and_replan(structured_demand, full_supply, timeline_plan)
     return {
         "input": structured_demand.get("rawInput"),
         "structuredDemand": structured_demand,
         "mockSupply": mock_supply,
         "timelinePlan": timeline_plan,
+        "validationResult": stage5["validationResult"],
+        "replanResult": stage5["replanResult"],
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run FlowCity Stage 2 + Stage 3 + Stage 4 in one command."
+        description="Run FlowCity Stage 2 + Stage 3 + Stage 4 + Stage 5 in one command."
     )
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--input", help="Natural-language user demand. Calls the LLM.")
@@ -135,6 +142,16 @@ def main() -> int:
         type=Path,
         help="Optional path to save the Stage 4 timeline plan JSON.",
     )
+    parser.add_argument(
+        "--save-validation",
+        type=Path,
+        help="Optional path to save the Stage 5 validation result JSON.",
+    )
+    parser.add_argument(
+        "--save-replan",
+        type=Path,
+        help="Optional path to save the Stage 5 local replan result JSON.",
+    )
     args = parser.parse_args()
 
     try:
@@ -168,6 +185,8 @@ def main() -> int:
     _save_json(args.save_structured, result["structuredDemand"])
     _save_json(args.save_supply, result["mockSupply"])
     _save_json(args.save_plan, result["timelinePlan"])
+    _save_json(args.save_validation, result["validationResult"])
+    _save_json(args.save_replan, result["replanResult"])
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

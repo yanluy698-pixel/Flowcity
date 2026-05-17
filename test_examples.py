@@ -18,6 +18,7 @@ from typing import Any
 import extractor
 import mock_api
 import planner
+import validator
 
 
 ROOT = Path(__file__).resolve().parent
@@ -251,6 +252,129 @@ def check_stage4_planner(examples: list[dict[str, Any]]) -> list[str]:
     ):
         errors.append("contradictory_low_cost_not_tired: planner should explain low-cost vs less-tired tradeoff")
 
+    family_demand = example_by_id["family_half_day"]["expectedStructuredDemand"]
+    family_supply = mock_api.search_supply(family_demand)
+    family_plan = planner.plan_timeline(family_demand, family_supply, use_llm=False)
+    family_budget_limit = family_demand["budget"]["maxTotal"]
+    family_total = family_plan.get("budgetEstimate", {}).get("totalCost", 0)
+    if family_total > family_budget_limit:
+        errors.append(
+            f"family_half_day: strict-budget planner should choose a total-cost-feasible pair, got {family_total} > {family_budget_limit}"
+        )
+
+    return errors
+
+
+def check_stage5_validator(examples: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    example_by_id = {example["id"]: example for example in examples}
+
+    for example in examples:
+        example_id = example["id"]
+        demand = example["expectedStructuredDemand"]
+        try:
+            supply = mock_api.search_supply(demand)
+            timeline_plan = planner.plan_timeline(demand, supply, use_llm=False)
+            result = validator.validate_and_replan(demand, supply, timeline_plan)
+        except Exception as exc:
+            errors.append(f"{example_id}: Stage 5 validator failed: {exc}")
+            continue
+
+        validation_result = result.get("validationResult", {})
+        if validation_result.get("status") not in validator.VALIDATION_STATUSES:
+            errors.append(f"{example_id}: invalid validationResult.status")
+        for field in ("issues", "checkedDimensions", "replanNeeded", "suggestedActions"):
+            if field not in validation_result:
+                errors.append(f"{example_id}: missing validationResult.{field}")
+        if example_id == "directed_skiing_activity" and validation_result.get("replanNeeded"):
+            errors.append("directed_skiing_activity: Stage 5 should not replan when Stage 3 hard-failed")
+
+    low_cost_demand = example_by_id["contradictory_low_cost_not_tired"]["expectedStructuredDemand"]
+    low_cost_supply = mock_api.search_supply(low_cost_demand)
+    low_cost_plan = planner.plan_timeline(low_cost_demand, low_cost_supply, use_llm=False)
+    low_cost_validation = validator.validate_plan(low_cost_demand, low_cost_supply, low_cost_plan)
+    if any(issue.get("code") == "FREE_REQUIRED_COST_FOUND" for issue in low_cost_validation["issues"]):
+        errors.append("contradictory_low_cost_not_tired: Stage 5 treated low-cost preference as zero budget")
+
+    free_preferred_demand = {
+        "rawInput": "周末下午最好免费，优先免费，但也可以少花钱兜底，想轻松走走。",
+        "scene": {"tags": ["独自放松"]},
+        "timeWindow": {
+            "dateText": "周六",
+            "startTime": "14:00",
+            "endTime": "18:00",
+            "durationHours": 4,
+            "isFlexible": True,
+        },
+        "people": {"total": 1, "adults": 1, "children": [], "seniors": [], "relationship": "solo", "specialNeeds": []},
+        "budget": {"maxTotal": None, "perPerson": None, "currency": "CNY", "flexibility": "flexible"},
+        "location": {
+            "startPoint": None,
+            "originPoints": [],
+            "preferredArea": None,
+            "crossCityIntent": {"enabled": False, "fromCity": None, "toCity": None},
+            "maxTravelMinutes": None,
+            "transportPreference": None,
+            "distancePreference": "nearby",
+        },
+        "preferences": {
+            "activityTypes": ["轻松"],
+            "foodTags": [],
+            "experienceTags": ["优先免费", "低成本"],
+            "avoidTags": [],
+        },
+        "constraints": {"hard": [], "soft": ["优先免费"], "dynamic": []},
+        "potentialConflicts": [],
+        "expectedOutput": {"type": "timeline_plan", "mustInclude": [], "niceToHave": [], "assumptions": []},
+    }
+    free_preferred_supply = mock_api.search_supply(free_preferred_demand)
+    free_preferred_plan = planner.plan_timeline(free_preferred_demand, free_preferred_supply, use_llm=False)
+    free_preferred_validation = validator.validate_plan(
+        free_preferred_demand, free_preferred_supply, free_preferred_plan
+    )
+    if free_preferred_plan.get("budgetEstimate", {}).get("totalCost", 0) > 0 and not any(
+        issue.get("code") == "FREE_PREFERRED_NOT_FULLY_FREE"
+        for issue in free_preferred_validation["issues"]
+    ):
+        errors.append("free_preferred: Stage 5 should warn when fallback is not fully free")
+
+    free_required_demand = {
+        **free_preferred_demand,
+        "rawInput": "周末下午预算0元，只能免费，想轻松走走。",
+        "budget": {"maxTotal": 0, "perPerson": None, "currency": "CNY", "flexibility": "strict"},
+        "preferences": {
+            "activityTypes": ["轻松"],
+            "foodTags": [],
+            "experienceTags": ["只能免费"],
+            "avoidTags": ["花钱"],
+        },
+        "constraints": {"hard": ["只能免费"], "soft": ["轻松"], "dynamic": []},
+    }
+    free_required_supply = mock_api.search_supply(free_required_demand)
+    free_required_plan = {
+        "status": "ok",
+        "summary": "故意构造一个收费方案，验证阶段五能拦住。",
+        "timeline": [],
+        "selectedItems": [],
+        "budgetEstimate": {
+            "activityCost": 10,
+            "restaurantCost": 0,
+            "routeCost": 0,
+            "totalCost": 10,
+            "perPersonCost": 10,
+            "currency": "CNY",
+            "notes": [],
+        },
+        "recommendationReasons": [],
+        "riskTips": [],
+        "tradeoffs": [],
+    }
+    free_required_validation = validator.validate_plan(
+        free_required_demand, free_required_supply, free_required_plan
+    )
+    if not any(issue.get("code") == "FREE_REQUIRED_COST_FOUND" for issue in free_required_validation["issues"]):
+        errors.append("free_required: Stage 5 should block paid plan for zero/free-required budget")
+
     return errors
 
 
@@ -292,6 +416,7 @@ def main() -> int:
     errors.extend(check_stage3_compatibility(examples))
     errors.extend(check_stage3_behavior(examples))
     errors.extend(check_stage4_planner(examples))
+    errors.extend(check_stage5_validator(examples))
 
     if args.llm:
         errors.extend(run_llm_examples(examples))
