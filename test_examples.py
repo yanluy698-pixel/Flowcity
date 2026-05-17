@@ -17,6 +17,7 @@ from typing import Any
 
 import extractor
 import mock_api
+import planner
 
 
 ROOT = Path(__file__).resolve().parent
@@ -138,6 +139,98 @@ def check_stage3_behavior(examples: list[dict[str, Any]]) -> list[str]:
     return errors
 
 
+def check_stage2_normalization() -> list[str]:
+    errors: list[str] = []
+    result = {
+        "rawInput": "周末下午我不想花钱，就想随便走走，但也不想太累。",
+        "budget": {
+            "maxTotal": 0,
+            "perPerson": None,
+            "currency": "CNY",
+            "flexibility": "strict",
+        },
+        "preferences": {
+            "activityTypes": ["随便走走"],
+            "foodTags": [],
+            "experienceTags": ["不想花钱"],
+            "avoidTags": [],
+        },
+        "constraints": {
+            "hard": ["尽量不花钱"],
+            "soft": ["轻松"],
+            "dynamic": [],
+        },
+    }
+    normalized = extractor.normalize_structured_demand(result)
+    if normalized["budget"]["maxTotal"] is not None:
+        errors.append("low-cost normalization: maxTotal should be null, not 0")
+    if normalized["budget"]["flexibility"] != "flexible":
+        errors.append("low-cost normalization: flexibility should become flexible")
+    if "低成本" not in normalized["preferences"]["experienceTags"]:
+        errors.append("low-cost normalization: missing low-cost experience tag")
+
+    explicit_zero = {
+        "rawInput": "周末下午预算0元，只能免费。",
+        "budget": {
+            "maxTotal": 0,
+            "perPerson": None,
+            "currency": "CNY",
+            "flexibility": "strict",
+        },
+    }
+    normalized_zero = extractor.normalize_structured_demand(explicit_zero)
+    if normalized_zero["budget"]["maxTotal"] != 0:
+        errors.append("low-cost normalization: explicit zero budget should stay 0")
+
+    return errors
+
+
+def check_stage4_planner(examples: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    example_by_id = {example["id"]: example for example in examples}
+
+    for example in examples:
+        example_id = example["id"]
+        demand = example["expectedStructuredDemand"]
+        try:
+            supply = mock_api.search_supply(demand)
+            timeline_plan = planner.plan_timeline(demand, supply, use_llm=False)
+        except Exception as exc:
+            errors.append(f"{example_id}: planner.plan_timeline failed: {exc}")
+            continue
+
+        validation_errors = planner.validate_timeline_plan(timeline_plan, supply)
+        errors.extend(f"{example_id}: {error}" for error in validation_errors)
+
+    skiing_demand = example_by_id["directed_skiing_activity"]["expectedStructuredDemand"]
+    skiing_supply = mock_api.search_supply(skiing_demand)
+    skiing_plan = planner.plan_timeline(skiing_demand, skiing_supply, use_llm=False)
+    if skiing_plan.get("status") != "failed":
+        errors.append("directed_skiing_activity: timelinePlan.status should be failed")
+    selected_names = " ".join(
+        str(item.get("name", "")) for item in skiing_plan.get("selectedItems", [])
+    )
+    if any(value in selected_names for value in ("展览", "手作", "书房")):
+        errors.append("directed_skiing_activity: planner recommended unrelated substitutes")
+
+    xianyang_demand = example_by_id["xianyang_to_xian_city_trip"]["expectedStructuredDemand"]
+    xianyang_supply = mock_api.search_supply(xianyang_demand)
+    xianyang_plan = planner.plan_timeline(xianyang_demand, xianyang_supply, use_llm=False)
+    route_cost = xianyang_plan.get("budgetEstimate", {}).get("routeCost", 0)
+    risk_text = " ".join(xianyang_plan.get("riskTips", []))
+    if route_cost <= 0 and "跨城" not in risk_text and "路线成本" not in risk_text:
+        errors.append("xianyang_to_xian_city_trip: planner should reflect cross-city route cost")
+
+    low_cost_demand = example_by_id["contradictory_low_cost_not_tired"]["expectedStructuredDemand"]
+    low_cost_supply = mock_api.search_supply(low_cost_demand)
+    low_cost_plan = planner.plan_timeline(low_cost_demand, low_cost_supply, use_llm=False)
+    tradeoff_text = " ".join(low_cost_plan.get("tradeoffs", []))
+    if "不想花钱" not in tradeoff_text or ("不想太累" not in tradeoff_text and "走不了太多路" not in tradeoff_text):
+        errors.append("contradictory_low_cost_not_tired: planner should explain low-cost vs less-tired tradeoff")
+
+    return errors
+
+
 def run_llm_examples(examples: list[dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     schema = extractor.load_json(extractor.SCHEMA_PATH)
@@ -148,6 +241,7 @@ def run_llm_examples(examples: list[dict[str, Any]]) -> list[str]:
         try:
             response_text = extractor.call_llm(prompt)
             result = extractor.parse_json_object(response_text)
+            result = extractor.normalize_structured_demand(result)
         except Exception as exc:
             errors.append(f"{example_id}: LLM extraction failed: {exc}")
             continue
@@ -171,8 +265,10 @@ def main() -> int:
     errors: list[str] = []
 
     errors.extend(validate_expected_examples(examples))
+    errors.extend(check_stage2_normalization())
     errors.extend(check_stage3_compatibility(examples))
     errors.extend(check_stage3_behavior(examples))
+    errors.extend(check_stage4_planner(examples))
 
     if args.llm:
         errors.extend(run_llm_examples(examples))

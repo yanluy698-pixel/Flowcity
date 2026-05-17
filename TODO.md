@@ -1,6 +1,6 @@
 # FlowCity TODO
 
-## 当前阶段：阶段三 - 数据与 Mock API
+## 当前阶段：阶段四 - AI 规划能力
 
 ### 已完成
 
@@ -51,10 +51,24 @@
 
 ## 阶段四：AI 规划能力
 
-- [ ] 设计 Planner 输入格式。
-- [ ] 设计时间轴方案输出格式。
-- [ ] 基于阶段二结构化需求和阶段三 Mock 数据生成方案。
-- [ ] 输出推荐理由、预算估算和风险提示。
+- [x] 设计 Planner 输入格式。
+- [x] 设计时间轴方案输出格式。
+- [x] 基于阶段二结构化需求和阶段三 Mock 数据生成方案。
+- [x] 输出推荐理由、预算估算和风险提示。
+- [x] 增加规则约束下的 LLM Planner Prompt。
+- [x] 增加离线确定性草案，保证无 Key/无网络时测试可跑。
+- [x] 校验 Planner 输出字段和候选引用合法性。
+- [x] 接入 `run_flow.py`，形成 `input -> structuredDemand -> mockSupply -> timelinePlan` 链路。
+- [x] 增加 Planner JSON 解析失败重试，降低真实 LLM 输出截断造成的失败率。
+- [x] 强化路线、预算、跨城一致性校验，避免 Planner 编造路线或漏算入城成本。
+- [x] 修复低成本语义回归：想花钱少是偏好低成本，不等于严格预算 0。
+
+### 阶段四待优化
+
+- [ ] 固化 3 条稳定演示输入，并保存对应 `timelinePlan` 黄金样例。
+- [ ] 把 20 条真实 LLM 测试报告中的失败类型沉淀为自动化回归用例。
+- [ ] 增加 Planner 输出的人类可读渲染层，减少 Demo 时直接阅读 JSON。
+- [ ] 为阶段五 Validator 准备更细的时间、营业时段、票座、排队 Mock 字段。
 
 ## 阶段五：Validator 与重排
 
@@ -91,8 +105,8 @@
 
 ### 第 1 步：今天先打穿闭环
 
-- [ ] 定义并固定主数据流：`structuredDemand -> mockSupply -> timelinePlan -> executionResult`。
-- [ ] 新增 `planner.py`，把候选活动、餐厅、路线组合成可执行时间轴方案。
+- [x] 定义并固定主数据流：`structuredDemand -> mockSupply -> timelinePlan`。
+- [x] 新增 `planner.py`，把候选活动、餐厅、路线组合成可执行时间轴方案。
 - [ ] 新增 `validator.py`，校验时间窗口、预算、余票、座位、排队、人群适配和路线折腾程度。
 - [ ] 新增 `executor.py`，Mock 锁票、预约、团购下单、线上取号、分享文案生成。
 - [ ] 升级 `run_flow.py`，支持一条命令输出完整链路：需求拆解、供给查询、时间轴方案、校验结果、执行结果。

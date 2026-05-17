@@ -201,4 +201,89 @@ toolLogs
 - `partial`：部分供给缺失，例如有活动没餐厅。
 - `failed`：硬约束下没有可用供给，例如“必须滑雪”但 Mock 供给池没有滑雪。
 
-后续阶段四 Planner 将基于阶段三候选供给生成时间轴方案。
+## 7. 阶段四：规则约束下的 LLM Planner
+
+阶段四已经完成第一版 AI 规划能力。它不提前做阶段五 Validator，也不做执行链路，而是专注回答一个问题：
+
+```text
+给定用户结构化需求和 Mock 供给事实，如何组合出一个合理的周末活动时间轴方案？
+```
+
+阶段四输入：
+
+```text
+structuredDemand + mockSupply
+```
+
+阶段四输出：
+
+```text
+timelinePlan
+```
+
+`timelinePlan` 固定包含：
+
+- `status`：`ok | partial | failed`
+- `summary`：一句话概览
+- `timeline`：活动、餐饮、路线/通勤、缓冲时间
+- `selectedItems`：被选中的活动、餐厅、路线候选
+- `budgetEstimate`：活动、餐饮、路线、总价、人均
+- `recommendationReasons`：为什么这样组合
+- `riskTips`：排队、余票、座位、预算、通勤和供给不足风险
+- `tradeoffs`：对矛盾需求的取舍说明
+- `rawPlannerNotes`：可选调试摘要，不面向最终用户展示
+
+阶段四的核心原则是：
+
+```text
+规则负责边界，LLM 负责规划。
+```
+
+规则层只做三件事：
+
+- 压缩候选：把阶段三候选整理成 Planner 易读输入，避免上下文太长。
+- 设定红线：不能编造 POI、价格、路线、库存或预约结果；硬约束失败时不能强行推荐无关方案。
+- 轻量检查：字段齐全、`poiId` 来自 `mockSupply`、`routeRef` 来自 `routeCandidates`、预算和路线成本基本一致。
+
+LLM 负责四件事：
+
+- 在候选活动、餐厅和路线之间自主组合。
+- 根据时间窗口排出合理时间轴。
+- 解释预算、距离、排队、座位、余票等取舍。
+- 面对冲突需求时明确偏向，例如省钱优先、轻松优先或体验优先。
+
+## 8. 阶段四打磨记录
+
+真实 LLM 测试后暴露出四类问题：
+
+- API 连接偶发中断，例如 `WinError 10054`。
+- Planner 输出 JSON 偶发截断或非法。
+- “不想花钱/少花钱”偶尔被模型误抽成 `maxTotal: 0`。
+- 跨城路线、预算和口头解释之间可能不一致。
+
+对应修复：
+
+- `extractor.py` 增加 LLM 调用重试，降低网络波动造成的测试中断。
+- `planner.py` 在 JSON 解析失败时允许有限重试，并保留离线确定性草案。
+- `prompt.md` 明确低成本语义：低成本是偏好，不等于预算 0；只有“预算 0 元/一分钱不能花/必须免费”才是严格 0。
+- `normalize_structured_demand` 做兜底归一：如果模型把低成本误抽成 0，但用户没有明确零预算，就改回 `null + flexible`。
+- `planner_prompt.md` 收紧事实边界，要求路线引用、金额、POI 都来自 Mock 供给。
+- `validate_timeline_plan` 强化校验：POI 引用合法、路线引用合法、预算可加总、路线成本一致、跨区域必须有真实路线。
+
+当前验证结果：
+
+- `test_examples.py`：8 个基准样例离线通过。
+- `py_compile`：核心脚本语法检查通过。
+- 阶段四 CLI 链路已支持 `input -> structuredDemand -> mockSupply -> timelinePlan`。
+
+## 9. 下一阶段建议
+
+接下来建议进入阶段五，但范围要克制：先做 Validator 闭环，不急着做 Web UI 或真实执行。
+
+阶段五优先级：
+
+- 校验时间窗口和路线耗时是否可行。
+- 校验预算分项和总价是否超过用户预算。
+- 校验活动余票、餐厅座位、排队风险和人群适配。
+- 输出结构化失败原因。
+- 在失败时触发局部 Replanner，只替换问题活动、餐厅或路线，不整套重来。

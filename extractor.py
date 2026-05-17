@@ -14,6 +14,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -29,6 +30,7 @@ ENV_PATH = ROOT / ".env"
 # 默认使用 DeepSeek 的 OpenAI 兼容接口；具体 Key 不写在代码里。
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-v4-flash"
+DEFAULT_LLM_RETRIES = 2
 
 
 def load_dotenv(path: Path = ENV_PATH) -> None:
@@ -97,6 +99,7 @@ def get_config() -> dict[str, Any]:
     base_url = os.getenv("FLOWCITY_LLM_BASE_URL", DEFAULT_BASE_URL)
     max_tokens = int(os.getenv("FLOWCITY_LLM_MAX_TOKENS", "4096"))
     json_output = os.getenv("FLOWCITY_LLM_JSON_OUTPUT", "true").lower() == "true"
+    retries = int(os.getenv("FLOWCITY_LLM_RETRIES", str(DEFAULT_LLM_RETRIES)))
 
     if not api_key:
         raise RuntimeError(
@@ -109,6 +112,7 @@ def get_config() -> dict[str, Any]:
         "url": normalize_chat_completions_url(base_url),
         "max_tokens": max_tokens,
         "json_output": json_output,
+        "retries": retries,
     }
 
 
@@ -149,12 +153,25 @@ def call_llm(prompt: str) -> str:
         method="POST",
     )
 
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            data = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"LLM request failed: HTTP {exc.code}\n{body}") from exc
+    last_error: Exception | None = None
+    for attempt in range(config["retries"] + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            break
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            # 4xx usually means bad request/auth/config; retrying just burns time.
+            if 400 <= exc.code < 500:
+                raise RuntimeError(f"LLM request failed: HTTP {exc.code}\n{body}") from exc
+            last_error = RuntimeError(f"LLM request failed: HTTP {exc.code}\n{body}")
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            last_error = exc
+
+        if attempt < config["retries"]:
+            time.sleep(1.5 * (attempt + 1))
+    else:
+        raise RuntimeError(f"LLM request failed after retries: {last_error}") from last_error
 
     content = data["choices"][0]["message"].get("content")
     if not content:
@@ -172,6 +189,73 @@ def parse_json_object(text: str) -> dict[str, Any]:
         if stripped.lower().startswith("json"):
             stripped = stripped[4:].strip()
     return json.loads(stripped)
+
+
+LOW_COST_PHRASES = (
+    "不想花钱",
+    "少花钱",
+    "预算越低越好",
+    "低成本",
+    "省钱",
+    "便宜点",
+    "预算少一点",
+)
+
+EXPLICIT_ZERO_BUDGET_PATTERNS = (
+    r"预算\s*0\s*元?",
+    r"零预算",
+    r"一分钱(?:都)?不(?:能|想)?花",
+    r"完全免费",
+    r"必须免费",
+    r"只能免费",
+    r"只要免费",
+)
+
+
+def _has_low_cost_intent(text: str) -> bool:
+    return any(phrase in text for phrase in LOW_COST_PHRASES)
+
+
+def _has_explicit_zero_budget(text: str) -> bool:
+    return any(re.search(pattern, text) for pattern in EXPLICIT_ZERO_BUDGET_PATTERNS)
+
+
+def normalize_structured_demand(result: dict[str, Any]) -> dict[str, Any]:
+    """
+    Normalize known model drift after extraction.
+
+    Product decision: "不想花钱 / 少花钱 / 预算越低越好" is a low-cost
+    preference, not a strict CNY 0 budget, unless the user explicitly says
+    zero budget or must be free.
+    """
+    raw_input = str(result.get("rawInput") or "")
+    if not _has_low_cost_intent(raw_input) or _has_explicit_zero_budget(raw_input):
+        return result
+
+    budget = result.get("budget")
+    if not isinstance(budget, dict):
+        return result
+
+    if budget.get("maxTotal") == 0:
+        budget["maxTotal"] = None
+    if budget.get("perPerson") == 0:
+        budget["perPerson"] = None
+    if budget.get("maxTotal") is None and budget.get("perPerson") is None:
+        budget["flexibility"] = "flexible"
+
+    preferences = result.get("preferences")
+    if isinstance(preferences, dict):
+        experience_tags = preferences.setdefault("experienceTags", [])
+        if isinstance(experience_tags, list) and "低成本" not in experience_tags:
+            experience_tags.append("低成本")
+
+    constraints = result.get("constraints")
+    if isinstance(constraints, dict):
+        soft = constraints.setdefault("soft", [])
+        if isinstance(soft, list) and "优先低成本/免费候选，但不等于严格预算 0" not in soft:
+            soft.append("优先低成本/免费候选，但不等于严格预算 0")
+
+    return result
 
 
 def _json_type(value: Any) -> str:
@@ -290,6 +374,7 @@ def main() -> int:
     # 正式运行：请求模型 -> 解析 JSON -> 用 schema 做基础校验。
     response_text = call_llm(prompt)
     result = parse_json_object(response_text)
+    result = normalize_structured_demand(result)
     errors = basic_validate(result, load_json(SCHEMA_PATH))
 
     print(json.dumps(result, ensure_ascii=False, indent=2))
