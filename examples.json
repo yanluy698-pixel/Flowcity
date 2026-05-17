@@ -418,8 +418,8 @@
           "specialNeeds": ["不想太累", "走不了太多路"]
         },
         "budget": {
-          "maxTotal": 0,
-          "perPerson": 0,
+          "maxTotal": null,
+          "perPerson": null,
           "currency": "CNY",
           "flexibility": "strict"
         },
@@ -439,7 +439,7 @@
           "avoidTags": ["花钱", "太累", "走太多路"]
         },
         "constraints": {
-          "hard": ["预算为0或尽量不花钱", "不能走太多路", "体验不能太累"],
+          "hard": ["尽量不花钱，优先免费活动", "不能走太多路", "体验不能太累"],
           "soft": ["轻松", "附近", "免费公共空间"],
           "dynamic": ["天气", "公共空间开放状态", "拥挤程度"]
         },

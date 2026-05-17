@@ -20,9 +20,9 @@ FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型
 - `prompt.md`：大模型需求抽取 Prompt，强调不脑补、不生成 POI、不做路线规划。
 - `examples.json`：8 套标准样例，覆盖亲子、情侣、朋友，以及多地点相聚、关系模糊、跨城、矛盾需求、定向活动。
 - `extractor.py`：调用 DeepSeek OpenAI 兼容 API，把用户输入转成 JSON，并做 Schema 校验。
-- `test_examples.py`：批量校验样例，不调用模型也能检查 Schema 和阶段三兼容性；可选 `--llm` 调用模型评测。
+- `test_examples.py`：批量校验样例，不调用模型也能检查 Schema、阶段三兼容性和关键行为断言；可选 `--llm` 调用模型评测。
 - `data/*.json`：西安本地生活 Mock 数据，包括商圈、活动、餐厅、路线、动态状态和团购。
-- `mock_api.py`：函数版 Mock API，读取本地 JSON，完成硬约束过滤和软偏好打分。
+- `mock_api.py`：函数版 Mock API，读取本地 JSON，完成硬约束过滤、软偏好打分、供给失败状态和路线成本挂载。
 - `run_flow.py`：串联阶段二和阶段三，一条命令从自然语言输入跑到 Mock 供给查询。
 - `api.py`：可选 FastAPI 包装层，后续前端或 HTTP 工具调用时使用。
 
@@ -111,6 +111,29 @@ cd "D:\产品\美团\周末闲时活动规划\Flowcity"
 ```powershell
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' .\mock_api.py --example-id friends_citywalk --limit 3
 ```
+
+阶段三关键能力样例：
+
+```powershell
+# 定向活动硬约束：没有滑雪供给时明确失败，不推荐展览替代
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' .\mock_api.py --example-id directed_skiing_activity --limit 3
+
+# 小都市圈出行：咸阳到西安入城路线进入 routeCandidates 和候选成本
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' .\mock_api.py --example-id xianyang_to_xian_city_trip --limit 3
+
+# 低成本语义：不想花钱优先免费/低消费，不再简单等于预算 0
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' .\mock_api.py --example-id contradictory_low_cost_not_tired --limit 3
+```
+
+## 阶段三本轮优化
+
+本轮重点是让 Mock API 更像“确定性工具层”，而不是提前做阶段四 Planner：
+
+- 定向硬约束：阶段三只读取结构化字段里的 `preferences.activityTypes` 和 `constraints.hard`。例如“就想滑雪”会被视为活动硬约束；当前供给池没有滑雪时，`activityCandidates` 为空，`supplyStatus.status` 为 `failed`。
+- 供给失败状态：新增 `supplyStatus`，包含 `status`、`failedConstraints` 和 `reasons`，用于告诉后续 Planner 哪些硬约束在工具层失败。
+- 小都市圈路线：`routeCandidates` 支持咸阳到西安主要商圈的 `cross_city_inbound` 入城路线，并带 `estimatedCostPerPerson`、`estimatedCostTotal`、`isCrossCityInbound`。
+- 候选路线成本：活动和餐厅候选可带 `routeSummary`、`estimatedRouteCost`、`estimatedTotalCostWithRoute`，让“咸阳到西安”真的影响排序和预算判断。
+- 低成本语义：不再把“不想花钱”粗暴转成预算 0，而是作为免费/低消费优先信号，避免把全部可行供给误杀。
 
 ## 当前技术选择
 

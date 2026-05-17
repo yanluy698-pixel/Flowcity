@@ -28,6 +28,13 @@
     { "fromAreaId": "area_xa_daminggong", "toAreaId": "area_xa_zhonglou", "transport": "taxi", "minutes": 20, "distanceKm": 6.5, "walkMinutesInsideArea": 13 },
     { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_daminggong", "transport": "taxi", "minutes": 22, "distanceKm": 6.5, "walkMinutesInsideArea": 13 },
     { "fromAreaId": "area_xa_gaoxin", "toAreaId": "area_xa_zhonglou", "transport": "taxi", "minutes": 28, "distanceKm": 9.5, "walkMinutesInsideArea": 12 },
-    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_gaoxin", "transport": "taxi", "minutes": 30, "distanceKm": 9.5, "walkMinutesInsideArea": 12 }
+    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_gaoxin", "transport": "taxi", "minutes": 30, "distanceKm": 9.5, "walkMinutesInsideArea": 12 },
+
+    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_xingzheng", "transport": "public_transport", "minutes": 48, "distanceKm": 23.0, "walkMinutesInsideArea": 8, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 8, "mockDescription": "咸阳市区经地铁/市域公共交通进入行政中心商圈的入城成本模拟" },
+    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_daminggong", "transport": "public_transport", "minutes": 58, "distanceKm": 29.0, "walkMinutesInsideArea": 12, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 9, "mockDescription": "咸阳市区进入大明宫-龙首原商圈的入城成本模拟" },
+    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_zhonglou", "transport": "public_transport", "minutes": 62, "distanceKm": 31.0, "walkMinutesInsideArea": 12, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 9, "mockDescription": "咸阳市区进入钟楼-回民街商圈的入城成本模拟" },
+    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_xiaozhai", "transport": "public_transport", "minutes": 68, "distanceKm": 35.0, "walkMinutesInsideArea": 8, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 10, "mockDescription": "咸阳市区进入小寨商圈的入城成本模拟" },
+    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_qujiang", "transport": "public_transport", "minutes": 78, "distanceKm": 41.0, "walkMinutesInsideArea": 10, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 11, "mockDescription": "咸阳市区进入大雁塔-曲江商圈的入城成本模拟" },
+    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_gaoxin", "transport": "public_transport", "minutes": 72, "distanceKm": 39.0, "walkMinutesInsideArea": 9, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 11, "mockDescription": "咸阳市区进入高新商圈的入城成本模拟" }
   ]
 }

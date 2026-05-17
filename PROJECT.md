@@ -134,6 +134,7 @@ FlowCity = 开放式需求理解 + 多约束拆解 + 本地生活工具调用 + 
 
 - 8 个 examples 是否符合 `schema.json`。
 - 8 个 examples 是否能进入阶段三 `mock_api.search_supply`。
+- 阶段三关键行为是否符合业务约束，例如定向滑雪不返回展览、咸阳入城路线必须带成本、不想花钱不能被预算 0 误杀。
 
 可选 `--llm` 调用 DeepSeek 批量评测模型输出质量。
 
@@ -161,7 +162,7 @@ JSON Output: enabled
 - `data/mock_routes.json`：路线/通勤时间。
 - `data/mock_availability.json`：排队、余票、座位和预约状态。
 - `data/mock_deals.json`：团购/套餐库存。
-- `mock_api.py`：读取 Mock 数据，完成硬约束过滤和软偏好打分。
+- `mock_api.py`：读取 Mock 数据，完成硬约束过滤、软偏好打分、供给失败状态和路线成本挂载。
 - `run_flow.py`：串联阶段二和阶段三，支持自然语言输入后直接查询 Mock 供给。
 
 也就是说：
@@ -173,16 +174,31 @@ JSON Output: enabled
 
 阶段三当前不调用大模型。它是确定性工具层，模拟本地生活平台的供给查询能力。
 
+本轮阶段三优化明确了工具层边界：
+
+- 不让 `mock_api.py` 重新理解自然语言。它只读取阶段二已经产出的结构化字段，例如 `preferences.activityTypes`、`constraints.hard`、`location.crossCityIntent`、`budget`。
+- 定向活动属于硬约束。例如结构化结果中出现“滑雪”时，阶段三只召回滑雪相关供给；当前 Mock 数据没有滑雪，就返回硬约束失败，而不是推荐展览、手作或书房。
+- 替代建议不在阶段三生成。阶段三只返回机器事实层的失败原因，后续阶段四 Planner 或阶段五 Replanner 再决定如何向用户解释和是否放宽约束。
+- “不想花钱”不等于严格预算 0。阶段三把它处理为免费/低消费优先信号，保留低成本候选，避免误杀所有供给。
+- “咸阳到西安”作为小都市圈周末出行能力进入路线成本。`mock_routes.json` 增加咸阳入城到西安主要商圈的 `cross_city_inbound` 路线，活动/餐厅候选会挂载 `routeSummary`、`estimatedRouteCost`、`estimatedTotalCostWithRoute`。
+
 阶段三输出：
 
 ```text
 activityCandidates
 restaurantCandidates
 routeCandidates
+supplyStatus
 filteredOut
 toolLogs
 ```
 
 其中 `filteredOut` 用于解释为什么某些活动或餐厅不可用，例如不适龄、超预算、无票、无座、排队过久或缺少目标日期动态状态。
+
+`supplyStatus` 用于告诉后续 Planner 阶段三供给查询是否完整可用：
+
+- `ok`：主要供给候选可用。
+- `partial`：部分供给缺失，例如有活动没餐厅。
+- `failed`：硬约束下没有可用供给，例如“必须滑雪”但 Mock 供给池没有滑雪。
 
 后续阶段四 Planner 将基于阶段三候选供给生成时间轴方案。
