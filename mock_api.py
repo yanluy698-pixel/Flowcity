@@ -27,6 +27,18 @@ DEFAULT_CITY = "西安"
 LOW_COST_ACTIVITY_LIMIT = 40
 LOW_COST_RESTAURANT_LIMIT = 40
 
+LOW_COST_KEYWORDS = ["不想花钱", "不花钱", "少花钱", "低成本", "省钱", "便宜", "预算少", "预算越低"]
+FREE_PREFERENCE_KEYWORDS = ["优先免费", "最好免费", "尽量免费", "免费公共空间", "免费活动"]
+FREE_REQUIRED_KEYWORDS = [
+    "预算0",
+    "零预算",
+    "一分钱都不能花",
+    "必须免费",
+    "只能免费",
+    "只要免费",
+    "完全免费",
+]
+
 DIRECTED_ACTIVITY_ALIASES = {
     "滑雪": ["滑雪", "雪场", "滑雪场", "冰雪"],
     "酒吧": ["酒吧", "bar"],
@@ -185,8 +197,6 @@ def _people_total(demand: dict[str, Any]) -> int:
 
 
 def _budget_max(demand: dict[str, Any]) -> float | None:
-    if _budget_mode(demand) == "free_or_low_cost":
-        return None
     budget = demand.get("budget", {})
     max_total = budget.get("maxTotal")
     if isinstance(max_total, (int, float)) and max_total > 0:
@@ -201,10 +211,14 @@ def _budget_mode(demand: dict[str, Any]) -> str:
     budget = demand.get("budget", {})
     max_total = budget.get("maxTotal")
     per_person = budget.get("perPerson")
-    if _has_any_text(demand, ["不想花钱", "不花钱", "免费", "零预算", "低成本"]):
-        return "free_or_low_cost"
     if max_total == 0 or per_person == 0:
-        return "free_or_low_cost"
+        return "free_required"
+    if _has_any_text(demand, FREE_REQUIRED_KEYWORDS):
+        return "free_required"
+    if _has_any_text(demand, FREE_PREFERENCE_KEYWORDS):
+        return "free_preferred"
+    if _has_any_text(demand, LOW_COST_KEYWORDS):
+        return "low_cost_preferred"
     if isinstance(max_total, (int, float)) or isinstance(per_person, (int, float)):
         return "strict_amount"
     return "unknown"
@@ -431,6 +445,11 @@ def search_activities(
             continue
 
         estimated_cost = activity["pricePerPerson"] * people_total
+        if budget_mode == "free_required" and estimated_cost > 0:
+            filtered_out.append(
+                _filtered(activity, "activity", f"活动预估费用 {estimated_cost:.0f} 元，不满足必须免费/预算 0")
+            )
+            continue
         if max_budget is not None and estimated_cost > max_budget:
             filtered_out.append(
                 _filtered(activity, "activity", f"活动预估费用 {estimated_cost:.0f} 元超过预算 {max_budget:.0f} 元")
@@ -457,9 +476,9 @@ def search_activities(
         if max_budget is not None and estimated_cost <= max_budget * 0.6:
             score += 1
             reasons.append("预算友好")
-        if budget_mode == "free_or_low_cost":
+        if budget_mode in {"free_required", "free_preferred", "low_cost_preferred"}:
             if activity["pricePerPerson"] == 0:
-                score += 5
+                score += 8 if budget_mode in {"free_required", "free_preferred"} else 5
                 reasons.append("免费活动")
             elif activity["pricePerPerson"] <= LOW_COST_ACTIVITY_LIMIT:
                 score += 3
@@ -557,6 +576,11 @@ def search_restaurants(
             continue
 
         estimated_cost = restaurant["avgPricePerPerson"] * people_total
+        if budget_mode == "free_required" and estimated_cost > 0:
+            filtered_out.append(
+                _filtered(restaurant, "restaurant", f"餐饮预估费用 {estimated_cost:.0f} 元，不满足必须免费/预算 0")
+            )
+            continue
         if max_budget is not None and estimated_cost > max_budget:
             filtered_out.append(
                 _filtered(restaurant, "restaurant", f"餐饮预估费用 {estimated_cost:.0f} 元超过预算 {max_budget:.0f} 元")
@@ -587,7 +611,7 @@ def search_restaurants(
         if max_budget is not None and estimated_cost <= max_budget * 0.6:
             score += 1
             reasons.append("预算友好")
-        if budget_mode == "free_or_low_cost":
+        if budget_mode in {"free_preferred", "low_cost_preferred"}:
             if restaurant["avgPricePerPerson"] <= LOW_COST_RESTAURANT_LIMIT:
                 score += 3
                 reasons.append("低消费餐饮候选")

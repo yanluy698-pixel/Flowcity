@@ -106,8 +106,10 @@
 - 明确说“预算 400”“不超过 300”，填入 `maxTotal`。
 - 明确说“人均 100”，填入 `perPerson`。
 - 只说“不要太贵”“便宜点”，金额字段填 `null`，`flexibility` 填 `flexible`。
-- 只说“不想花钱”“少花钱”“预算越低越好”“低成本”“省钱一点”，不要把金额字段写成 0；应填 `maxTotal: null`、`perPerson: null`，`flexibility` 填 `flexible` 或 `unknown`，并把低成本意图写入 `preferences.experienceTags`、`constraints.soft` 或 `potentialConflicts`。
-- 只有用户明确说“预算 0 元”“零预算”“一分钱都不能花”“必须免费”“只能免费”时，才允许把预算金额写成 0 或把免费作为硬约束。
+- 低成本语义分三档，不要混淆：
+  - `cheap_preference`：只说“不想花钱”“少花钱”“预算越低越好”“低成本”“省钱一点”，不要把金额字段写成 0；应填 `maxTotal: null`、`perPerson: null`，`flexibility` 填 `flexible` 或 `unknown`，并把低成本意图写入 `preferences.experienceTags`、`constraints.soft` 或 `potentialConflicts`。
+  - `free_preference`：只说“最好免费”“优先免费”“尽量免费”，仍然不是预算 0；金额字段填 `null`，免费作为强偏好写入 `constraints.soft`。
+  - `free_required`：只有用户明确说“预算 0 元”“零预算”“一分钱都不能花”“必须免费”“只能免费”“只要免费”时，才允许把预算金额写成 0 或把免费作为硬约束。
 - 明确上限预算时，`flexibility` 填 `strict`。
 - 默认币种为 `CNY`。
 

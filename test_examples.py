@@ -136,6 +136,25 @@ def check_stage3_behavior(examples: list[dict[str, Any]]) -> list[str]:
     if any("预算 0" in item.get("reason", "") for item in low_cost["filteredOut"]):
         errors.append("contradictory_low_cost_not_tired: still filtering against budget 0")
 
+    free_required_demand = {
+        "rawInput": "周末下午预算0元，只能免费，想轻松走走。",
+        "scene": {"tags": ["独自放松"]},
+        "people": {"total": 1, "adults": 1, "children": [], "seniors": []},
+        "budget": {"maxTotal": 0, "perPerson": None, "currency": "CNY", "flexibility": "strict"},
+        "preferences": {
+            "activityTypes": ["轻松"],
+            "foodTags": [],
+            "experienceTags": ["只能免费"],
+            "avoidTags": ["花钱"],
+        },
+        "constraints": {"hard": ["只能免费"], "soft": ["轻松"], "dynamic": []},
+    }
+    free_required = mock_api.search_supply(free_required_demand)
+    if any(item["estimatedCost"] > 0 for item in free_required["activityCandidates"]):
+        errors.append("free_required: activity candidates should be strictly free")
+    if any(item["estimatedCost"] > 0 for item in free_required["restaurantCandidates"]):
+        errors.append("free_required: restaurant candidates should be strictly free")
+
     return errors
 
 
@@ -168,6 +187,8 @@ def check_stage2_normalization() -> list[str]:
         errors.append("low-cost normalization: flexibility should become flexible")
     if "低成本" not in normalized["preferences"]["experienceTags"]:
         errors.append("low-cost normalization: missing low-cost experience tag")
+    if any("不花钱" in item or "低成本" in item for item in normalized["constraints"]["hard"]):
+        errors.append("low-cost normalization: low-cost language should not remain a hard constraint")
 
     explicit_zero = {
         "rawInput": "周末下午预算0元，只能免费。",
@@ -225,7 +246,9 @@ def check_stage4_planner(examples: list[dict[str, Any]]) -> list[str]:
     low_cost_supply = mock_api.search_supply(low_cost_demand)
     low_cost_plan = planner.plan_timeline(low_cost_demand, low_cost_supply, use_llm=False)
     tradeoff_text = " ".join(low_cost_plan.get("tradeoffs", []))
-    if "不想花钱" not in tradeoff_text or ("不想太累" not in tradeoff_text and "走不了太多路" not in tradeoff_text):
+    if ("低成本" not in tradeoff_text and "不想花钱" not in tradeoff_text) or (
+        "不想太累" not in tradeoff_text and "走不了太多路" not in tradeoff_text
+    ):
         errors.append("contradictory_low_cost_not_tired: planner should explain low-cost vs less-tired tradeoff")
 
     return errors

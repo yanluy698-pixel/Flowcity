@@ -77,9 +77,13 @@ def _time_label(value: int | None, fallback: str) -> str:
 def _budget_limit(demand: dict[str, Any]) -> float | None:
     budget = demand.get("budget", {})
     max_total = budget.get("maxTotal")
+    if max_total == 0:
+        return 0.0
     if isinstance(max_total, (int, float)) and max_total > 0:
         return float(max_total)
     per_person = budget.get("perPerson")
+    if per_person == 0:
+        return 0.0
     if isinstance(per_person, (int, float)) and per_person > 0:
         return float(per_person) * _people_total(demand)
     return None

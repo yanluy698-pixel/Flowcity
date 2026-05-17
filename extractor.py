@@ -201,6 +201,12 @@ LOW_COST_PHRASES = (
     "预算少一点",
 )
 
+FREE_PREFERENCE_PHRASES = (
+    "最好免费",
+    "优先免费",
+    "尽量免费",
+)
+
 EXPLICIT_ZERO_BUDGET_PATTERNS = (
     r"预算\s*0\s*元?",
     r"零预算",
@@ -216,6 +222,10 @@ def _has_low_cost_intent(text: str) -> bool:
     return any(phrase in text for phrase in LOW_COST_PHRASES)
 
 
+def _has_free_preference(text: str) -> bool:
+    return any(phrase in text for phrase in FREE_PREFERENCE_PHRASES)
+
+
 def _has_explicit_zero_budget(text: str) -> bool:
     return any(re.search(pattern, text) for pattern in EXPLICIT_ZERO_BUDGET_PATTERNS)
 
@@ -225,11 +235,14 @@ def normalize_structured_demand(result: dict[str, Any]) -> dict[str, Any]:
     Normalize known model drift after extraction.
 
     Product decision: "不想花钱 / 少花钱 / 预算越低越好" is a low-cost
-    preference, not a strict CNY 0 budget, unless the user explicitly says
-    zero budget or must be free.
+    preference, and "最好免费 / 优先免费" is a free preference. Neither is
+    a strict CNY 0 budget unless the user explicitly says zero budget or
+    must be free.
     """
     raw_input = str(result.get("rawInput") or "")
-    if not _has_low_cost_intent(raw_input) or _has_explicit_zero_budget(raw_input):
+    has_low_cost_intent = _has_low_cost_intent(raw_input)
+    has_free_preference = _has_free_preference(raw_input)
+    if not (has_low_cost_intent or has_free_preference) or _has_explicit_zero_budget(raw_input):
         return result
 
     budget = result.get("budget")
@@ -251,7 +264,23 @@ def normalize_structured_demand(result: dict[str, Any]) -> dict[str, Any]:
 
     constraints = result.get("constraints")
     if isinstance(constraints, dict):
+        hard = constraints.setdefault("hard", [])
         soft = constraints.setdefault("soft", [])
+        if isinstance(hard, list):
+            moved: list[str] = []
+            kept: list[Any] = []
+            for item in hard:
+                item_text = str(item)
+                if any(keyword in item_text for keyword in ("不想花钱", "少花钱", "尽量不花钱", "优先免费", "最好免费", "尽量免费", "低成本")):
+                    moved.append(item_text)
+                else:
+                    kept.append(item)
+            if moved:
+                constraints["hard"] = kept
+                if isinstance(soft, list):
+                    for item in moved:
+                        if item not in soft:
+                            soft.append(item)
         if isinstance(soft, list) and "优先低成本/免费候选，但不等于严格预算 0" not in soft:
             soft.append("优先低成本/免费候选，但不等于严格预算 0")
 

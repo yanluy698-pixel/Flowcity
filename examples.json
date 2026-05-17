@@ -421,7 +421,7 @@
           "maxTotal": null,
           "perPerson": null,
           "currency": "CNY",
-          "flexibility": "strict"
+          "flexibility": "flexible"
         },
         "location": {
           "startPoint": null,
@@ -433,19 +433,19 @@
           "distancePreference": "走不了太多路"
         },
         "preferences": {
-          "activityTypes": ["随便走走", "轻松放松", "免费活动"],
+          "activityTypes": ["随便走走", "轻松放松"],
           "foodTags": [],
-          "experienceTags": ["不花钱", "不太累", "少走路", "轻松"],
+          "experienceTags": ["低成本", "不太累", "少走路", "轻松"],
           "avoidTags": ["花钱", "太累", "走太多路"]
         },
         "constraints": {
-          "hard": ["尽量不花钱，优先免费活动", "不能走太多路", "体验不能太累"],
-          "soft": ["轻松", "附近", "免费公共空间"],
+          "hard": ["不能走太多路", "体验不能太累"],
+          "soft": ["优先低成本/免费候选，但不等于严格预算 0", "轻松", "附近"],
           "dynamic": ["天气", "公共空间开放状态", "拥挤程度"]
         },
         "potentialConflicts": [
           { "type": "walk_vs_less_walk", "description": "用户想随便走走，但又明确走不了太多路。" },
-          { "type": "zero_budget_vs_experience", "description": "不想花钱会限制可选活动，体验丰富度可能下降。" }
+          { "type": "cost_vs_experience", "description": "低成本偏好会压缩候选范围，但不等于只能选择 0 元方案。" }
         ],
         "expectedOutput": {
           "planFormat": "timeline_plan",
