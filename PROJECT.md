@@ -165,6 +165,8 @@ JSON Output: enabled
 - `mock_api.py`：读取 Mock 数据，完成硬约束过滤、软偏好打分、供给失败状态和路线成本挂载。
 - `run_flow.py`：串联阶段二和阶段三，支持自然语言输入后直接查询 Mock 供给。
 
+后续接入真实 API 时，供给价格口径需要从 Demo 期的“人均/估算价辅助规划”升级为“可履约真实价格辅助决策”。由于链路最终会进入锁票、预约、团购下单或支付前确认，机器决策不能依赖模糊人均价；API 应直接给出活动票型价、套餐价、团购价、适用人数、库存、有效时段和履约限制。人均价可以保留给用户理解消费水平，但不能作为执行链路的价格依据。
+
 也就是说：
 
 ```text
@@ -265,6 +267,7 @@ LLM 负责四件事：
 对应修复：
 
 - `extractor.py` 增加 LLM 调用重试，降低网络波动造成的测试中断。
+- `prompt.md` 与 `normalize_structured_demand` 增加“带孩子/带娃”人数稳定化：当模型已识别儿童但漏填成年人和总人数时，按中文强语义补为至少 1 名成年人同行，避免餐饮、路线和余票成本按 1 人误算。
 - `planner.py` 在 JSON 解析失败时允许有限重试，并保留离线确定性草案。
 - `prompt.md` 明确低成本语义：低成本是偏好，不等于预算 0；只有“预算 0 元/一分钱不能花/必须免费”才是严格 0。
 - `normalize_structured_demand` 做兜底归一：如果模型把低成本误抽成 0，但用户没有明确零预算，就改回 `null + flexible`。
@@ -356,3 +359,58 @@ Local Replanner 当前只做一次局部替换：
 - `test_examples.py`：8 个基准样例离线通过。
 - `py_compile`：核心脚本语法检查通过。
 - `run_flow.py --example-id family_half_day --limit 3`：可输出预算内 `timelinePlan`、`validationResult` 和 `replanResult`。
+
+## 11. 阶段六：确认后 Mock 执行链路
+
+阶段六已经接入第一版 Mock Executor。它解决的问题不是“自动替用户下单”，而是把阶段五的确认前方案变成“待用户确认的执行草案”，并且只有在用户显式确认后才生成 Mock 执行结果。
+
+阶段六默认输出：
+
+```text
+executionDraft
+```
+
+只有命令行显式传入：
+
+```text
+--confirm-execute
+```
+
+才会输出确认后的 Mock 执行结果：
+
+```text
+executionResult
+```
+
+`executionDraft` 固定包含：
+
+- `draftStatus`：`ready | warning | blocked`
+- `requiresUserConfirmation`：始终为 `true`
+- `pendingActions`：待用户确认的活动锁票、餐厅预约/取号、路线提醒等动作
+- `warningsCarriedForward`：阶段五遗留的 warning
+- `alternativeCandidates`：未选中但可替换的活动/餐厅候选，留给后续前端交互
+- `executionBoundary`：说明当前只做 Mock，不做真实交易
+- `dealPreview`：可选团购参考，只用于展示，不随确认自动购买或发券
+
+`executionResult` 只在确认后生成：
+
+- 活动生成 Mock 票码。
+- 餐厅生成 Mock 预约号或取号号。
+- 有可用团购时只展示 `dealPreview`，不自动生成团购券码。
+- 路线只生成提醒，不生成订单。
+
+阶段六边界：
+
+- 不接真实美团 API。
+- 不真实支付。
+- 不真实订票。
+- 不真实预约。
+- 不真实线上取号。
+- 不做前端点击换卡片，这部分留到阶段七。
+
+当前验证结果：
+
+- 默认运行 `run_flow.py` 只生成 `executionDraft`，`executionResult.executionStatus` 为 `not_requested`。
+- `--confirm-execute` 后才生成 Mock 票码、预约号、取号号或路线提醒码；团购仍保持预览状态。
+- 阶段五失败的方案会得到 `executionDraft.draftStatus = blocked`，不能被强行执行。
+- `test_examples.py` 已覆盖阶段六确认门槛和免费硬约束。

@@ -216,6 +216,11 @@ EXPLICIT_ZERO_BUDGET_PATTERNS = (
     r"只能免费",
     r"只要免费",
 )
+CHILD_ACCOMPANY_PATTERNS = (
+    r"带[^，。,.]{0,12}(孩子|小孩|娃|宝宝)",
+    r"陪[^，。,.]{0,12}(孩子|小孩|娃|宝宝)",
+)
+SPOUSE_PHRASES = ("老婆", "老公", "媳妇", "妻子", "丈夫", "爱人")
 
 
 def _has_low_cost_intent(text: str) -> bool:
@@ -230,6 +235,42 @@ def _has_explicit_zero_budget(text: str) -> bool:
     return any(re.search(pattern, text) for pattern in EXPLICIT_ZERO_BUDGET_PATTERNS)
 
 
+def _has_child_accompany_intent(text: str) -> bool:
+    return any(re.search(pattern, text) for pattern in CHILD_ACCOMPANY_PATTERNS)
+
+
+def _append_assumption(result: dict[str, Any], note: str) -> None:
+    assumptions = result.setdefault("assumptions", [])
+    if isinstance(assumptions, list) and note not in assumptions:
+        assumptions.append(note)
+
+
+def _normalize_child_accompanying_adult(result: dict[str, Any], raw_input: str) -> None:
+    """Stabilize a narrow Chinese-language inference: children being "brought" imply an adult."""
+    if not _has_child_accompany_intent(raw_input):
+        return
+    people = result.get("people")
+    if not isinstance(people, dict):
+        return
+    children = people.get("children")
+    if not isinstance(children, list) or not children:
+        return
+
+    seniors = people.get("seniors") if isinstance(people.get("seniors"), list) else []
+    inferred_adults = 2 if any(phrase in raw_input for phrase in SPOUSE_PHRASES) else 1
+    adults = people.get("adults")
+    if not isinstance(adults, int) or adults <= 0:
+        people["adults"] = inferred_adults
+        adults = inferred_adults
+
+    total = people.get("total")
+    if not isinstance(total, int) or total <= 0:
+        people["total"] = adults + len(children) + len(seniors)
+
+    child_count_text = f"{len(children)} 小" if len(children) > 1 else "1 小"
+    _append_assumption(result, f"用户表达带孩子出行，未额外说明同行人数时按 {people['adults']} 大 {child_count_text} 理解。")
+
+
 def normalize_structured_demand(result: dict[str, Any]) -> dict[str, Any]:
     """
     Normalize known model drift after extraction.
@@ -240,6 +281,8 @@ def normalize_structured_demand(result: dict[str, Any]) -> dict[str, Any]:
     must be free.
     """
     raw_input = str(result.get("rawInput") or "")
+    _normalize_child_accompanying_adult(result, raw_input)
+
     has_low_cost_intent = _has_low_cost_intent(raw_input)
     has_free_preference = _has_free_preference(raw_input)
     if not (has_low_cost_intent or has_free_preference) or _has_explicit_zero_budget(raw_input):

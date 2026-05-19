@@ -8,32 +8,34 @@ FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型
 自然语言输入 -> 多约束拆解 -> 本地生活工具调用 -> 方案规划 -> 履约校验 -> 确认执行
 ```
 
-当前进度：**阶段五：Validator 与局部重排**。
+当前进度：**阶段六：确认后 Mock 执行链路**。
 
 ## 当前能力
 
-阶段二已经完成需求结构化器，能把用户自然语言需求拆成稳定 JSON。阶段三已经加入本地 Mock 供给数据和函数版 Mock API，用于模拟活动、餐厅、路线、排队、预约和团购库存查询。阶段四已经加入规则约束下的 Planner：规则负责供给事实和边界校验，LLM 可在框架内自主组合时间轴方案；离线模式会使用确定性草案，保证测试和 Demo 稳定。阶段五已经加入 Validator 与 Local Replanner，用于校验时间、营业、预算、人群、余票、座位、排队和路线风险，并在失败时做一次局部替换。
+阶段二已经完成需求结构化器，能把用户自然语言需求拆成稳定 JSON。阶段三已经加入本地 Mock 供给数据和函数版 Mock API，用于模拟活动、餐厅、路线、排队、预约和团购库存查询。阶段四已经加入规则约束下的 Planner：规则负责供给事实和边界校验，LLM 可在框架内自主组合时间轴方案；离线模式会使用确定性草案，保证测试和 Demo 稳定。阶段五已经加入 Validator 与 Local Replanner，用于校验时间、营业、预算、人群、余票、座位、排队和路线风险，并在失败时做一次局部替换。阶段六已经加入确认后 Mock 执行链路：默认只生成执行草案，只有显式确认后才生成 Mock 票码、预约号、取号号或路线提醒码；团购只做可选预览，不自动下单或发券。
 
 已完成：
 
 - `schema.json`：结构化需求 Schema，包含时间、人群、预算、位置、偏好、约束、潜在冲突等字段。
 - `prompt.md`：大模型需求抽取 Prompt，强调不脑补、不生成 POI、不做路线规划。
 - `examples.json`：8 套标准样例，覆盖亲子、情侣、朋友，以及多地点相聚、关系模糊、跨城、矛盾需求、定向活动。
-- `extractor.py`：调用 DeepSeek OpenAI 兼容 API，把用户输入转成 JSON，并做 Schema 校验。
+- `extractor.py`：调用 DeepSeek OpenAI 兼容 API，把用户输入转成 JSON，并做 Schema 校验；同时对低成本语义和“带孩子”人数推断做窄口径归一。
 - `test_examples.py`：批量校验样例，不调用模型也能检查 Schema、阶段三兼容性和关键行为断言；可选 `--llm` 调用模型评测。
 - `data/*.json`：西安本地生活 Mock 数据，包括商圈、活动、餐厅、路线、动态状态和团购。
 - `mock_api.py`：函数版 Mock API，读取本地 JSON，完成硬约束过滤、软偏好打分、供给失败状态和路线成本挂载。
 - `planner.py`：阶段四 Planner，基于结构化需求和 Mock 供给生成时间轴方案、推荐理由、预算估算和风险提示。
 - `planner_prompt.md`：阶段四 Planner Prompt，约束 LLM 只能使用 Mock 供给内的候选，不编造 POI、价格、路线或执行结果。
 - `validator.py`：阶段五 Validator 与 Local Replanner，校验阶段四方案是否可履约，并在失败时局部替换活动、餐厅或路线。
-- `run_flow.py`：串联阶段二、阶段三、阶段四和阶段五，一条命令从自然语言输入跑到时间轴方案、校验结果和重排结果。
+- `executor.py`：阶段六 Mock Executor，默认生成待确认执行草案，确认后才生成 Mock 执行结果。
+- `run_flow.py`：串联阶段二到阶段六，一条命令从自然语言输入跑到时间轴方案、校验结果、重排结果和执行草案。
 - `api.py`：可选 FastAPI 包装层，后续前端或 HTTP 工具调用时使用。
 
 当前不做：
 
 - 不接真实美团 API。
 - 不做真实预约、排队、下单。
-- 不做阶段六级别的真实订票、餐厅预约、线上取号、团购下单和订单号生成。
+- 不做真实订票、餐厅预约、线上取号、团购下单和订单号生成。
+- 不做前端交互和 Demo 展示页，这些留到阶段七。
 
 这些会在后续阶段推进。
 
@@ -55,7 +57,7 @@ Flowcity/
   mock_api.py       # 阶段三函数版 Mock API
   planner.py        # 阶段四 AI 规划能力
   planner_prompt.md # 阶段四 Planner Prompt
-  run_flow.py       # 阶段二 + 阶段三 + 阶段四串联脚本
+  run_flow.py       # 阶段二到阶段六串联脚本
   api.py            # 可选 FastAPI 包装层
 ```
 
@@ -105,11 +107,19 @@ cd "D:\产品\美团\周末闲时活动规划\Flowcity"
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' test_examples.py --llm
 ```
 
-完整链路试运行：自然语言 -> 阶段二结构化 -> 阶段三 Mock 供给查询 -> 阶段四时间轴方案。
+完整链路试运行：自然语言 -> 阶段二结构化 -> 阶段三 Mock 供给查询 -> 阶段四时间轴方案 -> 阶段五校验/重排 -> 阶段六执行草案。
 
 ```powershell
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' .\run_flow.py --input "我们三个人，周天1到7点要去西安市区玩，怎么安排，我们在咸阳市区，得坐地铁去，预算一人100以内，三个男的" --limit 3
 ```
+
+阶段六默认只输出 `executionDraft`，不会生成票码、预约号或取号号。模拟用户确认后执行，需要显式传入：
+
+```powershell
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' .\run_flow.py --example-id family_half_day --limit 3 --confirm-execute
+```
+
+注意：`executionDraft.pendingActions[*].dealPreview` 只表示“可选团购参考”，确认执行不会自动购买团购或生成团购券码。
 
 只测试阶段四，不调用大模型，使用离线确定性草案：
 

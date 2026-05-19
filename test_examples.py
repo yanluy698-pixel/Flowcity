@@ -18,6 +18,7 @@ from typing import Any
 import extractor
 import mock_api
 import planner
+import run_flow
 import validator
 
 
@@ -204,6 +205,27 @@ def check_stage2_normalization() -> list[str]:
     if normalized_zero["budget"]["maxTotal"] != 0:
         errors.append("low-cost normalization: explicit zero budget should stay 0")
 
+    child_accompany = {
+        "rawInput": "周六下午带5岁孩子在西安玩半天，预算400元以内。",
+        "people": {
+            "total": None,
+            "adults": None,
+            "children": [{"age": 5}],
+            "seniors": [],
+            "relationship": "family",
+            "specialNeeds": [],
+        },
+        "budget": {
+            "maxTotal": 400,
+            "perPerson": None,
+            "currency": "CNY",
+            "flexibility": "strict",
+        },
+    }
+    normalized_child = extractor.normalize_structured_demand(child_accompany)
+    if normalized_child["people"]["adults"] != 1 or normalized_child["people"]["total"] != 2:
+        errors.append("child accompany normalization: 带孩子 should infer 1 adult + child when LLM leaves people null")
+
     return errors
 
 
@@ -378,6 +400,110 @@ def check_stage5_validator(examples: list[dict[str, Any]]) -> list[str]:
     return errors
 
 
+def check_stage6_executor(examples: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    example_by_id = {example["id"]: example for example in examples}
+
+    family = run_flow.run_from_structured_demand(
+        example_by_id["family_half_day"]["expectedStructuredDemand"],
+        limit=3,
+        planner_llm=False,
+        strict_planner_llm=False,
+    )
+    if "executionDraft" not in family:
+        errors.append("family_half_day: missing executionDraft")
+    if family.get("executionResult", {}).get("executionStatus") != "not_requested":
+        errors.append("family_half_day: should not execute without explicit confirmation")
+    draft_actions = family.get("executionDraft", {}).get("pendingActions", [])
+    draft_text = json.dumps(draft_actions, ensure_ascii=False)
+    if any(value in draft_text for value in ("mockTicketCode", "mockReservationCode", "mockQueueNumber")):
+        errors.append("family_half_day: execution draft should not contain confirmation codes")
+
+    family_confirmed = run_flow.run_from_structured_demand(
+        example_by_id["family_half_day"]["expectedStructuredDemand"],
+        limit=3,
+        planner_llm=False,
+        strict_planner_llm=False,
+        confirm_execute=True,
+    )
+    if family_confirmed.get("executionResult", {}).get("executionStatus") != "confirmed":
+        errors.append("family_half_day: confirm_execute should generate confirmed mock result")
+    codes = family_confirmed.get("executionResult", {}).get("confirmationCodes", [])
+    if not codes:
+        errors.append("family_half_day: confirmed execution should contain mock confirmation codes")
+    if any(code.get("type") == "deal" for code in codes):
+        errors.append("family_half_day: deal previews should not auto-generate deal confirmation codes")
+
+    skiing = run_flow.run_from_structured_demand(
+        example_by_id["directed_skiing_activity"]["expectedStructuredDemand"],
+        limit=3,
+        planner_llm=False,
+        strict_planner_llm=False,
+        confirm_execute=True,
+    )
+    if skiing.get("executionDraft", {}).get("draftStatus") != "blocked":
+        errors.append("directed_skiing_activity: execution draft should be blocked")
+    if skiing.get("executionResult", {}).get("executionStatus") != "blocked":
+        errors.append("directed_skiing_activity: confirmed execution should remain blocked")
+
+    low_cost = run_flow.run_from_structured_demand(
+        example_by_id["contradictory_low_cost_not_tired"]["expectedStructuredDemand"],
+        limit=3,
+        planner_llm=False,
+        strict_planner_llm=False,
+    )
+    if low_cost.get("executionDraft", {}).get("draftStatus") not in {"ready", "warning"}:
+        errors.append("contradictory_low_cost_not_tired: low-cost plan should produce executable draft")
+
+    free_required_demand = {
+        "rawInput": "周末下午预算0元，只能免费，想轻松走走。",
+        "scene": {"tags": ["独自放松"]},
+        "timeWindow": {
+            "dateText": "周六",
+            "startTime": "14:00",
+            "endTime": "18:00",
+            "durationHours": 4,
+            "isFlexible": True,
+        },
+        "people": {"total": 1, "adults": 1, "children": [], "seniors": [], "relationship": "solo", "specialNeeds": []},
+        "budget": {"maxTotal": 0, "perPerson": None, "currency": "CNY", "flexibility": "strict"},
+        "location": {
+            "startPoint": None,
+            "originPoints": [],
+            "preferredArea": None,
+            "crossCityIntent": {"enabled": False, "fromCity": None, "toCity": None},
+            "maxTravelMinutes": None,
+            "transportPreference": None,
+            "distancePreference": "nearby",
+        },
+        "preferences": {
+            "activityTypes": ["轻松"],
+            "foodTags": [],
+            "experienceTags": ["只能免费"],
+            "avoidTags": ["花钱"],
+        },
+        "constraints": {"hard": ["只能免费"], "soft": ["轻松"], "dynamic": []},
+        "potentialConflicts": [],
+        "expectedOutput": {"type": "timeline_plan", "mustInclude": [], "niceToHave": [], "assumptions": []},
+    }
+    free_required = run_flow.run_from_structured_demand(
+        free_required_demand,
+        limit=3,
+        planner_llm=False,
+        strict_planner_llm=False,
+        confirm_execute=True,
+    )
+    paid_actions = [
+        action
+        for action in free_required.get("executionDraft", {}).get("pendingActions", [])
+        if float(action.get("estimatedCost") or 0) > 0
+    ]
+    if paid_actions:
+        errors.append("free_required: execution draft should not contain paid actions")
+
+    return errors
+
+
 def run_llm_examples(examples: list[dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     schema = extractor.load_json(extractor.SCHEMA_PATH)
@@ -417,6 +543,7 @@ def main() -> int:
     errors.extend(check_stage3_behavior(examples))
     errors.extend(check_stage4_planner(examples))
     errors.extend(check_stage5_validator(examples))
+    errors.extend(check_stage6_executor(examples))
 
     if args.llm:
         errors.extend(run_llm_examples(examples))

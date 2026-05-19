@@ -2,7 +2,8 @@
 FlowCity local pipeline runner.
 
 Natural language input -> Stage 2 extractor -> Stage 3 mock supply search
--> Stage 4 timeline planner -> Stage 5 validator and local replanner.
+-> Stage 4 timeline planner -> Stage 5 validator and local replanner
+-> Stage 6 mock execution draft.
 
 This script is the glue layer. Stage 2 still lives in extractor.py, and Stage 3
 still lives in mock_api.py.
@@ -17,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import extractor
+import executor
 import mock_api
 import planner
 import validator
@@ -44,6 +46,7 @@ def run_from_natural_language(
     limit: int,
     planner_llm: bool,
     strict_planner_llm: bool,
+    confirm_execute: bool = False,
 ) -> dict[str, Any]:
     prompt = extractor.build_prompt(user_input)
     response_text = extractor.call_llm(prompt)
@@ -65,6 +68,13 @@ def run_from_natural_language(
         limit=max(limit, 1),
     )
     stage5 = validator.validate_and_replan(structured_demand, full_supply, timeline_plan)
+    stage6 = executor.prepare_execution(
+        timeline_plan,
+        stage5["validationResult"],
+        stage5["replanResult"],
+        full_supply,
+        confirm_execute=confirm_execute,
+    )
     return {
         "input": user_input,
         "structuredDemand": structured_demand,
@@ -72,6 +82,8 @@ def run_from_natural_language(
         "timelinePlan": timeline_plan,
         "validationResult": stage5["validationResult"],
         "replanResult": stage5["replanResult"],
+        "executionDraft": stage6["executionDraft"],
+        "executionResult": stage6["executionResult"],
     }
 
 
@@ -80,6 +92,7 @@ def run_from_structured_demand(
     limit: int,
     planner_llm: bool,
     strict_planner_llm: bool,
+    confirm_execute: bool = False,
 ) -> dict[str, Any]:
     full_supply = mock_api.search_supply(structured_demand)
     mock_supply = _limit_supply(full_supply, limit)
@@ -91,6 +104,13 @@ def run_from_structured_demand(
         limit=max(limit, 1),
     )
     stage5 = validator.validate_and_replan(structured_demand, full_supply, timeline_plan)
+    stage6 = executor.prepare_execution(
+        timeline_plan,
+        stage5["validationResult"],
+        stage5["replanResult"],
+        full_supply,
+        confirm_execute=confirm_execute,
+    )
     return {
         "input": structured_demand.get("rawInput"),
         "structuredDemand": structured_demand,
@@ -98,12 +118,14 @@ def run_from_structured_demand(
         "timelinePlan": timeline_plan,
         "validationResult": stage5["validationResult"],
         "replanResult": stage5["replanResult"],
+        "executionDraft": stage6["executionDraft"],
+        "executionResult": stage6["executionResult"],
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run FlowCity Stage 2 + Stage 3 + Stage 4 + Stage 5 in one command."
+        description="Run FlowCity Stage 2 + Stage 3 + Stage 4 + Stage 5 + Stage 6 in one command."
     )
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--input", help="Natural-language user demand. Calls the LLM.")
@@ -126,6 +148,11 @@ def main() -> int:
         "--strict-planner-llm",
         action="store_true",
         help="Fail instead of falling back if the Stage 4 LLM call or validation fails.",
+    )
+    parser.add_argument(
+        "--confirm-execute",
+        action="store_true",
+        help="Simulate explicit user confirmation and generate Stage 6 mock execution result.",
     )
     parser.add_argument(
         "--save-structured",
@@ -152,6 +179,16 @@ def main() -> int:
         type=Path,
         help="Optional path to save the Stage 5 local replan result JSON.",
     )
+    parser.add_argument(
+        "--save-execution-draft",
+        type=Path,
+        help="Optional path to save the Stage 6 execution draft JSON.",
+    )
+    parser.add_argument(
+        "--save-execution-result",
+        type=Path,
+        help="Optional path to save the Stage 6 mock execution result JSON.",
+    )
     args = parser.parse_args()
 
     try:
@@ -161,6 +198,7 @@ def main() -> int:
                 args.limit,
                 args.planner_llm,
                 args.strict_planner_llm,
+                args.confirm_execute,
             )
         elif args.structured_demand:
             demand = mock_api.load_demand_from_file(args.structured_demand)
@@ -169,6 +207,7 @@ def main() -> int:
                 args.limit,
                 args.planner_llm,
                 args.strict_planner_llm,
+                args.confirm_execute,
             )
         else:
             demand = mock_api.load_example_demand(args.example_id)
@@ -177,6 +216,7 @@ def main() -> int:
                 args.limit,
                 args.planner_llm,
                 args.strict_planner_llm,
+                args.confirm_execute,
             )
     except Exception as exc:
         print(f"FlowCity pipeline failed: {exc}", file=sys.stderr)
@@ -187,6 +227,8 @@ def main() -> int:
     _save_json(args.save_plan, result["timelinePlan"])
     _save_json(args.save_validation, result["validationResult"])
     _save_json(args.save_replan, result["replanResult"])
+    _save_json(args.save_execution_draft, result["executionDraft"])
+    _save_json(args.save_execution_result, result["executionResult"])
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

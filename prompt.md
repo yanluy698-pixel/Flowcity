@@ -93,6 +93,7 @@
 提取同行人数量、成年人、儿童、老人、关系和特殊需求。
 
 - 如果用户明确说了孩子年龄，填入 `children.age`。
+- 如果用户说“带孩子”“带娃”“陪孩子”或“带 X 岁孩子”，这是强语义暗示：即使没有单独说明成年人数量，也应推断至少 1 名成年人同行；例如“带 5 岁孩子”应按 `adults: 1`、`children: [{ "age": 5 }]`、`total: 2` 结构化，并在 `assumptions` 中说明“未额外说明同行人数，按 1 大 1 小理解”。
 - 如果用户说“老婆减肥”“老人走不动”“朋友想拍照”等，写入 `specialNeeds`。
 - `relationship` 可以使用：`family`、`couple`、`friends`、`colleagues`、`solo`、`mixed`、`ambiguous`、`pursuing`。
 - 只有用户明确表达情侣、对象、男女朋友、约会对象等稳定关系时，才把 `relationship` 写为 `couple`。
