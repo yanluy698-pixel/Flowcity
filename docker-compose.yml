@@ -1,0 +1,22 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      FLOWCITY_LLM_API_KEY: ${FLOWCITY_LLM_API_KEY:-}
+      FLOWCITY_LLM_MODEL: ${FLOWCITY_LLM_MODEL:-deepseek-v4-flash}
+      FLOWCITY_LLM_BASE_URL: ${FLOWCITY_LLM_BASE_URL:-https://api.deepseek.com}
+      FLOWCITY_LLM_JSON_OUTPUT: ${FLOWCITY_LLM_JSON_OUTPUT:-true}
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"

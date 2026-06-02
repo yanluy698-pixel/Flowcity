@@ -1,0 +1,17 @@
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class FlowRunRequest(BaseModel):
+    input: str = Field(..., min_length=1)
+    limit: int = Field(default=3, ge=1, le=10)
+    plannerLlm: bool = False
+    strictPlannerLlm: bool = False
+    confirmExecute: bool = False
+
+
+class ExecuteRequest(BaseModel):
+    executionDraft: dict[str, Any]

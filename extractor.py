@@ -118,6 +118,12 @@ def get_config() -> dict[str, Any]:
 
 def call_llm(prompt: str) -> str:
     config = get_config()
+    start_time = time.perf_counter()
+    print(
+        "[FlowCity][LLM] request start "
+        f"model={config['model']} url={config['url']} prompt_chars={len(prompt)}",
+        flush=True,
+    )
 
     # 这里使用 OpenAI Chat Completions 兼容格式访问 DeepSeek。
     payload: dict[str, Any] = {
@@ -178,6 +184,12 @@ def call_llm(prompt: str) -> str:
         raise RuntimeError(
             "LLM returned empty content. DeepSeek JSON Output may occasionally do this; retry or adjust the prompt."
         )
+    elapsed = time.perf_counter() - start_time
+    print(
+        "[FlowCity][LLM] request done "
+        f"elapsed={elapsed:.2f}s response_chars={len(content)}",
+        flush=True,
+    )
     return content
 
 

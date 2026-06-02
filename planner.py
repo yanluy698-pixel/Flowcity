@@ -150,6 +150,7 @@ def compact_planner_input(
     mock_supply: dict[str, Any],
     limit: int = 5,
 ) -> dict[str, Any]:
+    route_limit = max(limit, 8)
     return {
         "structuredDemand": structured_demand,
         "mockSupply": {
@@ -165,7 +166,7 @@ def compact_planner_input(
             ],
             "routeCandidates": [
                 _compact_route(item)
-                for item in mock_supply.get("routeCandidates", [])[:limit]
+                for item in mock_supply.get("routeCandidates", [])[:route_limit]
             ],
             "filteredOut": mock_supply.get("filteredOut", [])[:12],
         },
@@ -182,6 +183,22 @@ def build_prompt(
     return template.replace(
         "{{PLANNER_INPUT}}",
         json.dumps(planner_input, ensure_ascii=False, indent=2),
+    )
+
+
+def build_repair_prompt(base_prompt: str, plan: dict[str, Any], errors: list[str]) -> str:
+    return (
+        base_prompt
+        + "\n\n# 上一次输出未通过本地校验，请只返回修正后的完整 JSON\n"
+        + "必须修复这些错误：\n"
+        + json.dumps(errors, ensure_ascii=False, indent=2)
+        + "\n\n上一次输出：\n"
+        + json.dumps(plan, ensure_ascii=False, indent=2)
+        + "\n\n修正原则：\n"
+        + "- 如果 selected POIs 跨多个 areaId，timeline 必须包含一条 routeRef 来自 routeCandidates 的跨区路线。\n"
+        + "- 如果没有合适 routeRef，请改选同一 areaId 的活动/餐厅组合，或输出 partial 并明确转场风险。\n"
+        + "- 不能自造 poiId、routeRef、价格或路线。\n"
+        + "- 只输出 JSON，不要解释。\n"
     )
 
 
@@ -767,16 +784,26 @@ def call_planner_llm(
     structured_demand: dict[str, Any],
     mock_supply: dict[str, Any],
     limit: int = 5,
+    validate: bool = False,
 ) -> dict[str, Any]:
-    prompt = build_prompt(structured_demand, mock_supply, limit)
+    base_prompt = build_prompt(structured_demand, mock_supply, limit)
+    prompt = base_prompt
     last_error: Exception | None = None
-    for _ in range(2):
+    for _ in range(3):
         response_text = extractor.call_llm(prompt)
         try:
-            return extractor.parse_json_object(response_text)
+            plan = extractor.parse_json_object(response_text)
         except json.JSONDecodeError as exc:
             last_error = exc
-    raise RuntimeError(f"Planner returned invalid JSON after retry: {last_error}") from last_error
+            continue
+        if validate:
+            errors = validate_timeline_plan(plan, mock_supply)
+            if errors:
+                last_error = ValueError("Stage 4 planner validation failed: " + "; ".join(errors))
+                prompt = build_repair_prompt(base_prompt, plan, errors)
+                continue
+        return plan
+    raise RuntimeError(f"Planner returned invalid output after retry: {last_error}") from last_error
 
 
 def plan_timeline(
@@ -786,9 +813,14 @@ def plan_timeline(
     fallback_on_error: bool = True,
     limit: int = 5,
 ) -> dict[str, Any]:
+    print(
+        "[FlowCity][Planner] mode="
+        f"{'llm' if use_llm else 'deterministic'} fallback_on_error={fallback_on_error}",
+        flush=True,
+    )
     if use_llm:
         try:
-            plan = call_planner_llm(structured_demand, mock_supply, limit)
+            plan = call_planner_llm(structured_demand, mock_supply, limit, validate=True)
             errors = validate_timeline_plan(plan, mock_supply)
             if errors:
                 raise ValueError("Stage 4 planner validation failed: " + "; ".join(errors))
@@ -796,6 +828,7 @@ def plan_timeline(
         except Exception:
             if not fallback_on_error:
                 raise
+            print("[FlowCity][Planner] llm failed; using deterministic fallback", flush=True)
 
     plan = draft_plan_without_llm(structured_demand, mock_supply)
     errors = validate_timeline_plan(plan, mock_supply)

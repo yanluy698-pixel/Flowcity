@@ -83,6 +83,49 @@ FLOWCITY_LLM_MAX_TOKENS=4096
 cd "D:\产品\美团\周末闲时活动规划\Flowcity"
 ```
 
+## 阶段七 Web Demo
+
+本项目现在包含一个移动端优先的聊天式 Web Demo：
+
+```text
+backend/   # FastAPI 流式接口，包装阶段二到阶段六真实链路
+frontend/  # Vite React 前端，手机壳居中展示
+```
+
+前端输入一句自然语言需求后，会调用后端 `POST /api/flow/run-stream`。后端按阶段返回 `application/x-ndjson` 流，前端会实时点亮：
+
+```text
+理解需求 -> 查活动、餐厅和路线 -> 组合时间轴 -> 校验预算、余票和路线风险 -> 生成执行草案
+```
+
+本地开发：
+
+```powershell
+# 终端 1：后端
+cd "D:\产品\美团\周末闲时活动规划\Flowcity\backend"
+uvicorn app.main:app --reload
+
+# 终端 2：前端
+cd "D:\产品\美团\周末闲时活动规划\Flowcity\frontend"
+npm install
+npm run dev
+```
+
+一键部署演示：
+
+```powershell
+cd "D:\产品\美团\周末闲时活动规划\Flowcity"
+docker compose up --build
+```
+
+启动后访问：
+
+```text
+http://localhost:5173
+```
+
+注意：Demo 使用真实阶段二 LLM 抽取链路。请在 `.env` 或系统环境变量里配置 `DEEPSEEK_API_KEY`，否则前端会收到真实错误气泡，不会伪造成功结果。
+
 只查看最终 Prompt，不调用模型：
 
 ```powershell
