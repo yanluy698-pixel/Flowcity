@@ -1,50 +1,168 @@
-import { Check, LoaderCircle, Search, Sparkles, TriangleAlert } from "lucide-react";
-import type { StageState } from "../types";
+import type { StageState, TimelineItem } from "../types";
 
 type Props = {
   stages: StageState[];
+  totalDurationMs?: number;
 };
 
-function StageIcon({ status }: { status: StageState["status"] }) {
-  if (status === "done") return <Check size={14} />;
-  if (status === "error") return <TriangleAlert size={14} />;
-  if (status === "active") return <LoaderCircle size={14} className="spin" />;
-  return <Search size={14} />;
+function seconds(ms?: number) {
+  if (typeof ms !== "number") return "";
+  return `${(ms / 1000).toFixed(1)} 秒`;
 }
 
-function stageSummary(stage: StageState) {
-  if (stage.status === "pending") return "等待上一步结果";
-  if (stage.status === "active") return "正在处理真实链路";
-  if (stage.status === "error") return "这里出了问题";
-  if (stage.stage === "supply") {
-    const count = stage.payload?.activityCount as number | undefined;
-    const restaurants = stage.payload?.restaurantCount as number | undefined;
-    return `找到 ${count ?? 0} 个活动、${restaurants ?? 0} 个餐厅候选`;
+function textList(items: unknown[], limit = 4) {
+  return items
+    .slice(0, limit)
+    .map((item: any) => item?.name ?? item?.title ?? item?.routeSummary ?? item?.routeRef)
+    .filter(Boolean)
+    .join("、");
+}
+
+const PLACE_LABELS: Record<string, string> = {
+  area_xa_xiaozhai: "小寨",
+  area_xa_qujiang: "曲江",
+  area_xa_zhonglou: "钟楼",
+  area_xa_gaoxin: "高新",
+  area_xa_daminggong: "大明宫",
+  area_xa_xingzheng: "行政中心",
+  origin_xianyang_downtown: "咸阳市区",
+  public_transport: "公共交通",
+  taxi: "打车",
+  walk: "步行"
+};
+
+function userText(value: string) {
+  let text = value;
+  for (const [from, to] of Object.entries(PLACE_LABELS)) {
+    text = text.split(from).join(to);
   }
-  if (stage.stage === "plan") return "已组合活动、路线和用餐时间轴";
-  if (stage.stage === "validate") return "已完成预算、余票、座位和路线校验";
-  if (stage.stage === "execute_draft") return "已生成待确认执行草案";
-  return "已完成拆解";
+  return text
+    .split("Mock ").join("")
+    .split("Mock").join("")
+    .split("后端").join("系统")
+    .split("阶段三").join("候选查询")
+    .split("阶段四").join("规划")
+    .split("阶段五").join("确认前")
+    .split("routeCandidates").join("路线")
+    .split("mockSupply").join("候选")
+    .trim();
 }
 
-export function StageProgress({ stages }: Props) {
+function demandSummary(payload?: Record<string, unknown>) {
+  const demand = payload?.structuredDemand as any;
+  if (!demand) return "正在把自然语言拆成时间、人数、预算和偏好。";
+  const people = demand.people?.total ? `${demand.people.total} 人` : "人数待定";
+  const date = demand.timeWindow?.dateText ?? "时间待定";
+  const time = [demand.timeWindow?.startTime, demand.timeWindow?.endTime].filter(Boolean).join("-");
+  const budget = demand.budget?.maxTotal
+    ? `总预算 ${demand.budget.maxTotal} 元`
+    : demand.budget?.perPerson
+      ? `人均 ${demand.budget.perPerson} 元`
+      : "预算待定";
+  const location = demand.location?.startPoint ?? demand.location?.preferredArea ?? "地点待定";
+  const hard = (demand.constraints?.hard ?? [])
+    .slice(0, 3)
+    .map((item: string) => item.replace(/^避开用户明确不想去的地点或商圈：/, "避开 "))
+    .join("；");
+  return userText(`${people}，${date}${time ? ` ${time}` : ""}，${budget}，${location}${hard ? `。我会优先满足：${hard}` : ""}`);
+}
+
+function supplySummary(payload?: Record<string, unknown>) {
+  const supply = payload?.mockSupply as any;
+  if (!supply) return "正在找活动、吃饭地点、路线、余票、座位和排队情况。";
+  const toolResults = (payload?.toolResults as any[]) ?? [];
+  if (toolResults.length) {
+    const activityTool = toolResults.find((item) => item.tool === "search_activities");
+    const restaurantTool = toolResults.find((item) => item.tool === "search_restaurants");
+    const routeTool = toolResults.find((item) => item.tool === "get_routes");
+    return userText(
+      `已同时查到 ${activityTool?.items?.length ?? 0} 个可玩活动、${restaurantTool?.items?.length ?? 0} 个吃饭地点、${routeTool?.items?.length ?? 0} 条路线。`
+    );
+  }
+  const activities = textList(supply.activityCandidates ?? [], 8);
+  const restaurants = textList(supply.restaurantCandidates ?? [], 8);
+  const routeCount = supply.routeCandidates?.length ?? payload?.routeCount ?? 0;
+  return userText(`可选活动：${activities || "暂无"}。可选吃饭地点：${restaurants || "暂无"}。可用路线 ${routeCount} 条。`);
+}
+
+function planSummary(payload?: Record<string, unknown>) {
+  const plan = payload?.timelinePlan as any;
+  if (!plan) return "正在组合活动、吃饭、路线和缓冲时间。";
+  const scheduler = (payload?.schedulerResult as any) ?? plan.schedulerResult;
+  if (scheduler?.strategy) {
+    const evaluated = scheduler.evaluatedCombinationCount ?? 0;
+    const feasible = scheduler.feasibleCombinationCount ?? 0;
+    const rejected = scheduler.rejectedCombinations?.length ?? Math.max(0, evaluated - feasible);
+    const selected = scheduler.selectedCombination;
+    const picked = [selected?.activity, selected?.restaurant].filter(Boolean).join(" + ");
+    return userText(
+      `已用时间调度器评估 ${evaluated} 个组合，淘汰 ${rejected} 个不合适组合，选择 ${picked || "当前可执行方案"}。`
+    );
+  }
+  const timeline = (plan.timeline ?? []) as TimelineItem[];
+  const steps = timeline.map((item) => `${item.start ?? ""} ${item.title ?? item.type ?? "安排"}`);
+  return userText(steps.slice(0, 5).join("；") || plan.summary || "已生成初版时间轴。");
+}
+
+function validationSummary(payload?: Record<string, unknown>) {
+  if (!payload) return "正在看这套方案会不会超预算、排队太久、座位不稳或路线太赶。";
+  const result = payload.validationResult as any;
+  const issues = result?.issues ?? [];
+  if (!issues.length) return "看起来可执行：预算、余票、座位、排队和路线都没有明显问题。";
+  return userText(issues
+    .slice(0, 3)
+    .map((issue: any) => issue.message)
+    .filter(Boolean)
+    .join("；"));
+}
+
+function draftSummary(payload?: Record<string, unknown>) {
+  const draft = payload?.executionDraft as any;
+  if (!draft) return "正在整理确认前需要做的事，比如锁票、预约、取号和出发提醒。";
+  const actions = draft.pendingActions ?? [];
+  if (!actions.length) return userText(draft.blockedReason ?? "当前方案暂不能执行。");
+  return userText(actions
+    .slice(0, 5)
+    .map((action: any) => action.title ?? action.actionType)
+    .filter(Boolean)
+    .join("；"));
+}
+
+function stageDetail(stage: StageState) {
+  if (stage.stage === "extract") return demandSummary(stage.payload);
+  if (stage.stage === "supply") return supplySummary(stage.payload);
+  if (stage.stage === "plan") return planSummary(stage.payload);
+  if (stage.stage === "validate") return validationSummary(stage.payload);
+  if (stage.stage === "execute_draft") return draftSummary(stage.payload);
+  return "等待上一步完成。";
+}
+
+function statusText(status: StageState["status"]) {
+  if (status === "active") return "运行中";
+  if (status === "done") return "完成";
+  if (status === "error") return "出错";
+  return "等待";
+}
+
+export function StageProgress({ stages, totalDurationMs }: Props) {
   return (
     <div className="stage-card">
-      <div className="stage-title">
-        <Sparkles size={15} />
-        FlowCity 正在把事情做完
-      </div>
-      {stages.map((stage) => (
+      <div className="stage-title">规划过程</div>
+      {stages.map((stage, index) => (
         <div className={`stage-row ${stage.status}`} key={stage.stage}>
-          <span className="stage-dot">
-            <StageIcon status={stage.status} />
-          </span>
-          <div>
-            <strong>{stage.label}</strong>
-            <p>{stageSummary(stage)}</p>
+          <div className="stage-line">
+            <strong>{index + 1}. {stage.label}</strong>
+            <span>
+              {statusText(stage.status)}
+              {stage.durationMs ? ` · 用时 ${seconds(stage.durationMs)}` : ""}
+            </span>
           </div>
+          <p>{stageDetail(stage)}</p>
         </div>
       ))}
+      {totalDurationMs && (
+        <div className="total-time">总用时 {seconds(totalDurationMs)}</div>
+      )}
     </div>
   );
 }

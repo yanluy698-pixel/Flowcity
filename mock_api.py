@@ -20,6 +20,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 EXAMPLES_PATH = ROOT / "examples.json"
+RUNTIME_STATUS_PATH = DATA_DIR / "mock_runtime_status.json"
 
 QUEUE_LIMIT_NORMAL = 40
 QUEUE_LIMIT_STRICT = 30
@@ -43,6 +44,17 @@ DIRECTED_ACTIVITY_ALIASES = {
     "滑雪": ["滑雪", "雪场", "滑雪场", "冰雪"],
     "酒吧": ["酒吧", "bar"],
     "展览": ["展览", "看展", "展馆", "展厅"],
+    "电影": ["电影", "看电影", "电影票", "影院", "影城"],
+}
+
+AREA_LABELS = {
+    "area_xa_xiaozhai": "小寨",
+    "area_xa_qujiang": "曲江",
+    "area_xa_zhonglou": "钟楼",
+    "area_xa_gaoxin": "高新",
+    "area_xa_daminggong": "大明宫",
+    "area_xa_xingzheng": "行政中心",
+    "origin_xianyang_downtown": "咸阳秦都",
 }
 
 
@@ -65,6 +77,66 @@ def load_mock_data(data_dir: Path = DATA_DIR) -> dict[str, Any]:
         ],
         "deals": load_json(data_dir / "mock_deals.json")["deals"],
     }
+
+
+def load_runtime_status(path: Path = RUNTIME_STATUS_PATH) -> dict[str, Any]:
+    """Load stage-6 runtime status pool used only at confirmation time."""
+    if not path.exists():
+        return {
+            "activityRuntimeStatus": [],
+            "restaurantRuntimeStatus": [],
+            "routeRuntimeStatus": [],
+            "dealRuntimeStatus": [],
+        }
+    return load_json(path)
+
+
+def _runtime_records_by_key(records: list[dict[str, Any]], key: str) -> dict[str, dict[str, Any]]:
+    return {record[key]: record for record in records if record.get(key)}
+
+
+def find_runtime_activity_status(
+    poi_id: str,
+    date_text: str | None = None,
+    runtime_status: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    runtime_status = runtime_status or load_runtime_status()
+    for status in runtime_status.get("activityRuntimeStatus", []):
+        if status.get("poiId") != poi_id:
+            continue
+        if _date_matches(status.get("dateText"), date_text):
+            return status
+    return None
+
+
+def find_runtime_restaurant_status(
+    poi_id: str,
+    date_text: str | None = None,
+    runtime_status: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    runtime_status = runtime_status or load_runtime_status()
+    for status in runtime_status.get("restaurantRuntimeStatus", []):
+        if status.get("poiId") != poi_id:
+            continue
+        if _date_matches(status.get("dateText"), date_text):
+            return status
+    return None
+
+
+def find_runtime_route_status(
+    route_ref: str,
+    runtime_status: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    runtime_status = runtime_status or load_runtime_status()
+    return _runtime_records_by_key(runtime_status.get("routeRuntimeStatus", []), "routeRef").get(route_ref)
+
+
+def find_runtime_deal_status(
+    deal_id: str,
+    runtime_status: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    runtime_status = runtime_status or load_runtime_status()
+    return _runtime_records_by_key(runtime_status.get("dealRuntimeStatus", []), "dealId").get(deal_id)
 
 
 def _area_by_id(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -178,6 +250,58 @@ def _has_any_text(demand: dict[str, Any], keywords: list[str]) -> bool:
     return any(keyword in haystack for keyword in keywords)
 
 
+def _raw_and_structured_text(demand: dict[str, Any]) -> str:
+    return " ".join(
+        [
+            str(demand.get("rawInput") or ""),
+            " ".join(_all_tags(demand)),
+            " ".join(str(item) for item in demand.get("constraints", {}).get("soft", [])),
+            " ".join(str(item) for item in demand.get("constraints", {}).get("hard", [])),
+        ]
+    )
+
+
+def _avoid_terms(demand: dict[str, Any]) -> list[str]:
+    terms: list[str] = []
+    for tag in demand.get("preferences", {}).get("avoidTags", []):
+        text = str(tag)
+        if text.startswith("避开:"):
+            terms.append(text.split(":", 1)[1])
+    text = _raw_and_structured_text(demand)
+    for keyword in ("大明宫", "小寨", "钟楼", "曲江", "高新", "行政中心"):
+        if any(prefix + keyword in text for prefix in ("不想去", "不要", "别去", "避开")):
+            terms.append(keyword)
+    deduped: list[str] = []
+    for term in terms:
+        clean = term.strip()
+        if clean and clean not in deduped:
+            deduped.append(clean)
+    return deduped
+
+
+def _matches_avoid_term(poi: dict[str, Any], area: dict[str, Any], term: str) -> bool:
+    searchable = " ".join(
+        [
+            poi.get("name", ""),
+            poi.get("category", ""),
+            poi.get("cuisine", ""),
+            area.get("name", ""),
+            area.get("district", ""),
+            " ".join(poi.get("tags", [])),
+            " ".join(area.get("landmarks", [])),
+        ]
+    )
+    return bool(term and term in searchable)
+
+
+def _seasonally_unsuitable(poi: dict[str, Any], demand: dict[str, Any]) -> bool:
+    text = _raw_and_structured_text(demand)
+    if "春" in text:
+        return False
+    searchable = " ".join([poi.get("name", ""), " ".join(poi.get("tags", [])), str(poi.get("mockBasis", ""))])
+    return any(keyword in searchable for keyword in ("风筝", "春季限定", "春天限定"))
+
+
 def _children_ages(demand: dict[str, Any]) -> list[int]:
     ages: list[int] = []
     for child in demand.get("people", {}).get("children", []):
@@ -272,15 +396,40 @@ def _queue_limit(demand: dict[str, Any]) -> int:
 
 
 def _preferred_area_ids(demand: dict[str, Any], data: dict[str, Any]) -> set[str]:
-    preferred_text = demand.get("location", {}).get("preferredArea") or demand.get(
-        "location", {}
-    ).get("startPoint")
-    if not preferred_text:
+    location = demand.get("location", {})
+    preferred_texts = [
+        value
+        for value in (location.get("preferredArea"), location.get("startPoint"))
+        if value
+    ]
+    preferred_texts.extend(
+        origin.get("point")
+        for origin in location.get("originPoints", [])
+        if isinstance(origin, dict) and origin.get("point")
+    )
+    if not preferred_texts:
         return set()
     matched: set[str] = set()
     for area in data["areas"]:
         searchable = " ".join([area["name"], area["district"], *area.get("landmarks", [])])
-        if preferred_text in searchable or any(part in searchable for part in preferred_text.split()):
+        for preferred_text in preferred_texts:
+            if preferred_text in searchable or any(part in searchable for part in preferred_text.split()):
+                matched.add(area["areaId"])
+                break
+    return matched
+
+
+def _target_preferred_area_ids(demand: dict[str, Any], data: dict[str, Any]) -> set[str]:
+    preferred_area = demand.get("location", {}).get("preferredArea")
+    if not preferred_area:
+        return set()
+    preferred_text = str(preferred_area)
+    matched: set[str] = set()
+    for area in data["areas"]:
+        tokens = [area["name"], area["district"], *area.get("landmarks", [])]
+        searchable = " ".join(tokens)
+        token_hit = any(token and (token in preferred_text or preferred_text in token) for token in tokens)
+        if preferred_text in searchable or token_hit or any(part and part in searchable for part in preferred_text.split()):
             matched.add(area["areaId"])
     return matched
 
@@ -377,8 +526,12 @@ def search_activities(
     budget_mode = _budget_mode(structured_demand)
     queue_limit = _queue_limit(structured_demand)
     preferred_areas = _preferred_area_ids(structured_demand, data)
+    target_preferred_areas = _target_preferred_area_ids(structured_demand, data)
     wants_near = _has_any_text(structured_demand, ["别太远", "附近", "近", "少走路"])
     directed_types = _directed_activity_types(structured_demand)
+    avoid_terms = _avoid_terms(structured_demand)
+    wants_scenic = any(keyword in _raw_and_structured_text(structured_demand) for keyword in ("想玩", "我要玩", "景点", "逛一下", "城市景点"))
+    requires_indoor = any(keyword in _raw_and_structured_text(structured_demand) for keyword in ("室内", "下雨", "雨天"))
 
     candidates: list[dict[str, Any]] = []
     filtered_out: list[dict[str, Any]] = []
@@ -392,6 +545,20 @@ def search_activities(
 
     for activity in data["activities"]:
         reasons: list[str] = []
+        area = areas[activity["areaId"]]
+
+        avoided = next((term for term in avoid_terms if _matches_avoid_term(activity, area, term)), None)
+        if avoided:
+            filtered_out.append(_filtered(activity, "activity", f"用户明确说避开 {avoided}"))
+            continue
+
+        if _seasonally_unsuitable(activity, structured_demand):
+            filtered_out.append(_filtered(activity, "activity", "该活动偏季节性，当前按全年可用体验过滤"))
+            continue
+
+        if requires_indoor and activity.get("indoorOutdoor") == "outdoor":
+            filtered_out.append(_filtered(activity, "activity", "用户需要室内/雨天友好活动，过滤户外候选"))
+            continue
 
         if not _activity_matches_directed(activity, directed_types):
             filtered_out.append(
@@ -464,7 +631,12 @@ def search_activities(
         if availability["minQueueMinutes"] <= 15:
             score += 1
             reasons.append("排队较短")
-        if preferred_areas and activity["areaId"] in preferred_areas:
+        if target_preferred_areas and activity["areaId"] in target_preferred_areas:
+            score += 8
+            reasons.append("匹配目标商圈")
+        elif target_preferred_areas and activity["areaId"] not in target_preferred_areas:
+            score -= 6
+        elif preferred_areas and activity["areaId"] in preferred_areas:
             score += 1
             reasons.append("匹配偏好商圈")
         elif wants_near and activity["areaId"] in {"area_xa_xiaozhai", "area_xa_xingzheng", "area_xa_daminggong"}:
@@ -486,6 +658,9 @@ def search_activities(
             elif "低预算" in activity.get("tags", []):
                 score += 2
                 reasons.append("低预算标签")
+        if wants_scenic and any(tag in activity.get("tags", []) for tag in ("地标", "citywalk", "文旅", "夜游", "大雁塔", "大唐不夜城", "城墙", "钟楼")):
+            score += 7
+            reasons.append("明确可逛景点/城市地标")
         reasons.extend([f"命中标签：{tag}" for tag in matched_tags])
 
         candidates.append(
@@ -494,7 +669,7 @@ def search_activities(
                 "name": activity["name"],
                 "kind": "activity",
                 "areaId": activity["areaId"],
-                "areaName": areas[activity["areaId"]]["name"],
+                "areaName": area["name"],
                 "category": activity["category"],
                 "score": score,
                 "matchedReasons": reasons,
@@ -529,9 +704,11 @@ def search_restaurants(
     budget_mode = _budget_mode(structured_demand)
     queue_limit = _queue_limit(structured_demand)
     preferred_areas = _preferred_area_ids(structured_demand, data)
+    target_preferred_areas = _target_preferred_area_ids(structured_demand, data)
     wants_low_fat = _has_any_text(structured_demand, ["低脂", "清淡", "减肥", "少油"])
     wants_reservation = _has_any_text(structured_demand, ["订座", "预约", "可订"])
     has_children = bool(_children_ages(structured_demand))
+    avoid_terms = _avoid_terms(structured_demand)
 
     candidates: list[dict[str, Any]] = []
     filtered_out: list[dict[str, Any]] = []
@@ -545,6 +722,12 @@ def search_restaurants(
 
     for restaurant in data["restaurants"]:
         reasons: list[str] = []
+        area = areas[restaurant["areaId"]]
+
+        avoided = next((term for term in avoid_terms if _matches_avoid_term(restaurant, area, term)), None)
+        if avoided:
+            filtered_out.append(_filtered(restaurant, "restaurant", f"用户明确说避开 {avoided}"))
+            continue
 
         if not _is_open_during_demand(restaurant, structured_demand):
             filtered_out.append(
@@ -602,7 +785,12 @@ def search_restaurants(
         if availability.get("queueMinutes", 0) <= 15:
             score += 1
             reasons.append("排队较短")
-        if preferred_areas and restaurant["areaId"] in preferred_areas:
+        if target_preferred_areas and restaurant["areaId"] in target_preferred_areas:
+            score += 8
+            reasons.append("匹配目标商圈")
+        elif target_preferred_areas and restaurant["areaId"] not in target_preferred_areas:
+            score -= 6
+        elif preferred_areas and restaurant["areaId"] in preferred_areas:
             score += 1
             reasons.append("匹配偏好商圈")
         if restaurant.get("baseRating", 0) >= 4.5:
@@ -626,7 +814,7 @@ def search_restaurants(
                 "name": restaurant["name"],
                 "kind": "restaurant",
                 "areaId": restaurant["areaId"],
-                "areaName": areas[restaurant["areaId"]]["name"],
+                "areaName": area["name"],
                 "cuisine": restaurant["cuisine"],
                 "score": score,
                 "matchedReasons": reasons,
@@ -673,14 +861,20 @@ def _route_with_cost(route: dict[str, Any], people_total: int) -> dict[str, Any]
 def _route_endpoint_name(area_id: str, areas: dict[str, dict[str, Any]]) -> str:
     if area_id == "origin_xianyang_downtown":
         return "咸阳市区"
-    return areas.get(area_id, {}).get("name", area_id)
+    return areas.get(area_id, {}).get("name") or AREA_LABELS.get(area_id, area_id)
 
 
 def _route_summary(route: dict[str, Any], data: dict[str, Any]) -> str:
     areas = _area_by_id(data)
     from_name = _route_endpoint_name(route["fromAreaId"], areas)
     to_name = _route_endpoint_name(route["toAreaId"], areas)
-    return f"{from_name}到{to_name}，{route['transport']}约{route['minutes']}分钟"
+    transport_name = {
+        "public_transport": "公共交通",
+        "taxi": "打车",
+        "walk": "步行",
+        "drive": "驾车",
+    }.get(str(route.get("transport")), str(route.get("transport") or "交通"))
+    return f"{from_name}到{to_name}，{transport_name}约{route['minutes']}分钟"
 
 
 def _attach_route_costs(
@@ -748,6 +942,15 @@ def search_routes(
     is_xianyang_to_xian = _is_xianyang_to_xian(structured_demand)
     transport_preference = structured_demand.get("location", {}).get("transportPreference")
     route_candidates: list[dict[str, Any]] = []
+    seen_route_keys: set[tuple[str, str, str]] = set()
+
+    def add_route(route: dict[str, Any]) -> None:
+        key = (route.get("fromAreaId", ""), route.get("toAreaId", ""), route.get("transport", ""))
+        if key in seen_route_keys:
+            return
+        seen_route_keys.add(key)
+        route_candidates.append(_route_with_cost(route, people_total))
+        route_candidates[-1]["routeSummary"] = _route_summary(route_candidates[-1], data)
 
     for route in data["routes"]:
         if route.get("routeType") == "cross_city_inbound":
@@ -757,20 +960,21 @@ def search_routes(
                 continue
             if transport_preference and route.get("transport") != transport_preference:
                 continue
-            route_candidates.append(_route_with_cost(route, people_total))
+            add_route(route)
             continue
         if route["fromAreaId"] == route["toAreaId"] and route["fromAreaId"] in unique_area_ids:
-            route_candidates.append(_route_with_cost(route, people_total))
+            add_route(route)
             continue
         if route["fromAreaId"] in unique_area_ids and route["toAreaId"] in unique_area_ids:
-            route_candidates.append(_route_with_cost(route, people_total))
+            add_route(route)
             continue
         if preferred and route["fromAreaId"] in preferred and route["toAreaId"] in unique_area_ids:
-            route_candidates.append(_route_with_cost(route, people_total))
+            add_route(route)
 
     route_candidates.sort(
         key=lambda item: (
             0 if item.get("isCrossCityInbound") else 1,
+            0 if item.get("routeType") == "origin_to_area" else 1,
             item["minutes"],
             item["distanceKm"],
         )
@@ -783,7 +987,7 @@ def search_routes(
             "outputCount": len(route_candidates),
         }
     ]
-    return route_candidates[:12], logs
+    return route_candidates[:40], logs
 
 
 def _build_supply_status(
@@ -849,7 +1053,7 @@ def search_supply(structured_demand: dict[str, Any]) -> dict[str, Any]:
         structured_demand, data
     )
     area_ids = [
-        item["areaId"] for item in [*activity_candidates[:5], *restaurant_candidates[:5]]
+        item["areaId"] for item in [*activity_candidates[:10], *restaurant_candidates[:10]]
     ]
     route_candidates, route_logs = search_routes(structured_demand, area_ids, data)
     activity_candidates = _attach_route_costs(

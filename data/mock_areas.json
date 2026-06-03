@@ -63,6 +63,86 @@
       "defaultTransport": ["taxi", "public_transport", "drive"],
       "suitableScenes": ["family", "elderly", "solo"],
       "mockDescription": "适合低预算、户外轻活动和亲子散步，也能模拟天气、体力和步行风险。"
+    },
+    {
+      "areaId": "origin_xa_qujiangchi",
+      "name": "曲江池附近",
+      "district": "雁塔区",
+      "landmarks": ["曲江池遗址公园", "曲江池西路", "金地广场"],
+      "tags": ["家庭出发点", "曲江", "亲子", "回家提醒"],
+      "defaultTransport": ["taxi", "drive", "public_transport"],
+      "suitableScenes": ["family"],
+      "mockDescription": "画像一亲子半日游的明确出发点，用于模拟全程时间窗和返程提醒。"
+    },
+    {
+      "areaId": "origin_xa_zhonglou_metro",
+      "name": "钟楼地铁站集合点",
+      "district": "莲湖区/碑林区",
+      "landmarks": ["钟楼地铁站", "钟楼", "鼓楼"],
+      "tags": ["集合点", "朋友聚会", "citywalk", "地铁便利"],
+      "defaultTransport": ["public_transport", "walk"],
+      "suitableScenes": ["friends"],
+      "mockDescription": "画像二朋友 Citywalk 的集合点；集合后再开始规划小吃和落脚点。"
+    },
+    {
+      "areaId": "origin_xianyang_qindu",
+      "name": "咸阳秦都站附近",
+      "district": "咸阳",
+      "landmarks": ["秦都站", "白马河站", "咸阳市区"],
+      "tags": ["跨城出发点", "咸阳", "地铁", "低预算"],
+      "defaultTransport": ["public_transport"],
+      "suitableScenes": ["friends"],
+      "mockDescription": "画像三咸阳到西安跨城低预算出行的起点。"
+    },
+    {
+      "areaId": "origin_xa_changan_university",
+      "name": "长安大学",
+      "district": "碑林区/未央区",
+      "landmarks": ["长安大学", "南二环", "渭水校区"],
+      "tags": ["高校出发点", "大学生", "公共交通"],
+      "defaultTransport": ["public_transport"],
+      "suitableScenes": ["friends", "couple"],
+      "mockDescription": "画像四多校区公平集合的一个出发点，也给画像五保留学校语义。"
+    },
+    {
+      "areaId": "origin_xa_jiaotong_university",
+      "name": "西安交大",
+      "district": "碑林区",
+      "landmarks": ["西安交通大学", "兴庆宫", "咸宁西路"],
+      "tags": ["高校出发点", "大学生", "公共交通"],
+      "defaultTransport": ["public_transport"],
+      "suitableScenes": ["friends"],
+      "mockDescription": "画像四多校区公平集合的东侧出发点。"
+    },
+    {
+      "areaId": "origin_xa_northwest_university",
+      "name": "西北大学",
+      "district": "碑林区/长安区",
+      "landmarks": ["西北大学", "太白校区", "长安校区"],
+      "tags": ["高校出发点", "大学生", "公共交通"],
+      "defaultTransport": ["public_transport"],
+      "suitableScenes": ["friends"],
+      "mockDescription": "画像四多校区公平集合的西南侧出发点。"
+    },
+    {
+      "areaId": "origin_xa_shaanxi_normal_university",
+      "name": "陕师大",
+      "district": "雁塔区/长安区",
+      "landmarks": ["陕西师范大学", "陕师大长安校区", "雁塔校区"],
+      "tags": ["高校出发点", "大学生", "公共交通"],
+      "defaultTransport": ["public_transport"],
+      "suitableScenes": ["friends"],
+      "mockDescription": "画像四多校区公平集合的南侧出发点。"
+    },
+    {
+      "areaId": "origin_xa_weishui_campus",
+      "name": "长安大学渭水校区",
+      "district": "未央区",
+      "landmarks": ["长安大学渭水校区", "尚苑路", "渭水"],
+      "tags": ["高校出发点", "轻约会", "低预算", "进城通勤"],
+      "defaultTransport": ["public_transport", "taxi"],
+      "suitableScenes": ["couple", "friends"],
+      "mockDescription": "画像五关系模糊轻约会的男生出发点，用于模拟不能直接 14:00 安排市区活动。"
     }
   ]
 }

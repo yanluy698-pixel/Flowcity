@@ -15,6 +15,9 @@ export type StageState = {
   label: string;
   status: StageStatus;
   payload?: Record<string, unknown>;
+  startedAt?: number;
+  endedAt?: number;
+  durationMs?: number;
 };
 
 export type ChatTurn = {
@@ -22,6 +25,9 @@ export type ChatTurn = {
   displayInput: string;
   effectiveInput: string;
   stages: StageState[];
+  startedAt: number;
+  completedAt?: number;
+  totalDurationMs?: number;
   finalPayload?: Record<string, any>;
   error?: string;
 };

@@ -4,17 +4,1057 @@
   "dataType": "deals",
   "note": "Mock 团购/套餐库存。用于模拟预算控制、库存判断和后续执行动作，不代表真实团购。",
   "deals": [
-    { "dealId": "deal_xa_001", "poiId": "res_xa_001", "name": "双人低脂沙拉轻食套餐", "price": 118, "peopleCount": 2, "stockLeft": 10, "validTime": "10:30-20:30", "tags": ["低脂", "清淡"] },
-    { "dealId": "deal_xa_002", "poiId": "res_xa_003", "name": "双人轻食Bistro套餐", "price": 148, "peopleCount": 2, "stockLeft": 6, "validTime": "11:00-20:30", "tags": ["低脂", "约会"] },
-    { "dealId": "deal_xa_003", "poiId": "res_xa_005", "name": "三人汤包家常套餐", "price": 168, "peopleCount": 3, "stockLeft": 8, "validTime": "10:30-20:30", "tags": ["家庭", "儿童友好"] },
-    { "dealId": "deal_xa_004", "poiId": "res_xa_006", "name": "三人陕菜体验套餐", "price": 258, "peopleCount": 3, "stockLeft": 4, "validTime": "11:00-21:00", "tags": ["陕菜", "游客"] },
-    { "dealId": "deal_xa_005", "poiId": "res_xa_012", "name": "三人清淡家常套餐", "price": 198, "peopleCount": 3, "stockLeft": 12, "validTime": "11:00-20:30", "tags": ["清淡", "儿童友好", "家庭"] },
-    { "dealId": "deal_xa_006", "poiId": "res_xa_014", "name": "家庭陕菜双大一小套餐", "price": 188, "peopleCount": 3, "stockLeft": 5, "validTime": "11:00-20:30", "tags": ["家庭", "陕菜"] },
-    { "dealId": "deal_xa_007", "poiId": "res_xa_016", "name": "双人茶食聊天套餐", "price": 168, "peopleCount": 2, "stockLeft": 7, "validTime": "14:00-21:30", "tags": ["安静", "约会", "朋友聊天"] },
-    { "dealId": "deal_xa_008", "poiId": "res_xa_018", "name": "亲子咖啡简餐套餐", "price": 138, "peopleCount": 2, "stockLeft": 9, "validTime": "10:00-20:30", "tags": ["简餐", "儿童友好"] },
-    { "dealId": "deal_xa_009", "poiId": "act_xa_001", "name": "一大一小亲子入场票", "price": 138, "peopleCount": 2, "stockLeft": 12, "validTime": "09:30-18:00", "tags": ["亲子", "室内"] },
-    { "dealId": "deal_xa_010", "poiId": "act_xa_005", "name": "三人水族体验票", "price": 168, "peopleCount": 3, "stockLeft": 15, "validTime": "10:00-18:00", "tags": ["亲子", "科普"] },
-    { "dealId": "deal_xa_011", "poiId": "act_xa_009", "name": "双人唐风手作体验", "price": 198, "peopleCount": 2, "stockLeft": 3, "validTime": "11:00-20:30", "tags": ["手作", "约会"] },
-    { "dealId": "deal_xa_012", "poiId": "act_xa_016", "name": "亲子自然课堂单次体验", "price": 228, "peopleCount": 2, "stockLeft": 4, "validTime": "10:00-18:00", "tags": ["亲子", "科普"] }
+    {
+      "dealId": "deal_xa_001",
+      "poiId": "res_xa_001",
+      "name": "双人低脂沙拉轻食套餐",
+      "price": 118,
+      "peopleCount": 2,
+      "stockLeft": 10,
+      "validTime": "10:30-20:30",
+      "tags": [
+        "低脂",
+        "清淡"
+      ]
+    },
+    {
+      "dealId": "deal_xa_002",
+      "poiId": "res_xa_003",
+      "name": "双人轻食Bistro套餐",
+      "price": 148,
+      "peopleCount": 2,
+      "stockLeft": 6,
+      "validTime": "11:00-20:30",
+      "tags": [
+        "低脂",
+        "约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_003",
+      "poiId": "res_xa_005",
+      "name": "三人汤包家常套餐",
+      "price": 168,
+      "peopleCount": 3,
+      "stockLeft": 8,
+      "validTime": "10:30-20:30",
+      "tags": [
+        "家庭",
+        "儿童友好"
+      ]
+    },
+    {
+      "dealId": "deal_xa_004",
+      "poiId": "res_xa_006",
+      "name": "三人陕菜体验套餐",
+      "price": 258,
+      "peopleCount": 3,
+      "stockLeft": 4,
+      "validTime": "11:00-21:00",
+      "tags": [
+        "陕菜",
+        "游客"
+      ]
+    },
+    {
+      "dealId": "deal_xa_005",
+      "poiId": "res_xa_012",
+      "name": "三人清淡家常套餐",
+      "price": 198,
+      "peopleCount": 3,
+      "stockLeft": 12,
+      "validTime": "11:00-20:30",
+      "tags": [
+        "清淡",
+        "儿童友好",
+        "家庭"
+      ]
+    },
+    {
+      "dealId": "deal_xa_006",
+      "poiId": "res_xa_014",
+      "name": "家庭陕菜双大一小套餐",
+      "price": 188,
+      "peopleCount": 3,
+      "stockLeft": 5,
+      "validTime": "11:00-20:30",
+      "tags": [
+        "家庭",
+        "陕菜"
+      ]
+    },
+    {
+      "dealId": "deal_xa_007",
+      "poiId": "res_xa_016",
+      "name": "双人茶食聊天套餐",
+      "price": 168,
+      "peopleCount": 2,
+      "stockLeft": 7,
+      "validTime": "14:00-21:30",
+      "tags": [
+        "安静",
+        "约会",
+        "朋友聊天"
+      ]
+    },
+    {
+      "dealId": "deal_xa_008",
+      "poiId": "res_xa_018",
+      "name": "亲子咖啡简餐套餐",
+      "price": 138,
+      "peopleCount": 2,
+      "stockLeft": 9,
+      "validTime": "10:00-20:30",
+      "tags": [
+        "简餐",
+        "儿童友好"
+      ]
+    },
+    {
+      "dealId": "deal_xa_009",
+      "poiId": "act_xa_001",
+      "name": "一大一小亲子入场票",
+      "price": 138,
+      "peopleCount": 2,
+      "stockLeft": 12,
+      "validTime": "09:30-18:00",
+      "tags": [
+        "亲子",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_010",
+      "poiId": "act_xa_005",
+      "name": "三人水族体验票",
+      "price": 168,
+      "peopleCount": 3,
+      "stockLeft": 15,
+      "validTime": "10:00-18:00",
+      "tags": [
+        "亲子",
+        "科普"
+      ]
+    },
+    {
+      "dealId": "deal_xa_011",
+      "poiId": "act_xa_009",
+      "name": "双人唐风手作体验",
+      "price": 198,
+      "peopleCount": 2,
+      "stockLeft": 3,
+      "validTime": "11:00-20:30",
+      "tags": [
+        "手作",
+        "约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_012",
+      "poiId": "act_xa_016",
+      "name": "亲子自然课堂单次体验",
+      "price": 228,
+      "peopleCount": 2,
+      "stockLeft": 4,
+      "validTime": "10:00-18:00",
+      "tags": [
+        "亲子",
+        "科普"
+      ]
+    },
+    {
+      "dealId": "deal_xa_013",
+      "poiId": "res_xa_019",
+      "name": "三人低脂儿童友好套餐",
+      "price": 168,
+      "peopleCount": 3,
+      "stockLeft": 8,
+      "validTime": "10:30-18:30",
+      "tags": [
+        "低脂",
+        "儿童友好",
+        "家庭"
+      ]
+    },
+    {
+      "dealId": "deal_xa_014",
+      "poiId": "res_xa_020",
+      "name": "四人茶食聊天套餐",
+      "price": 158,
+      "peopleCount": 4,
+      "stockLeft": 6,
+      "validTime": "18:00-22:30",
+      "tags": [
+        "朋友聊天",
+        "茶食",
+        "小吃"
+      ]
+    },
+    {
+      "dealId": "deal_xa_015",
+      "poiId": "res_xa_021",
+      "name": "学生四人拼桌餐",
+      "price": 108,
+      "peopleCount": 4,
+      "stockLeft": 10,
+      "validTime": "10:30-20:30",
+      "tags": [
+        "大学生",
+        "低预算",
+        "预算公平"
+      ]
+    },
+    {
+      "dealId": "deal_xa_016",
+      "poiId": "res_xa_022",
+      "name": "双人清爽简餐套餐",
+      "price": 98,
+      "peopleCount": 2,
+      "stockLeft": 5,
+      "validTime": "14:00-18:30",
+      "tags": [
+        "低脂",
+        "轻约会",
+        "清淡"
+      ]
+    },
+    {
+      "dealId": "deal_xa_017",
+      "poiId": "act_xa_021",
+      "name": "双人书店饮品体验",
+      "price": 58,
+      "peopleCount": 2,
+      "stockLeft": 7,
+      "validTime": "14:00-18:00",
+      "tags": [
+        "轻约会",
+        "低预算",
+        "不尴尬"
+      ]
+    },
+    {
+      "dealId": "deal_xa_018",
+      "poiId": "res_xa_023",
+      "name": "三人面食低预算套餐",
+      "price": 88,
+      "peopleCount": 3,
+      "stockLeft": 9,
+      "validTime": "11:00-19:00",
+      "tags": [
+        "男生",
+        "低预算",
+        "面食"
+      ]
+    },
+    {
+      "dealId": "deal_xa_019",
+      "poiId": "res_xa_024",
+      "name": "4人小寨青禾轻食碗套餐",
+      "price": 137,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_020",
+      "poiId": "res_xa_025",
+      "name": "4人小寨学生小火锅套餐",
+      "price": 160,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "大学生",
+        "适合多人",
+        "低预算"
+      ]
+    },
+    {
+      "dealId": "deal_xa_021",
+      "poiId": "res_xa_026",
+      "name": "4人曲江亲子面馆套餐",
+      "price": 124,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "儿童友好",
+        "面食",
+        "低预算"
+      ]
+    },
+    {
+      "dealId": "deal_xa_022",
+      "poiId": "res_xa_027",
+      "name": "4人曲江Mellow Bowl轻食套餐",
+      "price": 216,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_023",
+      "poiId": "res_xa_028",
+      "name": "4人曲江茶饭小馆套餐",
+      "price": 177,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "儿童友好",
+        "可坐下聊天",
+        "清淡"
+      ]
+    },
+    {
+      "dealId": "deal_xa_024",
+      "poiId": "res_xa_029",
+      "name": "4人钟楼巷子小吃拼桌套餐",
+      "price": 127,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "小吃",
+        "适合多人",
+        "低预算"
+      ]
+    },
+    {
+      "dealId": "deal_xa_025",
+      "poiId": "res_xa_030",
+      "name": "4人钟楼清爽拌面馆套餐",
+      "price": 170,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "面食",
+        "低预算",
+        "清淡"
+      ]
+    },
+    {
+      "dealId": "deal_xa_026",
+      "poiId": "res_xa_031",
+      "name": "4人钟楼茶食坐坐馆套餐",
+      "price": 101,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "可坐下聊天",
+        "轻约会",
+        "茶食"
+      ]
+    },
+    {
+      "dealId": "deal_xa_027",
+      "poiId": "res_xa_032",
+      "name": "4人高新轻脂Bowl店套餐",
+      "price": 223,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_028",
+      "poiId": "res_xa_033",
+      "name": "4人高新学生盖饭社套餐",
+      "price": 190,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "大学生",
+        "低预算",
+        "适合多人"
+      ]
+    },
+    {
+      "dealId": "deal_xa_029",
+      "poiId": "res_xa_034",
+      "name": "4人高新慢聊茶餐厅套餐",
+      "price": 114,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "可坐下聊天",
+        "轻约会",
+        "清淡"
+      ]
+    },
+    {
+      "dealId": "deal_xa_030",
+      "poiId": "res_xa_035",
+      "name": "4人大明宫家常小碗菜套餐",
+      "price": 203,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "低预算",
+        "正餐",
+        "适合多人"
+      ]
+    },
+    {
+      "dealId": "deal_xa_031",
+      "poiId": "res_xa_036",
+      "name": "4人大明宫亲子简餐铺套餐",
+      "price": 242,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "儿童友好",
+        "清淡",
+        "亲子"
+      ]
+    },
+    {
+      "dealId": "deal_xa_032",
+      "poiId": "res_xa_037",
+      "name": "4人大明宫茶点坐坐馆套餐",
+      "price": 108,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "可坐下聊天",
+        "茶食",
+        "安静"
+      ]
+    },
+    {
+      "dealId": "deal_xa_033",
+      "poiId": "res_xa_038",
+      "name": "4人行政中心学生面馆套餐",
+      "price": 193,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "大学生",
+        "低预算",
+        "面食"
+      ]
+    },
+    {
+      "dealId": "deal_xa_034",
+      "poiId": "res_xa_039",
+      "name": "4人行政中心轻食沙拉店套餐",
+      "price": 95,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_035",
+      "poiId": "res_xa_040",
+      "name": "4人行政中心茶饭小桌套餐",
+      "price": 147,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "可坐下聊天",
+        "低预算",
+        "适合多人"
+      ]
+    },
+    {
+      "dealId": "deal_xa_036",
+      "poiId": "res_xa_041",
+      "name": "4人小寨低脂简餐局套餐",
+      "price": 157,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_037",
+      "poiId": "res_xa_042",
+      "name": "4人曲江儿童友好蒸菜馆套餐",
+      "price": 170,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "儿童友好",
+        "清淡",
+        "亲子"
+      ]
+    },
+    {
+      "dealId": "deal_xa_038",
+      "poiId": "res_xa_043",
+      "name": "4人钟楼朋友茶饭馆套餐",
+      "price": 180,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "可坐下聊天",
+        "朋友",
+        "低预算"
+      ]
+    },
+    {
+      "dealId": "deal_xa_039",
+      "poiId": "res_xa_044",
+      "name": "4人高新低脂约会餐桌套餐",
+      "price": 164,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "低脂",
+        "轻约会",
+        "清淡"
+      ]
+    },
+    {
+      "dealId": "deal_xa_040",
+      "poiId": "res_xa_045",
+      "name": "4人大明宫慢炖家常菜套餐",
+      "price": 206,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "本地",
+        "正餐",
+        "适合多人"
+      ]
+    },
+    {
+      "dealId": "deal_xa_041",
+      "poiId": "res_xa_046",
+      "name": "4人行政中心同学拼饭社套餐",
+      "price": 98,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "大学生",
+        "低预算",
+        "适合多人"
+      ]
+    },
+    {
+      "dealId": "deal_xa_042",
+      "poiId": "res_xa_047",
+      "name": "4人小寨清淡粉面馆套餐",
+      "price": 190,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "面食",
+        "清淡",
+        "低预算"
+      ]
+    },
+    {
+      "dealId": "deal_xa_043",
+      "poiId": "res_xa_048",
+      "name": "4人曲江饭后甜汤小馆套餐",
+      "price": 104,
+      "peopleCount": 4,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "清淡",
+        "儿童友好",
+        "饭后"
+      ]
+    },
+    {
+      "dealId": "deal_xa_044",
+      "poiId": "act_xa_023",
+      "name": "2人小寨桌游轻聚社套餐",
+      "price": 64,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "大学生",
+        "朋友",
+        "低预算"
+      ]
+    },
+    {
+      "dealId": "deal_xa_045",
+      "poiId": "act_xa_024",
+      "name": "2人小寨轻运动体验馆套餐",
+      "price": 76,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "轻运动",
+        "朋友",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_046",
+      "poiId": "act_xa_025",
+      "name": "2人小寨胶片拍照小课套餐",
+      "price": 81,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "手作",
+        "轻约会",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_047",
+      "poiId": "act_xa_026",
+      "name": "2人曲江亲子手作工坊套餐",
+      "price": 146,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "亲子",
+        "儿童友好",
+        "手作"
+      ]
+    },
+    {
+      "dealId": "deal_xa_048",
+      "poiId": "act_xa_027",
+      "name": "2人曲江轻喜剧小剧场套餐",
+      "price": 163,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "演出",
+        "轻约会",
+        "朋友"
+      ]
+    },
+    {
+      "dealId": "deal_xa_049",
+      "poiId": "act_xa_028",
+      "name": "2人大唐不夜城短线拍照走套餐",
+      "price": 48,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "拍照",
+        "citywalk",
+        "轻松"
+      ]
+    },
+    {
+      "dealId": "deal_xa_050",
+      "poiId": "act_xa_029",
+      "name": "2人钟楼夜色短线Citywalk套餐",
+      "price": 48,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "citywalk",
+        "夜间",
+        "朋友"
+      ]
+    },
+    {
+      "dealId": "deal_xa_051",
+      "poiId": "act_xa_030",
+      "name": "2人钟楼屋顶轻聊书吧套餐",
+      "price": 132,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "聊天",
+        "室内",
+        "轻约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_052",
+      "poiId": "act_xa_031",
+      "name": "2人回民街非遗小吃讲解套餐",
+      "price": 71,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "小吃",
+        "citywalk",
+        "本地"
+      ]
+    },
+    {
+      "dealId": "deal_xa_053",
+      "poiId": "act_xa_032",
+      "name": "2人高新轻食手冲体验课套餐",
+      "price": 48,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "低脂",
+        "手作",
+        "轻约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_054",
+      "poiId": "act_xa_033",
+      "name": "2人高新桌面推理小局套餐",
+      "price": 149,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "桌游",
+        "朋友",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_055",
+      "poiId": "act_xa_034",
+      "name": "2人高新城市运动打卡馆套餐",
+      "price": 98,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "轻运动",
+        "朋友",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_056",
+      "poiId": "act_xa_035",
+      "name": "2人大明宫遗址微展厅套餐",
+      "price": 166,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "展览",
+        "本地",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_057",
+      "poiId": "act_xa_036",
+      "name": "2人大明宫轻徒步盖章线套餐",
+      "price": 217,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "轻松",
+        "户外",
+        "citywalk"
+      ]
+    },
+    {
+      "dealId": "deal_xa_058",
+      "poiId": "act_xa_037",
+      "name": "2人大明宫城市考古体验课套餐",
+      "price": 78,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "亲子",
+        "展览",
+        "手作"
+      ]
+    },
+    {
+      "dealId": "deal_xa_059",
+      "poiId": "act_xa_038",
+      "name": "2人行政中心青年桌游社套餐",
+      "price": 48,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "大学生",
+        "朋友",
+        "桌游"
+      ]
+    },
+    {
+      "dealId": "deal_xa_060",
+      "poiId": "act_xa_039",
+      "name": "2人行政中心城市绿道短走套餐",
+      "price": 61,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "citywalk",
+        "轻松",
+        "户外"
+      ]
+    },
+    {
+      "dealId": "deal_xa_061",
+      "poiId": "act_xa_040",
+      "name": "2人行政中心共享自习茶歇套餐",
+      "price": 115,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "大学生",
+        "安静",
+        "聊天"
+      ]
+    },
+    {
+      "dealId": "deal_xa_062",
+      "poiId": "act_xa_041",
+      "name": "2人小寨青年轻展厅套餐",
+      "price": 48,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "展览",
+        "大学生",
+        "低预算"
+      ]
+    },
+    {
+      "dealId": "deal_xa_063",
+      "poiId": "act_xa_042",
+      "name": "2人小寨轻松话题书店套餐",
+      "price": 48,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "聊天",
+        "安静",
+        "轻约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_064",
+      "poiId": "act_xa_043",
+      "name": "2人曲江自然观察小站套餐",
+      "price": 132,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "亲子",
+        "儿童友好",
+        "轻松"
+      ]
+    },
+    {
+      "dealId": "deal_xa_065",
+      "poiId": "act_xa_044",
+      "name": "2人钟楼小剧场轻喜夜套餐",
+      "price": 57,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "演出",
+        "夜间",
+        "朋友"
+      ]
+    },
+    {
+      "dealId": "deal_xa_066",
+      "poiId": "act_xa_045",
+      "name": "2人钟楼短线小吃Citywalk套餐",
+      "price": 54,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "citywalk",
+        "小吃",
+        "夜间"
+      ]
+    },
+    {
+      "dealId": "deal_xa_067",
+      "poiId": "act_xa_046",
+      "name": "2人高新安静画室体验套餐",
+      "price": 76,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "手作",
+        "安静",
+        "轻约会"
+      ]
+    },
+    {
+      "dealId": "deal_xa_068",
+      "poiId": "act_xa_047",
+      "name": "2人大明宫文化轻展廊套餐",
+      "price": 122,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "展览",
+        "本地",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_069",
+      "poiId": "act_xa_048",
+      "name": "2人行政中心夜间慢走线套餐",
+      "price": 48,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-21:00",
+      "tags": [
+        "citywalk",
+        "夜间",
+        "轻松"
+      ]
+    },
+    {
+      "dealId": "deal_xa_070",
+      "poiId": "act_xa_057",
+      "name": "小寨赛格IMAX影城双人电影票+饮品",
+      "price": 88,
+      "peopleCount": 2,
+      "stockLeft": 10,
+      "validTime": "10:30-22:30",
+      "tags": [
+        "电影",
+        "电影票",
+        "双人",
+        "轻约会",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_071",
+      "poiId": "act_xa_058",
+      "name": "曲江大悦城影城双人电影票+饮品",
+      "price": 92,
+      "peopleCount": 2,
+      "stockLeft": 9,
+      "validTime": "10:30-22:30",
+      "tags": [
+        "电影",
+        "电影票",
+        "双人",
+        "轻约会",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_072",
+      "poiId": "act_xa_059",
+      "name": "钟楼开元影城夜场双人电影票+饮品",
+      "price": 96,
+      "peopleCount": 2,
+      "stockLeft": 8,
+      "validTime": "10:30-22:30",
+      "tags": [
+        "电影",
+        "电影票",
+        "双人",
+        "轻约会",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_073",
+      "poiId": "act_xa_060",
+      "name": "高新大都荟影院双人电影票+饮品",
+      "price": 100,
+      "peopleCount": 2,
+      "stockLeft": 7,
+      "validTime": "10:30-22:30",
+      "tags": [
+        "电影",
+        "电影票",
+        "双人",
+        "轻约会",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_074",
+      "poiId": "act_xa_061",
+      "name": "行政中心大融城影城双人电影票+饮品",
+      "price": 104,
+      "peopleCount": 2,
+      "stockLeft": 6,
+      "validTime": "10:30-22:30",
+      "tags": [
+        "电影",
+        "电影票",
+        "双人",
+        "轻约会",
+        "室内"
+      ]
+    },
+    {
+      "dealId": "deal_xa_075",
+      "poiId": "act_xa_062",
+      "name": "大明宫龙首印象城影院双人电影票+饮品",
+      "price": 108,
+      "peopleCount": 2,
+      "stockLeft": 5,
+      "validTime": "10:30-22:30",
+      "tags": [
+        "电影",
+        "电影票",
+        "双人",
+        "轻约会",
+        "室内"
+      ]
+    }
   ]
 }

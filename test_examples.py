@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
 import extractor
+import executor
 import mock_api
 import planner
 import run_flow
@@ -504,6 +506,247 @@ def check_stage6_executor(examples: list[dict[str, Any]]) -> list[str]:
     return errors
 
 
+def check_five_persona_mock_data(examples: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    example_by_id = {example["id"]: example for example in examples}
+    persona_ids = [
+        "family_qujiang_half_day",
+        "friends_zhonglou_citywalk",
+        "xianyang_qindu_low_budget_trip",
+        "multi_campus_fair_meetup",
+        "pursuing_weishui_low_budget",
+    ]
+
+    for example_id in persona_ids:
+        demand = example_by_id[example_id]["expectedStructuredDemand"]
+        try:
+            supply = mock_api.search_supply(demand)
+        except Exception as exc:
+            errors.append(f"{example_id}: search_supply failed: {exc}")
+            continue
+        if not supply.get("activityCandidates"):
+            errors.append(f"{example_id}: expected activity candidates")
+        if not supply.get("restaurantCandidates"):
+            errors.append(f"{example_id}: expected restaurant candidates")
+        if not supply.get("routeCandidates"):
+            errors.append(f"{example_id}: expected route candidates")
+
+    family_supply = mock_api.search_supply(
+        example_by_id["family_qujiang_half_day"]["expectedStructuredDemand"]
+    )
+    if not any(candidate.get("poiId") == "res_xa_019" for candidate in family_supply["restaurantCandidates"]):
+        errors.append("family_qujiang_half_day: missing low-fat child-friendly restaurant res_xa_019")
+
+    friends_supply = mock_api.search_supply(
+        example_by_id["friends_zhonglou_citywalk"]["expectedStructuredDemand"]
+    )
+    if not any(candidate.get("poiId") == "res_xa_020" for candidate in friends_supply["restaurantCandidates"]):
+        errors.append("friends_zhonglou_citywalk: missing seated chat fallback res_xa_020")
+
+    campus_supply = mock_api.search_supply(
+        example_by_id["multi_campus_fair_meetup"]["expectedStructuredDemand"]
+    )
+    route_text = json.dumps(campus_supply.get("routeCandidates", []), ensure_ascii=False)
+    for school in ("origin_xa_changan_university", "origin_xa_jiaotong_university", "origin_xa_northwest_university", "origin_xa_shaanxi_normal_university"):
+        if school not in route_text:
+            errors.append(f"multi_campus_fair_meetup: missing route signal for {school}")
+
+    return errors
+
+
+def check_mock_density() -> list[str]:
+    errors: list[str] = []
+    data = mock_api.load_mock_data()
+    core_areas = {
+        "area_xa_xiaozhai",
+        "area_xa_qujiang",
+        "area_xa_zhonglou",
+        "area_xa_gaoxin",
+        "area_xa_daminggong",
+        "area_xa_xingzheng",
+    }
+    activity_counts = Counter(item.get("areaId") for item in data.get("activities", []))
+    restaurant_counts = Counter(item.get("areaId") for item in data.get("restaurants", []))
+    for area_id in sorted(core_areas):
+        if activity_counts[area_id] < 8:
+            errors.append(f"mock_density: {area_id} should have at least 8 activities")
+        if restaurant_counts[area_id] < 8:
+            errors.append(f"mock_density: {area_id} should have at least 8 restaurants")
+
+    activity_availability = {item.get("poiId") for item in data.get("activityAvailability", [])}
+    restaurant_availability = {item.get("poiId") for item in data.get("restaurantAvailability", [])}
+    missing_activities = [
+        item["id"] for item in data.get("activities", []) if item["id"] not in activity_availability
+    ]
+    missing_restaurants = [
+        item["id"] for item in data.get("restaurants", []) if item["id"] not in restaurant_availability
+    ]
+    if missing_activities:
+        errors.append(f"mock_density: activities missing availability {missing_activities[:5]}")
+    if missing_restaurants:
+        errors.append(f"mock_density: restaurants missing availability {missing_restaurants[:5]}")
+    return errors
+
+
+def check_runtime_status_pool() -> list[str]:
+    errors: list[str] = []
+    runtime_status = mock_api.load_runtime_status()
+    all_records = [
+        *runtime_status.get("activityRuntimeStatus", []),
+        *runtime_status.get("restaurantRuntimeStatus", []),
+        *runtime_status.get("routeRuntimeStatus", []),
+        *runtime_status.get("dealRuntimeStatus", []),
+    ]
+    changed = [record for record in all_records if record.get("runtimeState") == "changed"]
+    if not all_records:
+        errors.append("runtime_status: expected records")
+    elif not 0.3 <= len(changed) / len(all_records) <= 0.5:
+        errors.append("runtime_status: changed records should be roughly 40%")
+
+    normal_draft = {
+        "draftStatus": "ready",
+        "pendingActions": [
+            {
+                "timelineIndex": 0,
+                "title": "正常活动",
+                "poiId": "act_xa_017",
+                "actionType": "mock_ticket_lock",
+                "runtimeLookup": {"kind": "activity", "poiId": "act_xa_017", "dateText": "周六"},
+            },
+            {
+                "timelineIndex": 1,
+                "title": "正常餐厅",
+                "poiId": "res_xa_019",
+                "actionType": "mock_restaurant_reservation",
+                "runtimeLookup": {"kind": "restaurant", "poiId": "res_xa_019", "dateText": "周六"},
+            },
+        ],
+        "alternativeCandidates": {"activities": [], "restaurants": []},
+    }
+    normal_result = executor.confirm_execution(normal_draft)
+    if normal_result.get("executionStatus") != "confirmed":
+        errors.append("runtime_status: unchanged runtime should confirm normally")
+    if len(normal_result.get("confirmationCodes", [])) != 2:
+        errors.append("runtime_status: unchanged runtime should generate confirmation codes")
+
+    abnormal_draft = {
+        "draftStatus": "ready",
+        "pendingActions": [
+            {
+                "timelineIndex": 0,
+                "title": "售罄活动",
+                "poiId": "act_xa_021",
+                "actionType": "mock_ticket_lock",
+                "runtimeLookup": {"kind": "activity", "poiId": "act_xa_021", "dateText": "周六"},
+            },
+            {
+                "timelineIndex": 1,
+                "title": "无座餐厅",
+                "poiId": "res_xa_022",
+                "actionType": "mock_restaurant_reservation",
+                "runtimeLookup": {"kind": "restaurant", "poiId": "res_xa_022", "dateText": "周六"},
+                "dealPreview": {"dealId": "deal_xa_016", "stockLeft": 5},
+            },
+            {
+                "timelineIndex": 2,
+                "title": "变慢路线",
+                "actionType": "route_reminder",
+                "routeRef": "origin_xa_weishui_campus->area_xa_xiaozhai",
+                "plannedRouteMinutes": 56,
+                "runtimeLookup": {"kind": "route", "routeRef": "origin_xa_weishui_campus->area_xa_xiaozhai"},
+            },
+        ],
+        "alternativeCandidates": {
+            "activities": [{"poiId": "act_xa_012", "name": "兴善寺东街书房(小寨店)", "kind": "activity"}],
+            "restaurants": [{"poiId": "res_xa_019", "name": "曲江禾悦轻食家常菜", "kind": "restaurant"}],
+        },
+    }
+    abnormal_result = executor.confirm_execution(abnormal_draft)
+    if abnormal_result.get("executionStatus") not in {"partial", "blocked"}:
+        errors.append("runtime_status: abnormal runtime should block or partially block execution")
+    runtime_validation = abnormal_result.get("runtimeValidationResult", {})
+    if runtime_validation.get("status") != "failed" or not runtime_validation.get("replanNeeded"):
+        errors.append("runtime_status: abnormal runtime should request replan")
+    issue_codes = {issue.get("code") for issue in runtime_validation.get("issues", [])}
+    for code in ("RUNTIME_TICKET_SOLD_OUT", "RUNTIME_TABLE_NOT_AVAILABLE", "RUNTIME_ROUTE_DELAYED", "RUNTIME_DEAL_SOLD_OUT"):
+        if code not in issue_codes:
+            errors.append(f"runtime_status: missing issue code {code}")
+    adjustment = abnormal_result.get("executionAdjustment", {})
+    alternatives = adjustment.get("availableAlternativeCandidates", {})
+    if not alternatives.get("activities") or not alternatives.get("restaurants"):
+        errors.append("runtime_status: abnormal runtime should return available alternatives")
+
+    demand = mock_api.load_example_demand("pursuing_weishui_low_budget")
+    supply = mock_api.search_supply(demand)
+    old_plan = {
+        "status": "ok",
+        "summary": "测试用旧方案，包含确认前会变化的活动和餐厅。",
+        "timeline": [
+            {
+                "start": "14:00",
+                "end": "14:56",
+                "type": "route",
+                "title": "入城路线",
+                "routeRef": "origin_xa_weishui_campus->area_xa_xiaozhai",
+                "estimatedCost": 12,
+            },
+            {
+                "start": "14:56",
+                "end": "15:56",
+                "type": "activity",
+                "title": "小寨轻松话题书店",
+                "poiId": "act_xa_021",
+                "estimatedCost": 60,
+            },
+            {
+                "start": "16:11",
+                "end": "17:26",
+                "type": "restaurant",
+                "title": "小寨清爽简餐约会店",
+                "poiId": "res_xa_022",
+                "estimatedCost": 112,
+            },
+        ],
+        "selectedItems": [
+            {"kind": "activity", "poiId": "act_xa_021", "name": "小寨轻松话题书店"},
+            {"kind": "restaurant", "poiId": "res_xa_022", "name": "小寨清爽简餐约会店"},
+        ],
+        "budgetEstimate": {
+            "activityCost": 60,
+            "restaurantCost": 112,
+            "routeCost": 12,
+            "totalCost": 184,
+            "perPersonCost": 92,
+        },
+        "recommendationReasons": [],
+        "riskTips": [],
+        "tradeoffs": [],
+        "rawPlannerNotes": "test fixture",
+    }
+    replan_result = executor.confirm_execution(
+        abnormal_draft,
+        structured_demand=demand,
+        timeline_plan=old_plan,
+        mock_supply=supply,
+        planner_llm=False,
+        replan_on_runtime_failure=True,
+    )
+    if replan_result.get("executionStatus") != "replan_ready":
+        errors.append("runtime_status: runtime replan should produce a replan_ready result")
+    runtime_replan = replan_result.get("runtimeReplanResult", {})
+    replanned_draft = runtime_replan.get("replannedExecutionDraft", {})
+    if not runtime_replan.get("replannedFinalPlan", {}).get("timeline"):
+        errors.append("runtime_status: runtime replan should return a new timeline")
+    if replanned_draft.get("draftStatus") == "blocked":
+        errors.append("runtime_status: replanned execution draft should be confirmable")
+    if replanned_draft:
+        final_confirm = executor.confirm_execution(replanned_draft)
+        if final_confirm.get("executionStatus") != "confirmed":
+            errors.append("runtime_status: replanned draft should confirm successfully")
+
+    return errors
+
+
 def run_llm_examples(examples: list[dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     schema = extractor.load_json(extractor.SCHEMA_PATH)
@@ -514,7 +757,7 @@ def run_llm_examples(examples: list[dict[str, Any]]) -> list[str]:
         try:
             response_text = extractor.call_llm(prompt)
             result = extractor.parse_json_object(response_text)
-            result = extractor.normalize_structured_demand(result)
+            result = extractor.normalize_structured_demand(result, example["userInput"])
         except Exception as exc:
             errors.append(f"{example_id}: LLM extraction failed: {exc}")
             continue
@@ -544,6 +787,9 @@ def main() -> int:
     errors.extend(check_stage4_planner(examples))
     errors.extend(check_stage5_validator(examples))
     errors.extend(check_stage6_executor(examples))
+    errors.extend(check_five_persona_mock_data(examples))
+    errors.extend(check_mock_density())
+    errors.extend(check_runtime_status_pool())
 
     if args.llm:
         errors.extend(run_llm_examples(examples))

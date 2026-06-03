@@ -9,9 +9,18 @@
       "name": "青禾沙拉实验室(小寨店)",
       "areaId": "area_xa_xiaozhai",
       "cuisine": "light_food",
-      "tags": ["低脂", "清淡", "沙拉", "可预约", "少油"],
-      "openHours": { "weekday": "10:30-21:00", "weekend": "10:30-21:30" },
-      "avgPricePerPerson": 62,
+      "tags": [
+        "低脂",
+        "清淡",
+        "沙拉",
+        "可预约",
+        "少油"
+      ],
+      "openHours": {
+        "weekday": "10:30-21:00",
+        "weekend": "10:30-21:30"
+      },
+      "avgPricePerPerson": 55,
       "childFriendly": false,
       "lowFatOptions": true,
       "reservable": true,
@@ -23,8 +32,17 @@
       "name": "山有之Cafe&Meal(小寨店)",
       "areaId": "area_xa_xiaozhai",
       "cuisine": "cafe_meal",
-      "tags": ["咖啡", "简餐", "拍照", "约会", "安静"],
-      "openHours": { "weekday": "10:00-21:30", "weekend": "10:00-22:00" },
+      "tags": [
+        "咖啡",
+        "简餐",
+        "拍照",
+        "约会",
+        "安静"
+      ],
+      "openHours": {
+        "weekday": "10:00-21:30",
+        "weekend": "10:00-22:00"
+      },
       "avgPricePerPerson": 88,
       "childFriendly": false,
       "lowFatOptions": true,
@@ -37,8 +55,17 @@
       "name": "悦蔬轻食Bistro(高新大都荟店)",
       "areaId": "area_xa_gaoxin",
       "cuisine": "light_food",
-      "tags": ["低脂", "清淡", "可预约", "约会", "白领"],
-      "openHours": { "weekday": "11:00-21:30", "weekend": "10:30-22:00" },
+      "tags": [
+        "低脂",
+        "清淡",
+        "可预约",
+        "约会",
+        "白领"
+      ],
+      "openHours": {
+        "weekday": "11:00-21:30",
+        "weekend": "10:30-22:00"
+      },
       "avgPricePerPerson": 78,
       "childFriendly": false,
       "lowFatOptions": true,
@@ -51,8 +78,17 @@
       "name": "Mellow Bowl轻食(高新店)",
       "areaId": "area_xa_gaoxin",
       "cuisine": "light_food",
-      "tags": ["低脂", "沙拉", "轻食", "安静", "少油"],
-      "openHours": { "weekday": "10:30-20:30", "weekend": "10:30-21:00" },
+      "tags": [
+        "低脂",
+        "沙拉",
+        "轻食",
+        "安静",
+        "少油"
+      ],
+      "openHours": {
+        "weekday": "10:30-20:30",
+        "weekend": "10:30-21:00"
+      },
       "avgPricePerPerson": 72,
       "childFriendly": false,
       "lowFatOptions": true,
@@ -65,8 +101,17 @@
       "name": "小六汤包小馆(熙地港店)",
       "areaId": "area_xa_xingzheng",
       "cuisine": "local_snack",
-      "tags": ["陕西小吃", "儿童友好", "家庭", "可预约", "商场"],
-      "openHours": { "weekday": "10:30-21:00", "weekend": "10:30-21:30" },
+      "tags": [
+        "陕西小吃",
+        "儿童友好",
+        "家庭",
+        "可预约",
+        "商场"
+      ],
+      "openHours": {
+        "weekday": "10:30-21:00",
+        "weekend": "10:30-21:30"
+      },
       "avgPricePerPerson": 55,
       "childFriendly": true,
       "lowFatOptions": false,
@@ -79,8 +124,17 @@
       "name": "长安小牌档(赛格店)",
       "areaId": "area_xa_xiaozhai",
       "cuisine": "shaanxi_cuisine",
-      "tags": ["陕菜", "本地特色", "家庭", "游客", "热闹"],
-      "openHours": { "weekday": "11:00-22:00", "weekend": "10:30-22:30" },
+      "tags": [
+        "陕菜",
+        "本地特色",
+        "家庭",
+        "游客",
+        "热闹"
+      ],
+      "openHours": {
+        "weekday": "11:00-22:00",
+        "weekend": "10:30-22:30"
+      },
       "avgPricePerPerson": 86,
       "childFriendly": true,
       "lowFatOptions": false,
@@ -93,8 +147,17 @@
       "name": "陕拾叁冰酪小站(大悦城店)",
       "areaId": "area_xa_qujiang",
       "cuisine": "dessert",
-      "tags": ["甜品", "本地特色", "拍照", "轻食", "游客"],
-      "openHours": { "weekday": "10:30-22:00", "weekend": "10:30-22:30" },
+      "tags": [
+        "甜品",
+        "本地特色",
+        "拍照",
+        "轻食",
+        "游客"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
       "avgPricePerPerson": 38,
       "childFriendly": true,
       "lowFatOptions": false,
@@ -107,8 +170,17 @@
       "name": "茶话巷长安制茶(大雁塔店)",
       "areaId": "area_xa_qujiang",
       "cuisine": "tea_drink",
-      "tags": ["茶饮", "本土品牌感", "拍照", "朋友", "轻松"],
-      "openHours": { "weekday": "10:00-22:00", "weekend": "10:00-23:00" },
+      "tags": [
+        "茶饮",
+        "本土品牌感",
+        "拍照",
+        "朋友",
+        "轻松"
+      ],
+      "openHours": {
+        "weekday": "10:00-22:00",
+        "weekend": "10:00-23:00"
+      },
       "avgPricePerPerson": 24,
       "childFriendly": true,
       "lowFatOptions": true,
@@ -121,8 +193,17 @@
       "name": "北院门清真小食铺(钟楼店)",
       "areaId": "area_xa_zhonglou",
       "cuisine": "local_snack",
-      "tags": ["小吃", "清真", "朋友", "游客", "热闹"],
-      "openHours": { "weekday": "11:00-23:00", "weekend": "10:30-23:30" },
+      "tags": [
+        "小吃",
+        "清真",
+        "朋友",
+        "游客",
+        "热闹"
+      ],
+      "openHours": {
+        "weekday": "11:00-23:00",
+        "weekend": "10:30-23:30"
+      },
       "avgPricePerPerson": 48,
       "childFriendly": false,
       "lowFatOptions": false,
@@ -135,8 +216,17 @@
       "name": "马记小炒泡馍馆(回民街店)",
       "areaId": "area_xa_zhonglou",
       "cuisine": "local_snack",
-      "tags": ["泡馍", "小吃", "本地特色", "游客", "排队"],
-      "openHours": { "weekday": "10:30-22:30", "weekend": "10:00-23:00" },
+      "tags": [
+        "泡馍",
+        "小吃",
+        "本地特色",
+        "游客",
+        "排队"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:30",
+        "weekend": "10:00-23:00"
+      },
       "avgPricePerPerson": 58,
       "childFriendly": false,
       "lowFatOptions": false,
@@ -149,8 +239,17 @@
       "name": "魏小家凉皮铺(小寨店)",
       "areaId": "area_xa_xiaozhai",
       "cuisine": "fast_local",
-      "tags": ["凉皮", "肉夹馍", "快餐", "低预算", "儿童可接受"],
-      "openHours": { "weekday": "10:00-21:00", "weekend": "10:00-21:30" },
+      "tags": [
+        "凉皮",
+        "肉夹馍",
+        "快餐",
+        "低预算",
+        "儿童可接受"
+      ],
+      "openHours": {
+        "weekday": "10:00-21:00",
+        "weekend": "10:00-21:30"
+      },
       "avgPricePerPerson": 32,
       "childFriendly": true,
       "lowFatOptions": false,
@@ -163,8 +262,17 @@
       "name": "云禾家常菜(曲江大悦城店)",
       "areaId": "area_xa_qujiang",
       "cuisine": "home_style",
-      "tags": ["家常菜", "儿童友好", "清淡", "可预约", "家庭"],
-      "openHours": { "weekday": "11:00-21:30", "weekend": "10:30-22:00" },
+      "tags": [
+        "家常菜",
+        "儿童友好",
+        "清淡",
+        "可预约",
+        "家庭"
+      ],
+      "openHours": {
+        "weekday": "11:00-21:30",
+        "weekend": "10:30-22:00"
+      },
       "avgPricePerPerson": 69,
       "childFriendly": true,
       "lowFatOptions": true,
@@ -177,8 +285,17 @@
       "name": "半糖茶餐厅(大雁塔店)",
       "areaId": "area_xa_qujiang",
       "cuisine": "cantonese_cafe",
-      "tags": ["茶餐厅", "约会", "可预约", "拍照", "朋友"],
-      "openHours": { "weekday": "11:00-22:00", "weekend": "10:30-22:30" },
+      "tags": [
+        "茶餐厅",
+        "约会",
+        "可预约",
+        "拍照",
+        "朋友"
+      ],
+      "openHours": {
+        "weekday": "11:00-22:00",
+        "weekend": "10:30-22:30"
+      },
       "avgPricePerPerson": 92,
       "childFriendly": false,
       "lowFatOptions": true,
@@ -191,8 +308,17 @@
       "name": "唐里小院陕菜(大明宫店)",
       "areaId": "area_xa_daminggong",
       "cuisine": "shaanxi_cuisine",
-      "tags": ["陕菜", "家庭", "可预约", "空间宽敞", "儿童友好"],
-      "openHours": { "weekday": "11:00-21:00", "weekend": "10:30-21:30" },
+      "tags": [
+        "陕菜",
+        "家庭",
+        "可预约",
+        "空间宽敞",
+        "儿童友好"
+      ],
+      "openHours": {
+        "weekday": "11:00-21:00",
+        "weekend": "10:30-21:30"
+      },
       "avgPricePerPerson": 76,
       "childFriendly": true,
       "lowFatOptions": false,
@@ -205,8 +331,17 @@
       "name": "安小野烤肉社(钟楼店)",
       "areaId": "area_xa_zhonglou",
       "cuisine": "bbq",
-      "tags": ["烤肉", "朋友", "热闹", "夜间", "排队"],
-      "openHours": { "weekday": "17:00-01:00", "weekend": "16:30-01:30" },
+      "tags": [
+        "烤肉",
+        "朋友",
+        "热闹",
+        "夜间",
+        "排队"
+      ],
+      "openHours": {
+        "weekday": "17:00-01:00",
+        "weekend": "16:30-01:30"
+      },
       "avgPricePerPerson": 118,
       "childFriendly": false,
       "lowFatOptions": false,
@@ -219,8 +354,17 @@
       "name": "西市里茶食馆(高新店)",
       "areaId": "area_xa_gaoxin",
       "cuisine": "tea_meal",
-      "tags": ["安静", "可预约", "茶食", "约会", "朋友聊天"],
-      "openHours": { "weekday": "11:00-22:00", "weekend": "10:30-22:30" },
+      "tags": [
+        "安静",
+        "可预约",
+        "茶食",
+        "约会",
+        "朋友聊天"
+      ],
+      "openHours": {
+        "weekday": "11:00-22:00",
+        "weekend": "10:30-22:30"
+      },
       "avgPricePerPerson": 96,
       "childFriendly": false,
       "lowFatOptions": true,
@@ -233,8 +377,17 @@
       "name": "关中巷子biangbiang面(龙首原店)",
       "areaId": "area_xa_daminggong",
       "cuisine": "noodle",
-      "tags": ["面食", "低预算", "本地特色", "家庭", "快餐"],
-      "openHours": { "weekday": "10:30-21:00", "weekend": "10:30-21:30" },
+      "tags": [
+        "面食",
+        "低预算",
+        "本地特色",
+        "家庭",
+        "快餐"
+      ],
+      "openHours": {
+        "weekday": "10:30-21:00",
+        "weekend": "10:30-21:30"
+      },
       "avgPricePerPerson": 36,
       "childFriendly": true,
       "lowFatOptions": false,
@@ -247,14 +400,808 @@
       "name": "松间咖啡与简餐(熙地港店)",
       "areaId": "area_xa_xingzheng",
       "cuisine": "cafe_meal",
-      "tags": ["咖啡", "简餐", "安静", "可预约", "朋友聊天"],
-      "openHours": { "weekday": "10:00-21:30", "weekend": "10:00-22:00" },
+      "tags": [
+        "咖啡",
+        "简餐",
+        "安静",
+        "可预约",
+        "朋友聊天"
+      ],
+      "openHours": {
+        "weekday": "10:00-21:30",
+        "weekend": "10:00-22:00"
+      },
       "avgPricePerPerson": 68,
       "childFriendly": true,
       "lowFatOptions": true,
       "reservable": true,
       "baseRating": 4.4,
       "mockBasis": "参考熙地港商场咖啡简餐命名风格微调"
+    },
+    {
+      "id": "res_xa_019",
+      "name": "曲江禾悦轻食家常菜",
+      "areaId": "area_xa_qujiang",
+      "cuisine": "light_home_style",
+      "tags": [
+        "低脂",
+        "清淡",
+        "儿童友好",
+        "家庭",
+        "可预约",
+        "少油"
+      ],
+      "openHours": {
+        "weekday": "10:30-21:30",
+        "weekend": "10:30-22:00"
+      },
+      "avgPricePerPerson": 58,
+      "childFriendly": true,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.5,
+      "mockBasis": "为曲江亲子半日游补充低脂、儿童友好、可预约餐厅。"
+    },
+    {
+      "id": "res_xa_020",
+      "name": "钟楼茶食坐坐馆",
+      "areaId": "area_xa_zhonglou",
+      "cuisine": "tea_meal",
+      "tags": [
+        "朋友聊天",
+        "可坐下",
+        "茶食",
+        "小吃",
+        "少走路",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "14:00-23:30",
+        "weekend": "12:00-00:30"
+      },
+      "avgPricePerPerson": 46,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.3,
+      "mockBasis": "为朋友 Citywalk 补充最后坐下聊天的落脚点。"
+    },
+    {
+      "id": "res_xa_021",
+      "name": "小寨学生拼桌小馆",
+      "areaId": "area_xa_xiaozhai",
+      "cuisine": "student_combo",
+      "tags": [
+        "大学生",
+        "低预算",
+        "适合多人",
+        "快餐",
+        "预算公平"
+      ],
+      "openHours": {
+        "weekday": "10:30-21:30",
+        "weekend": "10:30-22:00"
+      },
+      "avgPricePerPerson": 29,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.0,
+      "mockBasis": "为多校区大学生人均 80 以内补充低价餐饮。"
+    },
+    {
+      "id": "res_xa_022",
+      "name": "小寨清爽简餐约会店",
+      "areaId": "area_xa_xiaozhai",
+      "cuisine": "light_cafe_meal",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会",
+        "不尴尬",
+        "可预约",
+        "安静"
+      ],
+      "openHours": {
+        "weekday": "10:30-21:30",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 56,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.5,
+      "mockBasis": "为关系模糊轻约会补充低脂、自然、不正式的餐厅。"
+    },
+    {
+      "id": "res_xa_023",
+      "name": "行政中心三人面食套餐店",
+      "areaId": "area_xa_xingzheng",
+      "cuisine": "noodle_combo",
+      "tags": [
+        "男生",
+        "低预算",
+        "面食",
+        "适合多人",
+        "公共交通"
+      ],
+      "openHours": {
+        "weekday": "10:30-21:30",
+        "weekend": "10:30-22:00"
+      },
+      "avgPricePerPerson": 34,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.1,
+      "mockBasis": "为咸阳跨城低预算男生朋友场景补充便宜正餐。"
+    },
+    {
+      "id": "res_xa_024",
+      "name": "小寨青禾轻食碗",
+      "areaId": "area_xa_xiaozhai",
+      "cuisine": "light_food",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会",
+        "可预约",
+        "聊天"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 42,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.3,
+      "mockBasis": "补充小寨低脂轻食餐厅。"
+    },
+    {
+      "id": "res_xa_025",
+      "name": "小寨学生小火锅",
+      "areaId": "area_xa_xiaozhai",
+      "cuisine": "student_hotpot",
+      "tags": [
+        "大学生",
+        "适合多人",
+        "低预算",
+        "热闹",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 49,
+      "childFriendly": false,
+      "lowFatOptions": false,
+      "reservable": true,
+      "baseRating": 4.1,
+      "mockBasis": "补充小寨学生低预算正餐。"
+    },
+    {
+      "id": "res_xa_026",
+      "name": "曲江亲子面馆",
+      "areaId": "area_xa_qujiang",
+      "cuisine": "noodle",
+      "tags": [
+        "儿童友好",
+        "面食",
+        "低预算",
+        "亲子",
+        "正餐"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 38,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.1,
+      "mockBasis": "补充曲江亲子低预算面食。"
+    },
+    {
+      "id": "res_xa_027",
+      "name": "曲江Mellow Bowl轻食",
+      "areaId": "area_xa_qujiang",
+      "cuisine": "light_food",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会",
+        "可预约",
+        "安静"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 66,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.4,
+      "mockBasis": "补充曲江低脂轻约会餐厅。"
+    },
+    {
+      "id": "res_xa_028",
+      "name": "曲江茶饭小馆",
+      "areaId": "area_xa_qujiang",
+      "cuisine": "tea_meal",
+      "tags": [
+        "儿童友好",
+        "可坐下聊天",
+        "清淡",
+        "可预约",
+        "正餐"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 54,
+      "childFriendly": true,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.3,
+      "mockBasis": "补充曲江可聊天茶饭。"
+    },
+    {
+      "id": "res_xa_029",
+      "name": "钟楼巷子小吃拼桌",
+      "areaId": "area_xa_zhonglou",
+      "cuisine": "local_snack",
+      "tags": [
+        "小吃",
+        "适合多人",
+        "低预算",
+        "朋友",
+        "热闹"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 39,
+      "childFriendly": false,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.0,
+      "mockBasis": "补充钟楼朋友小吃。"
+    },
+    {
+      "id": "res_xa_030",
+      "name": "钟楼清爽拌面馆",
+      "areaId": "area_xa_zhonglou",
+      "cuisine": "light_cafe_meal",
+      "tags": [
+        "面食",
+        "低预算",
+        "清淡",
+        "快餐",
+        "正餐"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 52,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.3,
+      "mockBasis": "补充钟楼低预算快餐。"
+    },
+    {
+      "id": "res_xa_031",
+      "name": "钟楼茶食坐坐馆",
+      "areaId": "area_xa_zhonglou",
+      "cuisine": "noodle_combo",
+      "tags": [
+        "可坐下聊天",
+        "轻约会",
+        "茶食",
+        "安静",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 31,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.0,
+      "mockBasis": "补充钟楼坐下聊天餐厅。"
+    },
+    {
+      "id": "res_xa_032",
+      "name": "高新轻脂Bowl店",
+      "areaId": "area_xa_gaoxin",
+      "cuisine": "tea_meal",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会",
+        "可预约",
+        "安静"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 68,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.4,
+      "mockBasis": "补充高新低脂餐厅。"
+    },
+    {
+      "id": "res_xa_033",
+      "name": "高新学生盖饭社",
+      "areaId": "area_xa_gaoxin",
+      "cuisine": "light_food",
+      "tags": [
+        "大学生",
+        "低预算",
+        "适合多人",
+        "快餐",
+        "正餐"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 58,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.4,
+      "mockBasis": "补充高新学生低预算餐。"
+    },
+    {
+      "id": "res_xa_034",
+      "name": "高新慢聊茶餐厅",
+      "areaId": "area_xa_gaoxin",
+      "cuisine": "student_combo",
+      "tags": [
+        "可坐下聊天",
+        "轻约会",
+        "清淡",
+        "可预约",
+        "安静"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 35,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.0,
+      "mockBasis": "补充高新可聊天餐厅。"
+    },
+    {
+      "id": "res_xa_035",
+      "name": "大明宫家常小碗菜",
+      "areaId": "area_xa_daminggong",
+      "cuisine": "home_style",
+      "tags": [
+        "低预算",
+        "正餐",
+        "适合多人",
+        "本地",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 62,
+      "childFriendly": true,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.3,
+      "mockBasis": "补充大明宫家常正餐。"
+    },
+    {
+      "id": "res_xa_036",
+      "name": "大明宫亲子简餐铺",
+      "areaId": "area_xa_daminggong",
+      "cuisine": "tea_meal",
+      "tags": [
+        "儿童友好",
+        "清淡",
+        "亲子",
+        "正餐",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 74,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.5,
+      "mockBasis": "补充大明宫亲子简餐。"
+    },
+    {
+      "id": "res_xa_037",
+      "name": "大明宫茶点坐坐馆",
+      "areaId": "area_xa_daminggong",
+      "cuisine": "noodle",
+      "tags": [
+        "可坐下聊天",
+        "茶食",
+        "安静",
+        "低预算",
+        "正餐"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 33,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.0,
+      "mockBasis": "补充大明宫饭后聊天点。"
+    },
+    {
+      "id": "res_xa_038",
+      "name": "行政中心学生面馆",
+      "areaId": "area_xa_xingzheng",
+      "cuisine": "home_style",
+      "tags": [
+        "大学生",
+        "低预算",
+        "面食",
+        "适合多人",
+        "正餐"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 59,
+      "childFriendly": true,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.3,
+      "mockBasis": "补充行政中心学生面食。"
+    },
+    {
+      "id": "res_xa_039",
+      "name": "行政中心轻食沙拉店",
+      "areaId": "area_xa_xingzheng",
+      "cuisine": "noodle_combo",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会",
+        "可预约",
+        "安静"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 29,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.0,
+      "mockBasis": "补充行政中心低脂轻食。"
+    },
+    {
+      "id": "res_xa_040",
+      "name": "行政中心茶饭小桌",
+      "areaId": "area_xa_xingzheng",
+      "cuisine": "light_food",
+      "tags": [
+        "可坐下聊天",
+        "低预算",
+        "适合多人",
+        "正餐",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 45,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.2,
+      "mockBasis": "补充行政中心可聊天正餐。"
+    },
+    {
+      "id": "res_xa_041",
+      "name": "小寨低脂简餐局",
+      "areaId": "area_xa_xiaozhai",
+      "cuisine": "tea_meal",
+      "tags": [
+        "低脂",
+        "清淡",
+        "轻约会",
+        "正餐",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 48,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.2,
+      "mockBasis": "补充小寨低脂正餐。"
+    },
+    {
+      "id": "res_xa_042",
+      "name": "曲江儿童友好蒸菜馆",
+      "areaId": "area_xa_qujiang",
+      "cuisine": "student_hotpot",
+      "tags": [
+        "儿童友好",
+        "清淡",
+        "亲子",
+        "正餐",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 52,
+      "childFriendly": false,
+      "lowFatOptions": false,
+      "reservable": true,
+      "baseRating": 4.1,
+      "mockBasis": "补充曲江儿童友好蒸菜。"
+    },
+    {
+      "id": "res_xa_043",
+      "name": "钟楼朋友茶饭馆",
+      "areaId": "area_xa_zhonglou",
+      "cuisine": "shaanxi_cuisine",
+      "tags": [
+        "可坐下聊天",
+        "朋友",
+        "低预算",
+        "正餐",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 55,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": true,
+      "baseRating": 4.1,
+      "mockBasis": "补充钟楼朋友聊天正餐。"
+    },
+    {
+      "id": "res_xa_044",
+      "name": "高新低脂约会餐桌",
+      "areaId": "area_xa_gaoxin",
+      "cuisine": "light_food",
+      "tags": [
+        "低脂",
+        "轻约会",
+        "清淡",
+        "安静",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 50,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.3,
+      "mockBasis": "补充高新轻约会餐桌。"
+    },
+    {
+      "id": "res_xa_045",
+      "name": "大明宫慢炖家常菜",
+      "areaId": "area_xa_daminggong",
+      "cuisine": "home_style",
+      "tags": [
+        "本地",
+        "正餐",
+        "适合多人",
+        "低预算",
+        "可预约"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 63,
+      "childFriendly": true,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.3,
+      "mockBasis": "补充大明宫全年家常菜。"
+    },
+    {
+      "id": "res_xa_046",
+      "name": "行政中心同学拼饭社",
+      "areaId": "area_xa_xingzheng",
+      "cuisine": "student_combo",
+      "tags": [
+        "大学生",
+        "低预算",
+        "适合多人",
+        "正餐",
+        "公共交通"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 30,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.0,
+      "mockBasis": "补充行政中心同学拼饭。"
+    },
+    {
+      "id": "res_xa_047",
+      "name": "小寨清淡粉面馆",
+      "areaId": "area_xa_xiaozhai",
+      "cuisine": "tea_meal",
+      "tags": [
+        "面食",
+        "清淡",
+        "低预算",
+        "快餐",
+        "正餐"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 58,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.3,
+      "mockBasis": "补充小寨清淡粉面。"
+    },
+    {
+      "id": "res_xa_048",
+      "name": "曲江饭后甜汤小馆",
+      "areaId": "area_xa_qujiang",
+      "cuisine": "noodle_combo",
+      "tags": [
+        "清淡",
+        "儿童友好",
+        "饭后",
+        "可坐下聊天",
+        "低预算"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 32,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.0,
+      "mockBasis": "补充曲江饭后甜汤。"
+    },
+    {
+      "id": "res_xa_049",
+      "name": "龙首原小碗菜拼桌",
+      "areaId": "area_xa_daminggong",
+      "cuisine": "home_style",
+      "tags": [
+        "低预算",
+        "适合多人",
+        "本地",
+        "正餐",
+        "可坐下"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 42,
+      "childFriendly": true,
+      "lowFatOptions": true,
+      "reservable": false,
+      "baseRating": 4.2,
+      "mockBasis": "补充大明宫-龙首原低预算小碗菜。"
+    },
+    {
+      "id": "res_xa_050",
+      "name": "龙首原地铁口面馆",
+      "areaId": "area_xa_daminggong",
+      "cuisine": "noodle",
+      "tags": [
+        "低预算",
+        "面食",
+        "快餐",
+        "本地小吃",
+        "少排队"
+      ],
+      "openHours": {
+        "weekday": "10:00-22:00",
+        "weekend": "10:00-22:30"
+      },
+      "avgPricePerPerson": 32,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": false,
+      "baseRating": 4.1,
+      "mockBasis": "补充大明宫地铁口低预算面食。"
+    },
+    {
+      "id": "res_xa_051",
+      "name": "高新学生轻食盖饭",
+      "areaId": "area_xa_gaoxin",
+      "cuisine": "student_light_meal",
+      "tags": [
+        "低预算",
+        "学生",
+        "轻食",
+        "可坐下聊天",
+        "少排队"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 36,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": false,
+      "baseRating": 4.2,
+      "mockBasis": "补充高新低预算室内吃饭候选。"
+    },
+    {
+      "id": "res_xa_052",
+      "name": "熙地港简餐小桌",
+      "areaId": "area_xa_xingzheng",
+      "cuisine": "simple_meal",
+      "tags": [
+        "低预算",
+        "可坐下聊天",
+        "朋友",
+        "正餐",
+        "少排队"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "avgPricePerPerson": 38,
+      "childFriendly": true,
+      "lowFatOptions": true,
+      "reservable": false,
+      "baseRating": 4.2,
+      "mockBasis": "补充行政中心熙地港简餐小桌。"
     }
   ]
 }

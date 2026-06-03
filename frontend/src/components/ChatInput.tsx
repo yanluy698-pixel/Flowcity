@@ -1,14 +1,20 @@
-import { SendHorizonal } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 type Props = {
   onSubmit: (text: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  draftText?: string;
 };
 
-export function ChatInput({ onSubmit, disabled, placeholder }: Props) {
+export function ChatInput({ onSubmit, disabled, placeholder, draftText }: Props) {
   const [value, setValue] = useState("");
+
+  useEffect(() => {
+    if (draftText !== undefined) {
+      setValue(draftText);
+    }
+  }, [draftText]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -27,7 +33,7 @@ export function ChatInput({ onSubmit, disabled, placeholder }: Props) {
         disabled={disabled}
       />
       <button type="submit" disabled={disabled || !value.trim()} aria-label="发送">
-        <SendHorizonal size={20} />
+        发送
       </button>
     </form>
   );

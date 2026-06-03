@@ -1,17 +1,27 @@
-import { CalendarCheck, CircleDollarSign, Map, Share2, ShieldCheck } from "lucide-react";
 import type { TimelineItem } from "../types";
 
 type Props = {
   payload: Record<string, any>;
   onConfirm: () => void;
+  onRuntimeReplan: () => void;
+  totalDurationMs?: number;
 };
 
+function runtimeReplan(payload: Record<string, any>) {
+  return payload.runtimeReplanResult ?? payload.executionResult?.runtimeReplanResult;
+}
+
 function finalPlan(payload: Record<string, any>) {
+  const runtime = runtimeReplan(payload);
+  if (runtime?.replannedFinalPlan) return runtime.replannedFinalPlan;
+  if (runtime?.replannedTimelinePlan) return runtime.replannedTimelinePlan;
   const replan = payload.replanResult;
-  if (replan?.success && replan.replannedTimelinePlan) {
-    return replan.replannedTimelinePlan;
-  }
+  if (replan?.success && replan.replannedTimelinePlan) return replan.replannedTimelinePlan;
   return payload.timelinePlan ?? {};
+}
+
+function activeDraft(payload: Record<string, any>) {
+  return runtimeReplan(payload)?.replannedExecutionDraft ?? payload.executionDraft ?? {};
 }
 
 function money(value: unknown) {
@@ -19,104 +29,156 @@ function money(value: unknown) {
   return `¥${Math.round(value)}`;
 }
 
-export function PlanCard({ payload, onConfirm }: Props) {
+function seconds(ms?: number) {
+  if (typeof ms !== "number") return "";
+  return `${(ms / 1000).toFixed(1)} 秒`;
+}
+
+function runtimeIssues(payload: Record<string, any>) {
+  return payload.executionResult?.runtimeValidationResult?.issues ?? [];
+}
+
+const PLACE_LABELS: Record<string, string> = {
+  area_xa_xiaozhai: "小寨",
+  area_xa_qujiang: "曲江",
+  area_xa_zhonglou: "钟楼",
+  area_xa_gaoxin: "高新",
+  area_xa_daminggong: "大明宫",
+  area_xa_xingzheng: "行政中心",
+  origin_xianyang_downtown: "咸阳市区",
+  public_transport: "公共交通",
+  taxi: "打车",
+  walk: "步行"
+};
+
+function userText(value?: string) {
+  if (!value) return "FlowCity 已加入这一步。";
+  let text = value;
+  for (const [from, to] of Object.entries(PLACE_LABELS)) {
+    text = text.split(from).join(to);
+  }
+  return text
+    .split("Mock ").join("")
+    .split("Mock").join("")
+    .split("阶段四").join("系统")
+    .split("阶段五").join("确认前")
+    .split("未返回明确预约时段").join("可到店取号")
+    .split("routeRef").join("路线")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function shareText(payload: Record<string, any>, totalDurationMs?: number) {
   const plan = finalPlan(payload);
   const timeline = (plan.timeline ?? []) as TimelineItem[];
   const budget = plan.budgetEstimate ?? {};
-  const issues = payload.validationResult?.issues ?? [];
-  const draft = payload.executionDraft ?? {};
-  const alternatives = [
-    ...(draft.alternativeCandidates?.activities ?? []),
-    ...(draft.alternativeCandidates?.restaurants ?? [])
-  ].slice(0, 3);
-  const executionResult = payload.executionResult;
+  const codes = payload.executionResult?.confirmationCodes ?? [];
+  return [
+    plan.summary ?? "FlowCity 方案",
+    "",
+    ...timeline.map((item) => `${item.start ?? ""}-${item.end ?? ""} ${item.title ?? item.type ?? "安排"}`),
+    "",
+    `预算：总计 ${money(budget.totalCost)}，人均 ${money(budget.perPersonCost)}`,
+    totalDurationMs ? `生成用时：${seconds(totalDurationMs)}` : "",
+    codes.length ? `Mock 确认码：${codes.map((item: any) => item.code).join("、")}` : "",
+    "说明：这是 FlowCity 生成的演示确认信息，实际出行前以门店最新状态为准。"
+  ].filter(Boolean).join("\n");
+}
 
-  function sharePlan() {
-    const summary = `${plan.summary ?? "FlowCity 方案"}\n${timeline
-      .map((item) => `${item.start ?? ""}-${item.end ?? ""} ${item.title ?? ""}`)
-      .join("\n")}`;
-    navigator.clipboard?.writeText(summary);
+export function PlanCard({ payload, onConfirm, onRuntimeReplan, totalDurationMs }: Props) {
+  const plan = finalPlan(payload);
+  const draft = activeDraft(payload);
+  const timeline = (plan.timeline ?? []) as TimelineItem[];
+  const budget = plan.budgetEstimate ?? {};
+  const executionResult = payload.executionResult;
+  const issues = runtimeIssues(payload);
+  const canReplan = executionResult?.canRuntimeReplan && !runtimeReplan(payload);
+  const hasRuntimePlan = Boolean(runtimeReplan(payload));
+  const confirmed = executionResult?.executionStatus === "confirmed";
+  const confirmationCodes = executionResult?.confirmationCodes ?? [];
+  const hasBlockingIssue = issues.some((issue: any) => issue.blocking);
+  const needsUserReplanDecision = canReplan || ["blocked", "partial"].includes(executionResult?.executionStatus);
+
+  function copyShare() {
+    navigator.clipboard?.writeText(shareText(payload, totalDurationMs));
   }
 
   return (
     <article className="plan-card">
-      <div className="plan-head">
-        <div>
-          <span className="mini-label">推荐方案</span>
-          <h2>{plan.summary ?? "已生成可执行周末计划"}</h2>
-        </div>
-        <div className="price-chip">
-          <CircleDollarSign size={15} />
-          {money(budget.totalCost)}
-        </div>
-      </div>
-
-      <div className="budget-row">
-        <span>活动 {money(budget.activityCost)}</span>
-        <span>餐饮 {money(budget.restaurantCost)}</span>
-        <span>路线 {money(budget.routeCost)}</span>
-        <strong>人均 {money(budget.perPersonCost)}</strong>
+      <div className="plan-section">
+        <span className="mini-label">{hasRuntimePlan ? "新版方案" : "推荐方案"}</span>
+        <h2>{userText(plan.summary ?? "已生成可执行周末计划")}</h2>
+        <p>
+          总计 {money(budget.totalCost)}，人均 {money(budget.perPersonCost)}
+          {totalDurationMs ? `，生成用时 ${seconds(totalDurationMs)}` : ""}
+        </p>
       </div>
 
       <div className="timeline">
         {timeline.map((item, index) => (
           <div className="timeline-item" key={`${item.title}-${index}`}>
-            <div className="time">
-              <strong>{item.start ?? "--:--"}</strong>
-              <span>{item.end ?? ""}</span>
-            </div>
-            <div className="line" />
+            <div className="time">{item.start ?? "--:--"}-{item.end ?? ""}</div>
             <div className="timeline-copy">
-              <h3>{item.title ?? item.type ?? "安排"}</h3>
-              <p>{item.description ?? item.routeRef ?? "FlowCity 已加入这一步。"}</p>
+              <strong>{item.title ?? item.type ?? "安排"}</strong>
+              <p>{userText(item.description ?? item.routeRef ?? "FlowCity 已加入这一步。")}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="route-card">
-        <Map size={16} />
-        <span>路线缩略：按时间轴自动串联活动、餐厅和转场提醒。</span>
-      </div>
-
       {issues.length > 0 && (
-        <div className="risk-card">
-          <ShieldCheck size={16} />
-          <span>{issues[0].message ?? "存在轻微履约风险，已带入执行草案。"}</span>
-        </div>
-      )}
-
-      {alternatives.length > 0 && (
-        <div className="alternatives">
-          <span className="mini-label">可替代项目</span>
-          {alternatives.map((item: any) => (
-            <button key={item.poiId}>{item.name}</button>
+        <div className="runtime-box">
+          <strong>确认前状态变化</strong>
+          {issues.slice(0, 4).map((issue: any, index: number) => (
+            <p key={`${issue.code}-${index}`}>{userText(issue.message)}</p>
           ))}
+          {needsUserReplanDecision && <p>要不要按最新状态换一个更稳的方案？</p>}
         </div>
       )}
 
-      <div className="action-row">
-        <button className="secondary-action">换更省钱</button>
-        <button className="secondary-action">换少走路</button>
-        <button className="secondary-action">换室内</button>
-      </div>
+      {hasRuntimePlan && (
+        <div className="runtime-box calm">
+          <strong>已根据最新状态调整</strong>
+          {(runtimeReplan(payload)?.replacementSummary?.changedBecause ?? [])
+            .slice(0, 2)
+            .map((text: string, index: number) => <p key={index}>{text}</p>)}
+        </div>
+      )}
+
+      {confirmed && (
+        <div className="execution-done">
+          <strong>已确认，可以发给朋友了</strong>
+          <p>我把时间轴、预算和确认信息整理好了，下面可以一键复制。</p>
+          {confirmationCodes.length > 0 ? confirmationCodes.map((item: any) => (
+            <p key={item.code}>{item.type}：{item.code}</p>
+          )) : <p>本方案不需要提前锁票或预约，到店前按时间轴出发即可。</p>}
+        </div>
+      )}
+
+      {confirmed && (
+        <div className="share-preview">
+          <strong>分享预览</strong>
+          <pre>{shareText(payload, totalDurationMs)}</pre>
+        </div>
+      )}
 
       <div className="primary-row">
-        <button className="share-button" onClick={sharePlan}>
-          <Share2 size={16} />
-          一键分享
-        </button>
-        <button className="confirm-button" onClick={onConfirm}>
-          <CalendarCheck size={16} />
-          确认执行
-        </button>
+        {needsUserReplanDecision && !hasRuntimePlan && (
+          <button className="confirm-button secondary" onClick={onRuntimeReplan}>
+            按最新状态重新规划
+          </button>
+        )}
+        {!confirmed && !hasBlockingIssue && !needsUserReplanDecision && draft?.draftStatus !== "blocked" && (
+          <button className="confirm-button" onClick={onConfirm}>
+            {hasRuntimePlan ? "确认新版下单" : "确认下单"}
+          </button>
+        )}
+        {confirmed && (
+          <button className="confirm-button secondary" onClick={copyShare}>
+            一键分享给朋友
+          </button>
+        )}
       </div>
-
-      {executionResult?.executionStatus === "confirmed" && (
-        <div className="execution-done">
-          已生成 Mock 执行结果：{executionResult.confirmationCodes?.length ?? 0} 个确认码
-        </div>
-      )}
     </article>
   );
 }

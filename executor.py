@@ -13,12 +13,19 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+import mock_api
+import planner
+import validator
+
 
 EXECUTION_DRAFT_STATUSES = {"ready", "warning", "blocked"}
-EXECUTION_STATUSES = {"confirmed", "partial", "blocked", "not_requested"}
+EXECUTION_STATUSES = {"confirmed", "partial", "blocked", "not_requested", "replan_ready"}
+RUNTIME_QUEUE_BLOCK_MINUTES = 40
+RUNTIME_ROUTE_DELAY_MINUTES = 15
 
 
 def _stable_code(prefix: str, *parts: Any) -> str:
@@ -61,6 +68,41 @@ def _selected_poi_ids(plan: dict[str, Any]) -> set[str]:
         if isinstance(item, dict) and item.get("poiId"):
             ids.add(item["poiId"])
     return ids
+
+
+def _parse_minutes(value: str | None) -> int | None:
+    if not value or ":" not in value:
+        return None
+    hour, minute = value.split(":", 1)
+    return int(hour) * 60 + int(minute)
+
+
+def _timeline_minutes(item: dict[str, Any]) -> int | None:
+    start = _parse_minutes(item.get("start"))
+    end = _parse_minutes(item.get("end"))
+    if start is None or end is None:
+        return None
+    if end <= start:
+        end += 24 * 60
+    return end - start
+
+
+def _route_ref(route: dict[str, Any] | None) -> str | None:
+    if not route:
+        return None
+    from_area = route.get("fromAreaId")
+    to_area = route.get("toAreaId")
+    if not from_area or not to_area:
+        return None
+    return f"{from_area}->{to_area}"
+
+
+def _route_by_ref(mock_supply: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {
+        ref: route
+        for route in mock_supply.get("routeCandidates", [])
+        if (ref := _route_ref(route))
+    }
 
 
 def _alternative_candidates(
@@ -118,6 +160,7 @@ def _deal_preview_fields(candidate: dict[str, Any]) -> dict[str, Any]:
 
 def _pending_actions(final_plan: dict[str, Any], mock_supply: dict[str, Any]) -> list[dict[str, Any]]:
     candidates = _candidate_by_id(mock_supply)
+    routes = _route_by_ref(mock_supply)
     actions: list[dict[str, Any]] = []
     for index, item in enumerate(final_plan.get("timeline", [])):
         if not isinstance(item, dict):
@@ -132,11 +175,17 @@ def _pending_actions(final_plan: dict[str, Any], mock_supply: dict[str, Any]) ->
             "estimatedCost": item.get("estimatedCost", 0),
         }
         if item_type == "activity" and poi_id:
+            availability = candidate.get("availability") or {}
             actions.append(
                 {
                     **base,
                     "actionType": "mock_ticket_lock",
                     "description": "用户确认后模拟锁定活动票。",
+                    "runtimeLookup": {
+                        "kind": "activity",
+                        "poiId": poi_id,
+                        "dateText": availability.get("dateText"),
+                    },
                     **_deal_preview_fields(candidate),
                 }
             )
@@ -154,19 +203,452 @@ def _pending_actions(final_plan: dict[str, Any], mock_supply: dict[str, Any]) ->
                     **base,
                     "actionType": action_type,
                     "description": description,
+                    "runtimeLookup": {
+                        "kind": "restaurant",
+                        "poiId": poi_id,
+                        "dateText": availability.get("dateText"),
+                    },
                     **_deal_preview_fields(candidate),
                 }
             )
         elif item_type == "route":
+            route_ref = item.get("routeRef")
+            route = routes.get(route_ref)
             actions.append(
                 {
                     **base,
                     "actionType": "route_reminder",
-                    "routeRef": item.get("routeRef"),
+                    "routeRef": route_ref,
+                    "plannedRouteMinutes": route.get("minutes") if route else _timeline_minutes(item),
+                    "runtimeLookup": {
+                        "kind": "route",
+                        "routeRef": route_ref,
+                    },
                     "description": "路线只生成出发提醒，不生成订单。",
                 }
             )
     return actions
+
+
+def _runtime_issue(
+    code: str,
+    action: dict[str, Any],
+    message: str,
+    *,
+    blocking: bool,
+    expected: Any = None,
+    actual: Any = None,
+    runtime_status: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return {
+        "code": code,
+        "dimension": "runtime_supply",
+        "severity": "error" if blocking else "warning",
+        "blocking": blocking,
+        "message": message,
+        "timelineIndex": action.get("timelineIndex"),
+        "poiId": action.get("poiId"),
+        "routeRef": action.get("routeRef"),
+        "expected": expected,
+        "actual": actual,
+        "runtimeEventType": (runtime_status or {}).get("eventType"),
+        "runtimeMessage": (runtime_status or {}).get("runtimeMessage"),
+    }
+
+
+def _activity_runtime_check(
+    action: dict[str, Any],
+    runtime_status: dict[str, Any],
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    lookup = action.get("runtimeLookup") or {}
+    status = mock_api.find_runtime_activity_status(
+        lookup.get("poiId") or action.get("poiId"),
+        lookup.get("dateText"),
+        runtime_status,
+    )
+    if not status:
+        return None, []
+
+    slots = status.get("timeSlots", [])
+    ticket_left = max((slot.get("ticketLeft", 0) for slot in slots), default=None)
+    queue_minutes = min((slot.get("queueMinutes", 0) for slot in slots), default=None)
+    issues: list[dict[str, Any]] = []
+    if isinstance(ticket_left, int) and ticket_left <= 0:
+        issues.append(
+            _runtime_issue(
+                "RUNTIME_TICKET_SOLD_OUT",
+                action,
+                "确认前活动余票变为 0，不能继续生成 Mock 票码。",
+                blocking=True,
+                expected="ticketLeft > 0",
+                actual=ticket_left,
+                runtime_status=status,
+            )
+        )
+    if isinstance(queue_minutes, int) and queue_minutes >= RUNTIME_QUEUE_BLOCK_MINUTES:
+        issues.append(
+            _runtime_issue(
+                "RUNTIME_QUEUE_TOO_LONG",
+                action,
+                f"确认前活动排队变为 {queue_minutes} 分钟，需要换更短等待的候选。",
+                blocking=True,
+                expected=f"< {RUNTIME_QUEUE_BLOCK_MINUTES}",
+                actual=queue_minutes,
+                runtime_status=status,
+            )
+        )
+    return status, issues
+
+
+def _restaurant_runtime_check(
+    action: dict[str, Any],
+    runtime_status: dict[str, Any],
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    lookup = action.get("runtimeLookup") or {}
+    status = mock_api.find_runtime_restaurant_status(
+        lookup.get("poiId") or action.get("poiId"),
+        lookup.get("dateText"),
+        runtime_status,
+    )
+    if not status:
+        return None, []
+
+    issues: list[dict[str, Any]] = []
+    if status.get("tableAvailable") is False:
+        issues.append(
+            _runtime_issue(
+                "RUNTIME_TABLE_NOT_AVAILABLE",
+                action,
+                "确认前餐厅变为无座或无可预约时段，不能继续生成 Mock 预约号。",
+                blocking=True,
+                expected="tableAvailable = true",
+                actual=False,
+                runtime_status=status,
+            )
+        )
+    queue_minutes = status.get("queueMinutes")
+    if isinstance(queue_minutes, int) and queue_minutes >= RUNTIME_QUEUE_BLOCK_MINUTES:
+        issues.append(
+            _runtime_issue(
+                "RUNTIME_QUEUE_TOO_LONG",
+                action,
+                f"确认前餐厅排队变为 {queue_minutes} 分钟，需要换更短等待的候选。",
+                blocking=True,
+                expected=f"< {RUNTIME_QUEUE_BLOCK_MINUTES}",
+                actual=queue_minutes,
+                runtime_status=status,
+            )
+        )
+    if action.get("actionType") == "mock_restaurant_reservation" and not status.get("availableSlots"):
+        issues.append(
+            _runtime_issue(
+                "RUNTIME_RESERVATION_SLOT_GONE",
+                action,
+                "确认前餐厅可预约时段消失，不能继续生成 Mock 预约号。",
+                blocking=True,
+                expected="availableSlots 非空",
+                actual=[],
+                runtime_status=status,
+            )
+        )
+    return status, issues
+
+
+def _route_runtime_check(
+    action: dict[str, Any],
+    runtime_status: dict[str, Any],
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    lookup = action.get("runtimeLookup") or {}
+    route_ref = lookup.get("routeRef") or action.get("routeRef")
+    if not route_ref:
+        return None, []
+    status = mock_api.find_runtime_route_status(route_ref, runtime_status)
+    if not status:
+        return None, []
+
+    runtime_minutes = status.get("minutes")
+    planned_minutes = action.get("plannedRouteMinutes") or status.get("originalMinutes")
+    if not isinstance(runtime_minutes, int) or not isinstance(planned_minutes, int):
+        return status, []
+    delay = runtime_minutes - planned_minutes
+    if delay < RUNTIME_ROUTE_DELAY_MINUTES:
+        return status, []
+    return status, [
+        _runtime_issue(
+            "RUNTIME_ROUTE_DELAYED",
+            action,
+            f"确认前路线耗时增加 {delay} 分钟，需要更新出发提醒或重新压缩时间轴。",
+            blocking=True,
+            expected=f"delay < {RUNTIME_ROUTE_DELAY_MINUTES}",
+            actual=delay,
+            runtime_status=status,
+        )
+    ]
+
+
+def _deal_runtime_warnings(
+    action: dict[str, Any],
+    runtime_status: dict[str, Any],
+) -> list[dict[str, Any]]:
+    deal = action.get("dealPreview")
+    if not isinstance(deal, dict) or not deal.get("dealId"):
+        return []
+    status = mock_api.find_runtime_deal_status(deal["dealId"], runtime_status)
+    if not status or status.get("stockLeft", 1) > 0:
+        return []
+    return [
+        _runtime_issue(
+            "RUNTIME_DEAL_SOLD_OUT",
+            action,
+            "确认前团购库存售罄；不影响 Mock 预约/取号，但预算提示需要更新。",
+            blocking=False,
+            expected="stockLeft > 0",
+            actual=status.get("stockLeft"),
+            runtime_status=status,
+        )
+    ]
+
+
+def _runtime_check_action(
+    action: dict[str, Any],
+    runtime_status: dict[str, Any],
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    action_type = action.get("actionType")
+    if action_type == "mock_ticket_lock":
+        status, issues = _activity_runtime_check(action, runtime_status)
+    elif action_type in {"mock_restaurant_reservation", "mock_queue_number"}:
+        status, issues = _restaurant_runtime_check(action, runtime_status)
+    elif action_type == "route_reminder":
+        status, issues = _route_runtime_check(action, runtime_status)
+    else:
+        status, issues = None, []
+    issues.extend(_deal_runtime_warnings(action, runtime_status))
+    return status, issues
+
+
+def _runtime_activity_available(item: dict[str, Any], runtime_status: dict[str, Any]) -> bool:
+    status = mock_api.find_runtime_activity_status(item.get("poiId", ""), None, runtime_status)
+    if not status:
+        return True
+    slots = status.get("timeSlots", [])
+    ticket_left = max((slot.get("ticketLeft", 0) for slot in slots), default=1)
+    queue_minutes = min((slot.get("queueMinutes", 0) for slot in slots), default=0)
+    return ticket_left > 0 and queue_minutes < RUNTIME_QUEUE_BLOCK_MINUTES
+
+
+def _runtime_restaurant_available(item: dict[str, Any], runtime_status: dict[str, Any]) -> bool:
+    status = mock_api.find_runtime_restaurant_status(item.get("poiId", ""), None, runtime_status)
+    if not status:
+        return True
+    return status.get("tableAvailable") is not False and status.get("queueMinutes", 0) < RUNTIME_QUEUE_BLOCK_MINUTES
+
+
+def _runtime_alternative_candidates(
+    execution_draft: dict[str, Any],
+    runtime_status: dict[str, Any],
+) -> dict[str, list[dict[str, Any]]]:
+    alternatives = execution_draft.get("alternativeCandidates", {})
+    return {
+        "activities": [
+            item
+            for item in alternatives.get("activities", [])
+            if _runtime_activity_available(item, runtime_status)
+        ],
+        "restaurants": [
+            item
+            for item in alternatives.get("restaurants", [])
+            if _runtime_restaurant_available(item, runtime_status)
+        ],
+    }
+
+
+def _min_slot_queue(slots: list[dict[str, Any]]) -> int:
+    return min((int(slot.get("queueMinutes", 0)) for slot in slots), default=0)
+
+
+def _max_slot_tickets(slots: list[dict[str, Any]]) -> int:
+    return max((int(slot.get("ticketLeft", 0)) for slot in slots), default=1)
+
+
+def _runtime_activity_blocks(status: dict[str, Any] | None) -> bool:
+    if not status:
+        return False
+    slots = status.get("timeSlots", [])
+    return _max_slot_tickets(slots) <= 0 or _min_slot_queue(slots) >= RUNTIME_QUEUE_BLOCK_MINUTES
+
+
+def _runtime_restaurant_blocks(status: dict[str, Any] | None) -> bool:
+    if not status:
+        return False
+    if status.get("tableAvailable") is False:
+        return True
+    if int(status.get("queueMinutes", 0)) >= RUNTIME_QUEUE_BLOCK_MINUTES:
+        return True
+    return status.get("eventType") == "reservation_slot_gone"
+
+
+def _apply_runtime_to_supply(
+    mock_supply: dict[str, Any],
+    runtime_status: dict[str, Any],
+) -> dict[str, Any]:
+    runtime_supply = deepcopy(mock_supply)
+
+    activities: list[dict[str, Any]] = []
+    for item in runtime_supply.get("activityCandidates", []):
+        status = mock_api.find_runtime_activity_status(item.get("poiId", ""), None, runtime_status)
+        if _runtime_activity_blocks(status):
+            continue
+        if status:
+            slots = status.get("timeSlots", [])
+            item["availability"] = {
+                "dateText": status.get("dateText"),
+                "timeSlots": slots,
+                "bestTicketLeft": _max_slot_tickets(slots),
+                "minQueueMinutes": _min_slot_queue(slots),
+                "runtimeState": status.get("runtimeState"),
+                "runtimeEventType": status.get("eventType"),
+            }
+        activities.append(item)
+
+    restaurants: list[dict[str, Any]] = []
+    for item in runtime_supply.get("restaurantCandidates", []):
+        status = mock_api.find_runtime_restaurant_status(item.get("poiId", ""), None, runtime_status)
+        if _runtime_restaurant_blocks(status):
+            continue
+        if status:
+            item["availability"] = {
+                "dateText": status.get("dateText"),
+                "queueMinutes": status.get("queueMinutes"),
+                "tableAvailable": status.get("tableAvailable"),
+                "availableSlots": status.get("availableSlots", []),
+                "runtimeState": status.get("runtimeState"),
+                "runtimeEventType": status.get("eventType"),
+            }
+        restaurants.append(item)
+
+    route_status_by_ref = {
+        status.get("routeRef"): status
+        for status in runtime_status.get("routeRuntimeStatus", [])
+        if status.get("routeRef")
+    }
+    routes: list[dict[str, Any]] = []
+    for route in runtime_supply.get("routeCandidates", []):
+        ref = _route_ref(route)
+        status = route_status_by_ref.get(ref)
+        if status and isinstance(status.get("minutes"), int):
+            route["originalMinutes"] = route.get("minutes")
+            route["minutes"] = status["minutes"]
+            route["runtimeState"] = status.get("runtimeState")
+            route["runtimeEventType"] = status.get("eventType")
+            route["mockDescription"] = status.get("runtimeMessage") or route.get("mockDescription")
+        routes.append(route)
+
+    deal_status_by_id = {
+        status.get("dealId"): status
+        for status in runtime_status.get("dealRuntimeStatus", [])
+        if status.get("dealId")
+    }
+    for item in [*activities, *restaurants]:
+        updated_deals = []
+        for deal in item.get("deals", []):
+            status = deal_status_by_id.get(deal.get("dealId"))
+            if status:
+                deal = dict(deal)
+                deal["stockLeft"] = status.get("stockLeft", deal.get("stockLeft"))
+                deal["runtimeState"] = status.get("runtimeState")
+                deal["runtimeEventType"] = status.get("eventType")
+            if deal.get("stockLeft", 0) > 0:
+                updated_deals.append(deal)
+        item["deals"] = updated_deals
+
+    runtime_supply["activityCandidates"] = activities
+    runtime_supply["restaurantCandidates"] = restaurants
+    runtime_supply["routeCandidates"] = routes
+    runtime_supply["supplyStatus"] = dict(
+        runtime_supply.get("supplyStatus", {}),
+        status="ok" if activities or restaurants else "partial",
+        runtimeApplied=True,
+    )
+    return runtime_supply
+
+
+def _selected_item_names(plan: dict[str, Any]) -> dict[str, list[str]]:
+    selected: dict[str, list[str]] = {"activity": [], "restaurant": [], "route": []}
+    for item in plan.get("selectedItems", []):
+        if not isinstance(item, dict):
+            continue
+        kind = item.get("kind")
+        if kind in selected and item.get("name"):
+            selected[kind].append(item["name"])
+    return selected
+
+
+def _replacement_summary(
+    old_plan: dict[str, Any],
+    new_plan: dict[str, Any],
+    runtime_issues: list[dict[str, Any]],
+) -> dict[str, Any]:
+    old_selected = _selected_item_names(old_plan)
+    new_selected = _selected_item_names(new_plan)
+    return {
+        "changedBecause": [
+            issue.get("message")
+            for issue in runtime_issues
+            if issue.get("blocking") and issue.get("message")
+        ],
+        "before": old_selected,
+        "after": new_selected,
+    }
+
+
+def _runtime_replan(
+    *,
+    structured_demand: dict[str, Any] | None,
+    timeline_plan: dict[str, Any] | None,
+    mock_supply: dict[str, Any] | None,
+    runtime_status: dict[str, Any],
+    runtime_issues: list[dict[str, Any]],
+    planner_llm: bool,
+) -> dict[str, Any] | None:
+    if not structured_demand or not timeline_plan or not mock_supply:
+        return None
+
+    runtime_supply = _apply_runtime_to_supply(mock_supply, runtime_status)
+    replanned_timeline_plan = planner.plan_timeline(
+        structured_demand,
+        runtime_supply,
+        use_llm=planner_llm,
+        fallback_on_error=True,
+        limit=16,
+    )
+    replanned_stage5 = validator.validate_and_replan(
+        structured_demand,
+        runtime_supply,
+        replanned_timeline_plan,
+    )
+    replanned_execution_draft = build_execution_draft(
+        replanned_timeline_plan,
+        replanned_stage5["validationResult"],
+        replanned_stage5["replanResult"],
+        runtime_supply,
+    )
+    final_new_plan, final_validation, used_stage5_replan = _final_plan_and_validation(
+        replanned_timeline_plan,
+        replanned_stage5["validationResult"],
+        replanned_stage5["replanResult"],
+    )
+    return {
+        "status": "ready" if replanned_execution_draft.get("draftStatus") != "blocked" else "blocked",
+        "replannedTimelinePlan": replanned_timeline_plan,
+        "replannedValidationResult": replanned_stage5["validationResult"],
+        "replannedStage5Result": replanned_stage5,
+        "replannedFinalPlan": final_new_plan,
+        "replannedFinalValidationResult": final_validation,
+        "usedStage5Replan": used_stage5_replan,
+        "replannedExecutionDraft": replanned_execution_draft,
+        "runtimeSupply": runtime_supply,
+        "replacementSummary": _replacement_summary(timeline_plan, final_new_plan, runtime_issues),
+    }
 
 
 def _warning_messages(validation_result: dict[str, Any]) -> list[str]:
@@ -205,7 +687,15 @@ def build_execution_draft(
     }
 
 
-def confirm_execution(execution_draft: dict[str, Any]) -> dict[str, Any]:
+def confirm_execution(
+    execution_draft: dict[str, Any],
+    *,
+    structured_demand: dict[str, Any] | None = None,
+    timeline_plan: dict[str, Any] | None = None,
+    mock_supply: dict[str, Any] | None = None,
+    planner_llm: bool = False,
+    replan_on_runtime_failure: bool = False,
+) -> dict[str, Any]:
     if execution_draft.get("draftStatus") == "blocked":
         return {
             "executionStatus": "blocked",
@@ -215,12 +705,44 @@ def confirm_execution(execution_draft: dict[str, Any]) -> dict[str, Any]:
             "userNotice": execution_draft.get("blockedReason"),
         }
 
+    runtime_status = mock_api.load_runtime_status()
     confirmed_actions: list[dict[str, Any]] = []
+    blocked_actions: list[dict[str, Any]] = []
     confirmation_codes: list[dict[str, Any]] = []
+    runtime_issues: list[dict[str, Any]] = []
+    runtime_events_applied: list[dict[str, Any]] = []
     for action in execution_draft.get("pendingActions", []):
         action_type = action.get("actionType")
         poi_id = action.get("poiId")
+        action_runtime_status, action_issues = _runtime_check_action(action, runtime_status)
+        runtime_issues.extend(action_issues)
+        if action_runtime_status and action_runtime_status.get("runtimeState") == "changed":
+            runtime_events_applied.append(
+                {
+                    "timelineIndex": action.get("timelineIndex"),
+                    "poiId": poi_id,
+                    "routeRef": action.get("routeRef"),
+                    "eventType": action_runtime_status.get("eventType"),
+                    "message": action_runtime_status.get("runtimeMessage"),
+                }
+            )
+        if any(issue.get("blocking") for issue in action_issues):
+            blocked_actions.append(
+                {
+                    **action,
+                    "status": "runtime_blocked",
+                    "runtimeStatus": action_runtime_status,
+                    "runtimeIssues": action_issues,
+                }
+            )
+            continue
+
         confirmed = dict(action)
+        if action_runtime_status:
+            confirmed["runtimeStatus"] = action_runtime_status
+        warnings = [issue for issue in action_issues if not issue.get("blocking")]
+        if warnings:
+            confirmed["runtimeWarnings"] = warnings
         if action_type == "mock_ticket_lock":
             code = _stable_code("TICKET", poi_id, action.get("timelineIndex"))
             confirmed["mockTicketCode"] = code
@@ -241,10 +763,80 @@ def confirm_execution(execution_draft: dict[str, Any]) -> dict[str, Any]:
         confirmed["status"] = "mock_confirmed"
         confirmed_actions.append(confirmed)
 
+    blocking_runtime_issues = [issue for issue in runtime_issues if issue.get("blocking")]
+    if blocking_runtime_issues:
+        available_alternatives = _runtime_alternative_candidates(execution_draft, runtime_status)
+        can_replan_with_context = bool(structured_demand and timeline_plan and mock_supply)
+        runtime_replan_result = (
+            _runtime_replan(
+                structured_demand=structured_demand,
+                timeline_plan=timeline_plan,
+                mock_supply=mock_supply,
+                runtime_status=runtime_status,
+                runtime_issues=runtime_issues,
+                planner_llm=False,
+            )
+            if can_replan_with_context
+            else None
+        )
+        execution_status = (
+            "replan_ready"
+            if runtime_replan_result and runtime_replan_result.get("status") == "ready"
+            else "partial"
+            if confirmed_actions
+            else "blocked"
+        )
+        result = {
+            "executionStatus": execution_status,
+            "actions": [] if runtime_replan_result else confirmed_actions,
+            "blockedActions": blocked_actions,
+            "confirmationCodes": [] if runtime_replan_result else confirmation_codes,
+            "runtimeEventsApplied": runtime_events_applied,
+            "runtimeValidationResult": {
+                "status": "failed",
+                "issues": runtime_issues,
+                "checkedDimensions": ["runtime_supply"],
+                "replanNeeded": True,
+            },
+            "canRuntimeReplan": can_replan_with_context,
+            "executionAdjustment": {
+                "status": "runtime_replanned" if runtime_replan_result else "runtime_replan_needed",
+                "message": (
+                    "已基于异常池生成新版方案，请确认新版下单。"
+                    if runtime_replan_result
+                    else "确认前 Mock 状态发生变化，已阻断受影响动作，并基于异常池筛出仍可用的替代候选。"
+                ),
+                "availableAlternativeCandidates": available_alternatives,
+                "suggestedActions": [
+                    "用 availableAlternativeCandidates 中仍可用的同类候选替换受影响 POI",
+                    "若路线耗时变长，优先压缩活动时长或改用同商圈候选",
+                    "若团购售罄，只更新预算提示，不自动购买团购",
+                ],
+            },
+            "executionSummary": (
+                "确认前状态变化，已生成新版 Mock 方案，等待用户再次确认。"
+                if runtime_replan_result
+                else "确认前状态变化，部分 Mock 执行动作未生成确认码。"
+            ),
+            "userNotice": "这是下单阶段读取异常池后的二次校验结果；不代表真实交易。",
+            "warningsCarriedForward": execution_draft.get("warningsCarriedForward", []),
+        }
+        if runtime_replan_result:
+            result["runtimeReplanResult"] = runtime_replan_result
+        return result
+
+    runtime_status_text = "pass" if not runtime_issues else "warning"
     return {
         "executionStatus": "confirmed",
         "actions": confirmed_actions,
         "confirmationCodes": confirmation_codes,
+        "runtimeEventsApplied": runtime_events_applied,
+        "runtimeValidationResult": {
+            "status": runtime_status_text,
+            "issues": runtime_issues,
+            "checkedDimensions": ["runtime_supply"],
+            "replanNeeded": False,
+        },
         "executionSummary": "用户已确认，已生成 Mock 执行结果。",
         "userNotice": "所有票码、预约号、取号号和路线提醒码均为本地 Mock，不代表真实交易；团购仅做可选预览，未自动购买或发券。",
         "warningsCarriedForward": execution_draft.get("warningsCarriedForward", []),

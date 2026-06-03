@@ -19,6 +19,7 @@ from typing import Any
 
 import extractor
 import mock_api
+import scheduler
 
 
 ROOT = Path(__file__).resolve().parent
@@ -37,6 +38,16 @@ REQUIRED_FIELDS = [
     "rawPlannerNotes",
 ]
 VALID_STATUSES = {"ok", "partial", "failed"}
+
+AREA_LABELS = {
+    "area_xa_xiaozhai": "小寨",
+    "area_xa_qujiang": "曲江",
+    "area_xa_zhonglou": "钟楼",
+    "area_xa_gaoxin": "高新",
+    "area_xa_daminggong": "大明宫",
+    "area_xa_xingzheng": "行政中心",
+    "origin_xianyang_downtown": "咸阳市区",
+}
 
 
 def load_text(path: Path) -> str:
@@ -92,6 +103,48 @@ def _budget_limit(demand: dict[str, Any]) -> float | None:
 def _budget_is_strict(demand: dict[str, Any]) -> bool:
     budget = demand.get("budget", {})
     return budget.get("flexibility") == "strict" or _budget_limit(demand) == 0
+
+
+def _demand_text(demand: dict[str, Any]) -> str:
+    preferences = demand.get("preferences", {})
+    constraints = demand.get("constraints", {})
+    return " ".join(
+        [
+            str(demand.get("rawInput") or ""),
+            " ".join(str(item) for item in preferences.get("activityTypes", [])),
+            " ".join(str(item) for item in preferences.get("foodTags", [])),
+            " ".join(str(item) for item in preferences.get("experienceTags", [])),
+            " ".join(str(item) for item in constraints.get("hard", [])),
+            " ".join(str(item) for item in constraints.get("soft", [])),
+        ]
+    )
+
+
+def _has_meal_hard_constraint(demand: dict[str, Any]) -> bool:
+    text = _demand_text(demand)
+    return any(keyword in text for keyword in ("晚饭", "晚餐", "正餐", "吃饭", "餐饮"))
+
+
+def _wants_after_meal_walk(demand: dict[str, Any]) -> bool:
+    text = _demand_text(demand)
+    return any(keyword in text for keyword in ("饭后", "吃完晚饭", "吃完饭", "再转", "转一会", "散步"))
+
+
+def _avoid_terms(demand: dict[str, Any]) -> list[str]:
+    terms: list[str] = []
+    text = _demand_text(demand)
+    for tag in demand.get("preferences", {}).get("avoidTags", []):
+        value = str(tag)
+        if value.startswith("避开:"):
+            terms.append(value.split(":", 1)[1])
+    for keyword in ("大明宫", "小寨", "钟楼", "曲江", "高新", "行政中心"):
+        if any(prefix + keyword in text for prefix in ("不想去", "不要", "别去", "避开")):
+            terms.append(keyword)
+    deduped: list[str] = []
+    for term in terms:
+        if term and term not in deduped:
+            deduped.append(term)
+    return deduped
 
 
 def _compact_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
@@ -364,6 +417,65 @@ def validate_timeline_plan(plan: dict[str, Any], mock_supply: dict[str, Any]) ->
     return errors
 
 
+def _planned_item_types(plan: dict[str, Any]) -> set[str]:
+    types: set[str] = set()
+    for item in [*plan.get("selectedItems", []), *plan.get("timeline", [])]:
+        if isinstance(item, dict) and item.get("kind") in {"activity", "restaurant"}:
+            types.add(item["kind"])
+        if isinstance(item, dict) and item.get("type") in {"activity", "restaurant"}:
+            types.add(item["type"])
+    return types
+
+
+def _llm_plan_needs_fallback(
+    plan: dict[str, Any],
+    structured_demand: dict[str, Any],
+    mock_supply: dict[str, Any],
+) -> bool:
+    if plan.get("status") == "failed":
+        return True
+    has_activity_supply = bool(mock_supply.get("activityCandidates"))
+    has_restaurant_supply = bool(mock_supply.get("restaurantCandidates"))
+    planned_types = _planned_item_types(plan)
+    if has_activity_supply and has_restaurant_supply and not {"activity", "restaurant"} <= planned_types:
+        return True
+
+    plan_text = json.dumps(
+        {
+            "summary": plan.get("summary"),
+            "timeline": plan.get("timeline"),
+            "riskTips": plan.get("riskTips"),
+            "tradeoffs": plan.get("tradeoffs"),
+        },
+        ensure_ascii=False,
+    )
+    bad_phrases = ("餐饮需自理", "自行转场", "路线自理", "无法识别", "无法理解", "乱码", "不完整输入")
+    if any(phrase in plan_text for phrase in bad_phrases):
+        return True
+
+    if _wants_after_meal_walk(structured_demand) and not any(
+        keyword in plan_text for keyword in ("饭后", "散步", "转一会", "走一走", "附近转")
+    ):
+        return True
+
+    for term in _avoid_terms(structured_demand):
+        if term and term in plan_text:
+            return True
+
+    budget_limit = _budget_limit(structured_demand)
+    total_cost = _number((plan.get("budgetEstimate") or {}).get("totalCost"))
+    if _budget_is_strict(structured_demand) and budget_limit is not None and total_cost is not None:
+        if total_cost > budget_limit:
+            return True
+
+    if structured_demand.get("timeWindow", {}).get("endTime") and any(
+        isinstance(item, dict) and str(item.get("start", "")).startswith(("先到达", "第一段", "活动后", "最后一段"))
+        for item in plan.get("timeline", [])
+    ):
+        return True
+    return False
+
+
 def _select_pair(
     activities: list[dict[str, Any]],
     restaurants: list[dict[str, Any]],
@@ -379,6 +491,8 @@ def _select_pair(
 
     budget_limit = _budget_limit(demand)
     strict_budget = _budget_is_strict(demand)
+    meal_hard = _has_meal_hard_constraint(demand)
+    after_meal_walk = _wants_after_meal_walk(demand)
     best_pair: tuple[float, dict[str, Any], dict[str, Any]] | None = None
     best_feasible_pair: tuple[float, dict[str, Any], dict[str, Any]] | None = None
     for activity in activities[:8]:
@@ -404,6 +518,15 @@ def _select_pair(
                 score += 1
             else:
                 continue
+            if meal_hard:
+                score += 3
+                if budget_limit is not None and restaurant_cost <= budget_limit * 0.55:
+                    score += 3
+                score -= activity_cost / 80
+            if after_meal_walk:
+                activity_text = " ".join([activity.get("category", ""), " ".join(activity.get("matchedReasons", []))])
+                if any(keyword in activity_text for keyword in ("散步", "citywalk", "轻松", "低消费", "免费", "少排队")):
+                    score += 2
             if budget_limit is not None:
                 if total <= budget_limit:
                     score += 8 if strict_budget else 3
@@ -422,6 +545,21 @@ def _select_pair(
 
     if strict_budget and best_feasible_pair:
         return best_feasible_pair[1], best_feasible_pair[2]
+    if strict_budget and meal_hard and budget_limit is not None:
+        cheapest_restaurant: tuple[float, dict[str, Any]] | None = None
+        for restaurant in restaurants:
+            restaurant_cost = float(restaurant.get("estimatedCost", 0))
+            first_route = _route_for_area(mock_supply, restaurant.get("areaId"))
+            if first_route and not first_route.get("isCrossCityInbound"):
+                first_route = None
+            route_cost = float((first_route or {}).get("estimatedCostTotal", 0))
+            total = restaurant_cost + route_cost
+            if total <= budget_limit and (
+                cheapest_restaurant is None or total < cheapest_restaurant[0]
+            ):
+                cheapest_restaurant = (total, restaurant)
+        if cheapest_restaurant:
+            return None, cheapest_restaurant[1]
     if best_pair:
         return best_pair[1], best_pair[2]
     return activities[0], restaurants[0]
@@ -476,7 +614,15 @@ def _route_name(route: dict[str, Any] | None, selected: dict[str, Any] | None) -
         return "路线/通勤"
     if selected and selected.get("routeSummary"):
         return selected["routeSummary"]
-    return f"{route.get('fromAreaId')} 到 {route.get('toAreaId')}，{route.get('transport')} 约 {route.get('minutes')} 分钟"
+    if route.get("routeSummary"):
+        return route["routeSummary"]
+    from_name = AREA_LABELS.get(str(route.get("fromAreaId")), str(route.get("fromAreaId")))
+    to_name = AREA_LABELS.get(str(route.get("toAreaId")), str(route.get("toAreaId")))
+    transport_name = {"walk": "步行", "public_transport": "公共交通", "taxi": "打车"}.get(
+        str(route.get("transport")),
+        str(route.get("transport") or "交通"),
+    )
+    return f"{from_name}到{to_name}，{transport_name}约{route.get('minutes')}分钟"
 
 
 def _failed_plan(structured_demand: dict[str, Any], mock_supply: dict[str, Any]) -> dict[str, Any]:
@@ -525,7 +671,20 @@ def _failed_plan(structured_demand: dict[str, Any], mock_supply: dict[str, Any])
 def draft_plan_without_llm(
     structured_demand: dict[str, Any],
     mock_supply: dict[str, Any],
+    limit: int = 8,
 ) -> dict[str, Any]:
+    scheduled = scheduler.schedule_timeline(structured_demand, mock_supply, top_k=max(8, limit))
+    plan = scheduled["timelinePlan"]
+    plan["schedulerResult"] = {
+        "status": scheduled.get("status"),
+        "strategy": scheduled.get("strategy"),
+        "selectedCombination": scheduled.get("selectedCombination"),
+        "rejectedCombinations": scheduled.get("rejectedCombinations", []),
+        "evaluatedCombinationCount": scheduled.get("evaluatedCombinationCount", 0),
+        "feasibleCombinationCount": scheduled.get("feasibleCombinationCount", 0),
+    }
+    return plan
+
     supply_status = mock_supply.get("supplyStatus", {}).get("status")
     if supply_status == "failed":
         return _failed_plan(structured_demand, mock_supply)
@@ -554,6 +713,7 @@ def draft_plan_without_llm(
     time_window = structured_demand.get("timeWindow", {})
     cursor = _parse_minutes(time_window.get("startTime"))
     timeline: list[dict[str, Any]] = []
+    wants_after_meal_walk = _wants_after_meal_walk(structured_demand)
 
     if first_route and first_route.get("minutes", 0) > 0:
         route_start = cursor
@@ -583,7 +743,7 @@ def draft_plan_without_llm(
                 "type": "activity",
                 "title": activity["name"],
                 "description": "；".join(activity.get("matchedReasons", [])[:4])
-                or "作为本次主要活动候选。",
+                or "作为本次主要活动。",
                 "poiId": activity.get("poiId"),
                 "routeRef": None,
                 "estimatedCost": activity_cost,
@@ -622,7 +782,7 @@ def draft_plan_without_llm(
                 "end": _time_label(end, "餐饮前"),
                 "type": "buffer",
                 "title": "缓冲与转场",
-                "description": "阶段四预留轻量缓冲，严格转场校验留到阶段五。",
+                "description": "预留一点找路、等人和调整节奏的时间。",
                 "poiId": None,
                 "routeRef": None,
                 "estimatedCost": 0,
@@ -641,7 +801,7 @@ def draft_plan_without_llm(
                 "type": "restaurant",
                 "title": restaurant["name"],
                 "description": "；".join(restaurant.get("matchedReasons", [])[:4])
-                or "作为本次餐饮/坐下休息候选。",
+                or "作为本次吃饭和坐下休息安排。",
                 "poiId": restaurant.get("poiId"),
                 "routeRef": None,
                 "estimatedCost": restaurant_cost,
@@ -656,6 +816,24 @@ def draft_plan_without_llm(
                 f" 座位状态：{'有座' if table else '未知'}，排队约 {queue} 分钟，"
                 f"可选时段：{'、'.join(slots[:3]) if slots else '未返回明确预约时段'}。"
             )
+
+    if restaurant and wants_after_meal_walk:
+        start = cursor
+        end = None if cursor is None else cursor + 35
+        area_name = restaurant.get("areaName") or AREA_LABELS.get(str(restaurant.get("areaId")), "附近")
+        timeline.append(
+            {
+                "start": _time_label(start, "饭后"),
+                "end": _time_label(end, "结束前"),
+                "type": "activity",
+                "title": f"{area_name}附近饭后散步",
+                "description": "吃完饭后就近走一小段，留出聊天和各自返程前的缓冲，不额外增加门票预算。",
+                "poiId": None,
+                "routeRef": None,
+                "estimatedCost": 0,
+            }
+        )
+        cursor = end
 
     selected_items: list[dict[str, Any]] = []
     for route in (first_route, transfer_route):
@@ -705,12 +883,12 @@ def draft_plan_without_llm(
         )
     elif budget_limit is not None:
         risk_tips.append(
-            f"预估总价 {total_cost:.0f} 元，低于预算上限 {budget_limit:.0f} 元；仍需阶段五做最终校验。"
+            f"预估总价 {total_cost:.0f} 元，低于预算上限 {budget_limit:.0f} 元。"
         )
     if supply_status == "partial":
-        risk_tips.append("阶段三供给状态为 partial，说明活动或餐饮候选存在缺口。")
+        risk_tips.append("活动或餐饮候选存在缺口，方案可能需要放宽条件。")
     if not risk_tips:
-        risk_tips.append("阶段四仅生成规划方案，余票、座位、排队和预算仍需阶段五校验。")
+        risk_tips.append("已按预算、距离和体验匹配度做初步组合，确认前还会再检查余票、座位和排队。")
 
     tradeoffs = [
         item.get("description", "")
@@ -737,7 +915,7 @@ def draft_plan_without_llm(
         "recommendationReasons": _recommendation_reasons(activity, restaurant, first_route, transfer_route),
         "riskTips": risk_tips,
         "tradeoffs": tradeoffs,
-        "rawPlannerNotes": "Deterministic stage-4 draft used without LLM.",
+        "rawPlannerNotes": "Deterministic product planner fallback.",
     }
 
 
@@ -754,7 +932,7 @@ def _summary(
     if activity:
         parts.append(f"安排 {activity.get('name')}")
     if restaurant:
-        parts.append(f"再去 {restaurant.get('name')}")
+        parts.append(f"{'再去' if activity or parts else '安排'} {restaurant.get('name')}")
     if not parts:
         return "当前候选不足，只能形成部分规划。"
     return "，".join(parts) + f"，预估总价 {total_cost:.0f} 元，人均 {total_cost / people_total:.0f} 元。"
@@ -824,13 +1002,15 @@ def plan_timeline(
             errors = validate_timeline_plan(plan, mock_supply)
             if errors:
                 raise ValueError("Stage 4 planner validation failed: " + "; ".join(errors))
+            if _llm_plan_needs_fallback(plan, structured_demand, mock_supply):
+                raise ValueError("Stage 4 planner produced an incomplete executable plan")
             return plan
         except Exception:
             if not fallback_on_error:
                 raise
             print("[FlowCity][Planner] llm failed; using deterministic fallback", flush=True)
 
-    plan = draft_plan_without_llm(structured_demand, mock_supply)
+    plan = draft_plan_without_llm(structured_demand, mock_supply, limit=limit)
     errors = validate_timeline_plan(plan, mock_supply)
     if errors:
         raise ValueError("Stage 4 fallback planner validation failed: " + "; ".join(errors))

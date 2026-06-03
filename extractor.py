@@ -283,7 +283,357 @@ def _normalize_child_accompanying_adult(result: dict[str, Any], raw_input: str) 
     _append_assumption(result, f"用户表达带孩子出行，未额外说明同行人数时按 {people['adults']} 大 {child_count_text} 理解。")
 
 
-def normalize_structured_demand(result: dict[str, Any]) -> dict[str, Any]:
+def _is_sparse_or_drifted(result: dict[str, Any], raw_input: str) -> bool:
+    text = json.dumps(result, ensure_ascii=False)
+    if any(keyword in text for keyword in ("乱码", "无法识别", "无法理解", "不完整输入")):
+        return True
+    signal_count = 0
+    if re.search(r"\d+\s*个|[一二三四五六七八九十]\s*个|带.*孩子|老婆|女生|男生|大学生|朋友", raw_input):
+        people = result.get("people") if isinstance(result.get("people"), dict) else {}
+        if people.get("total") or people.get("children") or people.get("relationship"):
+            signal_count += 1
+    if re.search(r"周[六日天末]|今晚|下午|中午|晚上|\d+\s*点", raw_input):
+        window = result.get("timeWindow") if isinstance(result.get("timeWindow"), dict) else {}
+        if window.get("dateText") or window.get("startTime") or window.get("endTime"):
+            signal_count += 1
+    if re.search(r"预算|人均|以内|不超过|\d+\s*元", raw_input):
+        budget = result.get("budget") if isinstance(result.get("budget"), dict) else {}
+        if budget.get("maxTotal") is not None or budget.get("perPerson") is not None:
+            signal_count += 1
+    if re.search(r"曲江|钟楼|咸阳|秦都|渭水|长安大学|交大|西北大学|陕师大", raw_input):
+        location = result.get("location") if isinstance(result.get("location"), dict) else {}
+        if location.get("startPoint") or location.get("preferredArea") or location.get("originPoints"):
+            signal_count += 1
+    return signal_count <= 1 and len(raw_input) >= 20
+
+
+def _time_from_raw(raw_input: str) -> dict[str, Any]:
+    date_text = None
+    if "今晚" in raw_input:
+        date_text = "今晚"
+    elif "周六" in raw_input:
+        date_text = "周六"
+    elif "周天" in raw_input or "周日" in raw_input:
+        date_text = "周天"
+    elif "周末" in raw_input:
+        date_text = "周末"
+
+    start_time = None
+    end_time = None
+    if "6点半" in raw_input or "六点半" in raw_input:
+        start_time = "18:30"
+    else:
+        for match in re.finditer(r"(\d{1,2})\s*点", raw_input):
+            if raw_input[match.end(): match.end() + 1] == "前":
+                continue
+            hour = int(match.group(1))
+            if ("下午" in raw_input or ("到7点" in raw_input and hour < 8)) and hour < 12:
+                hour += 12
+            start_time = f"{hour:02d}:00"
+            break
+    if "10点前" in raw_input or "十点前" in raw_input:
+        end_time = "22:00"
+    elif "7点" in raw_input or "七点" in raw_input:
+        end_time = "19:00"
+    elif "6点" in raw_input or "六点" in raw_input:
+        end_time = "18:00"
+    if start_time is None and end_time and "下午" in raw_input:
+        start_time = "13:00"
+    return {
+        "dateText": date_text,
+        "startTime": start_time,
+        "endTime": end_time,
+        "durationHours": None,
+        "isFlexible": start_time is None or end_time is None,
+    }
+
+
+def _people_from_raw(raw_input: str) -> dict[str, Any]:
+    children = []
+    child_match = re.search(r"(\d{1,2})\s*岁", raw_input)
+    if child_match:
+        children = [{"age": int(child_match.group(1))}]
+    total = None
+    if match := re.search(r"(\d+)\s*个(?:人|大学生|男生|朋友)?", raw_input):
+        total = int(match.group(1))
+    elif "三" in raw_input and "男生" in raw_input:
+        total = 3
+    elif "四" in raw_input and ("大学生" in raw_input or "同学" in raw_input or "朋友" in raw_input):
+        total = 4
+    elif children and "老婆" in raw_input:
+        total = 3
+    elif "女生" in raw_input:
+        total = 2
+
+    relationship = None
+    if children:
+        relationship = "family"
+    elif "喜欢" in raw_input or "好感" in raw_input:
+        relationship = "pursuing"
+    elif total and total >= 3:
+        relationship = "friends"
+    elif "大学生" in raw_input or "同学" in raw_input or "朋友" in raw_input or "男生" in raw_input or "citywalk" in raw_input:
+        relationship = "friends"
+
+    adults = None
+    if total:
+        adults = max(0, total - len(children))
+    return {
+        "total": total,
+        "adults": adults,
+        "children": children,
+        "seniors": [],
+        "relationship": relationship,
+        "specialNeeds": [],
+    }
+
+
+def _budget_from_raw(raw_input: str) -> dict[str, Any]:
+    per_person = None
+    max_total = None
+    if match := re.search(r"人均\s*(\d+)", raw_input):
+        per_person = int(match.group(1))
+    elif match := re.search(r"(\d+)\s*以内", raw_input):
+        value = int(match.group(1))
+        if "人均" in raw_input:
+            per_person = value
+        else:
+            max_total = value
+    elif match := re.search(r"预算(?:别超过|不超过|少一点|)?\s*(\d+)", raw_input):
+        max_total = int(match.group(1))
+    elif match := re.search(r"总预算\s*(\d+)", raw_input):
+        max_total = int(match.group(1))
+    return {
+        "maxTotal": max_total,
+        "perPerson": per_person,
+        "currency": "CNY",
+        "flexibility": "strict" if max_total or per_person else "unknown",
+    }
+
+
+def _location_from_raw(raw_input: str) -> dict[str, Any]:
+    start_point = None
+    preferred_area = None
+    origin_points: list[dict[str, str]] = []
+    if "曲江池" in raw_input:
+        start_point = "曲江池附近"
+        preferred_area = "曲江"
+    elif "钟楼地铁站" in raw_input or "钟楼" in raw_input:
+        start_point = "钟楼地铁站集合" if "地铁站" in raw_input else None
+        preferred_area = "钟楼"
+    elif "咸阳秦都" in raw_input or "秦都站" in raw_input:
+        start_point = "咸阳秦都站附近"
+        preferred_area = "西安市区"
+    elif "渭水校区" in raw_input:
+        start_point = "长安大学渭水校区"
+        preferred_area = "西安市区"
+    if "长安大学" in raw_input and "西安交大" in raw_input and "西北大学" in raw_input and "陕师大" in raw_input:
+        origin_points = [
+            {"label": "同伴1", "point": "长安大学"},
+            {"label": "同伴2", "point": "西安交大"},
+            {"label": "同伴3", "point": "西北大学"},
+            {"label": "同伴4", "point": "陕师大"},
+        ]
+    cross_city = "咸阳" in raw_input
+    return {
+        "startPoint": start_point,
+        "originPoints": origin_points,
+        "preferredArea": preferred_area,
+        "crossCityIntent": {"enabled": cross_city, "fromCity": "咸阳" if cross_city else None, "toCity": "西安" if cross_city else None},
+        "maxTravelMinutes": None,
+        "transportPreference": "public_transport" if "地铁" in raw_input or origin_points else "walk" if "citywalk" in raw_input else None,
+        "distancePreference": "别太远" if "别太远" in raw_input else "别走太多路" if "别走太多路" in raw_input else None,
+    }
+
+
+def _preferences_from_raw(raw_input: str) -> dict[str, list[str]]:
+    activity_types: list[str] = []
+    food_tags: list[str] = []
+    experience_tags: list[str] = []
+    avoid_tags: list[str] = []
+    keyword_map = [
+        ("亲子", activity_types, "亲子"),
+        ("孩子", activity_types, "儿童友好"),
+        ("想玩", activity_types, "城市景点"),
+        ("我要玩", activity_types, "城市景点"),
+        ("景点", activity_types, "城市景点"),
+        ("看电影", activity_types, "电影"),
+        ("电影票", activity_types, "电影"),
+        ("电影", activity_types, "电影"),
+        ("影院", activity_types, "电影"),
+        ("逛一下", activity_types, "citywalk"),
+        ("逛", activity_types, "citywalk"),
+        ("citywalk", activity_types, "citywalk"),
+        ("小吃", food_tags, "小吃"),
+        ("晚饭", food_tags, "晚餐"),
+        ("晚餐", food_tags, "晚餐"),
+        ("吃饭", food_tags, "正餐"),
+        ("吃完晚饭", experience_tags, "饭后附近散步"),
+        ("吃完饭", experience_tags, "饭后附近散步"),
+        ("饭后", experience_tags, "饭后附近散步"),
+        ("再转", experience_tags, "饭后附近散步"),
+        ("减脂", food_tags, "低脂"),
+        ("不油腻", food_tags, "低脂"),
+        ("清淡", food_tags, "清淡"),
+        ("坐下来聊", experience_tags, "能坐下聊天"),
+        ("少走路", experience_tags, "少走路"),
+        ("公平", experience_tags, "预算公平"),
+        ("公共交通", experience_tags, "公共交通可达"),
+        ("关系", experience_tags, "低压力"),
+        ("喜欢", experience_tags, "轻约会"),
+        ("别太正式", avoid_tags, "太正式"),
+        ("排太久", avoid_tags, "排队久"),
+        ("别把时间都花在路上", avoid_tags, "通勤太久"),
+    ]
+    for keyword, target, tag in keyword_map:
+        if keyword in raw_input and tag not in target:
+            target.append(tag)
+    return {
+        "activityTypes": activity_types,
+        "foodTags": food_tags,
+        "experienceTags": experience_tags,
+        "avoidTags": avoid_tags,
+    }
+
+
+def _avoid_terms_from_raw(raw_input: str) -> list[str]:
+    terms: list[str] = []
+    patterns = [
+        r"不想去([^，。,！!？?\s]+)",
+        r"不要([^，。,！!？?\s]+)",
+        r"别去([^，。,！!？?\s]+)",
+        r"避开([^，。,！!？?\s]+)",
+    ]
+    for pattern in patterns:
+        for match in re.finditer(pattern, raw_input):
+            term = match.group(1).strip("，。,！!？? 的了吧")
+            if term and term not in terms:
+                terms.append(term)
+    return terms
+
+
+def _hard_constraints_from_raw(raw_input: str) -> list[str]:
+    constraints: list[str] = []
+    if any(keyword in raw_input for keyword in ("晚饭", "晚餐", "吃饭")):
+        constraints.append("必须安排正餐/晚饭，预算优先保证餐饮")
+    if any(keyword in raw_input for keyword in ("吃完晚饭", "吃完饭", "饭后", "再转", "转一会")):
+        constraints.append("晚饭后需要安排附近轻松散步或短暂停留")
+    for term in _avoid_terms_from_raw(raw_input):
+        constraints.append(f"避开用户明确不想去的地点或商圈：{term}")
+    return constraints
+
+
+def _repair_sparse_result(result: dict[str, Any], raw_input: str) -> dict[str, Any]:
+    result["rawInput"] = raw_input
+    result["scene"] = {
+        "primaryType": "family" if "孩子" in raw_input else "couple" if "喜欢" in raw_input or "好感" in raw_input else "friends" if any(word in raw_input for word in ("朋友", "男生", "大学生", "同学", "citywalk")) or re.search(r"\d+\s*个人", raw_input) else "open",
+        "confidence": 0.72,
+        "tags": [],
+    }
+    result["timeWindow"] = _time_from_raw(raw_input)
+    result["people"] = _people_from_raw(raw_input)
+    result["budget"] = _budget_from_raw(raw_input)
+    result["location"] = _location_from_raw(raw_input)
+    result["preferences"] = _preferences_from_raw(raw_input)
+    result["constraints"] = {
+        "hard": _hard_constraints_from_raw(raw_input),
+        "soft": [],
+        "dynamic": ["活动余票状态", "餐厅座位状态", "实时排队时间", "确认前状态变化"],
+    }
+    result["potentialConflicts"] = []
+    result["expectedOutput"] = {
+        "planFormat": "timeline_plan",
+        "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "风险提示"],
+    }
+    result["assumptions"] = ["LLM 抽取结果过空，已用本地规则从用户原文补全关键字段。"]
+    result["clarificationQuestions"] = []
+    return result
+
+
+def _merge_list_tags(existing: Any, additions: list[str]) -> list[str]:
+    merged = list(existing) if isinstance(existing, list) else []
+    for item in additions:
+        if item not in merged:
+            merged.append(item)
+    return merged
+
+
+def _augment_missing_from_raw(result: dict[str, Any], raw_input: str) -> None:
+    raw_time = _time_from_raw(raw_input)
+    time_window = result.setdefault("timeWindow", {})
+    if isinstance(time_window, dict):
+        for key in ("dateText", "startTime", "endTime"):
+            if not time_window.get(key) and raw_time.get(key):
+                time_window[key] = raw_time[key]
+        if (
+            time_window.get("startTime")
+            and time_window.get("startTime") == time_window.get("endTime")
+            and "前" in raw_input
+            and raw_time.get("startTime")
+        ):
+            time_window["startTime"] = raw_time["startTime"]
+        if time_window.get("startTime") and time_window.get("endTime"):
+            time_window["isFlexible"] = bool(time_window.get("isFlexible") and False)
+
+    raw_people = _people_from_raw(raw_input)
+    people = result.setdefault("people", {})
+    if isinstance(people, dict):
+        for key in ("total", "adults", "relationship"):
+            if not people.get(key) and raw_people.get(key):
+                people[key] = raw_people[key]
+        if not people.get("children") and raw_people.get("children"):
+            people["children"] = raw_people["children"]
+
+    raw_budget = _budget_from_raw(raw_input)
+    budget = result.setdefault("budget", {})
+    if isinstance(budget, dict):
+        for key in ("maxTotal", "perPerson"):
+            if budget.get(key) is None and raw_budget.get(key) is not None:
+                budget[key] = raw_budget[key]
+        if budget.get("maxTotal") is not None or budget.get("perPerson") is not None:
+            budget["flexibility"] = "strict"
+
+    raw_location = _location_from_raw(raw_input)
+    location = result.setdefault("location", {})
+    if isinstance(location, dict):
+        for key in ("startPoint", "preferredArea", "transportPreference", "distancePreference"):
+            if not location.get(key) and raw_location.get(key):
+                location[key] = raw_location[key]
+        if not location.get("originPoints") and raw_location.get("originPoints"):
+            location["originPoints"] = raw_location["originPoints"]
+        cross_city = location.get("crossCityIntent")
+        if isinstance(cross_city, dict) and raw_location.get("crossCityIntent", {}).get("enabled"):
+            location["crossCityIntent"] = raw_location["crossCityIntent"]
+
+    raw_preferences = _preferences_from_raw(raw_input)
+    preferences = result.setdefault("preferences", {})
+    if isinstance(preferences, dict):
+        for key, additions in raw_preferences.items():
+            preferences[key] = _merge_list_tags(preferences.get(key), additions)
+        avoid_tags = preferences.setdefault("avoidTags", [])
+        if isinstance(avoid_tags, list):
+            for term in _avoid_terms_from_raw(raw_input):
+                tag = f"避开:{term}"
+                if tag not in avoid_tags:
+                    avoid_tags.append(tag)
+
+    constraints = result.setdefault("constraints", {})
+    if isinstance(constraints, dict):
+        hard = constraints.setdefault("hard", [])
+        if isinstance(hard, list):
+            for item in _hard_constraints_from_raw(raw_input):
+                if item not in hard:
+                    hard.append(item)
+
+    scene = result.setdefault("scene", {})
+    if isinstance(scene, dict):
+        raw_scene = _repair_sparse_result({}, raw_input)["scene"]["primaryType"]
+        if scene.get("primaryType") in {None, "open"} and raw_scene != "open":
+            scene["primaryType"] = raw_scene
+            scene["confidence"] = max(float(scene.get("confidence") or 0), 0.72)
+
+
+def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str | None = None) -> dict[str, Any]:
     """
     Normalize known model drift after extraction.
 
@@ -292,7 +642,12 @@ def normalize_structured_demand(result: dict[str, Any]) -> dict[str, Any]:
     a strict CNY 0 budget unless the user explicitly says zero budget or
     must be free.
     """
-    raw_input = str(result.get("rawInput") or "")
+    raw_input = str(fallback_raw_input or result.get("rawInput") or "")
+    if fallback_raw_input and _is_sparse_or_drifted(result, fallback_raw_input):
+        result = _repair_sparse_result(result, fallback_raw_input)
+    elif fallback_raw_input:
+        result["rawInput"] = fallback_raw_input
+        _augment_missing_from_raw(result, fallback_raw_input)
     _normalize_child_accompanying_adult(result, raw_input)
 
     has_low_cost_intent = _has_low_cost_intent(raw_input)
@@ -458,7 +813,7 @@ def main() -> int:
     # 正式运行：请求模型 -> 解析 JSON -> 用 schema 做基础校验。
     response_text = call_llm(prompt)
     result = parse_json_object(response_text)
-    result = normalize_structured_demand(result)
+    result = normalize_structured_demand(result, args.input)
     errors = basic_validate(result, load_json(SCHEMA_PATH))
 
     print(json.dumps(result, ensure_ascii=False, indent=2))

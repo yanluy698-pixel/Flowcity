@@ -9,10 +9,11 @@ type Props = {
   turns: ChatTurn[];
   onSubmit: (text: string) => void;
   onConfirm: (turnId: string) => void;
+  onRuntimeReplan: (turnId: string) => void;
   disabled?: boolean;
 };
 
-export function ChatScreen({ turns, onSubmit, onConfirm, disabled }: Props) {
+export function ChatScreen({ turns, onSubmit, onConfirm, onRuntimeReplan, disabled }: Props) {
   return (
     <main className="page">
       <section className="phone-shell">
@@ -23,7 +24,7 @@ export function ChatScreen({ turns, onSubmit, onConfirm, disabled }: Props) {
               <div className="user-bubble">{turn.displayInput}</div>
               <div className="assistant-row compact">
                 <Avatar />
-                <StageProgress stages={turn.stages} />
+                <StageProgress stages={turn.stages} totalDurationMs={turn.totalDurationMs} />
               </div>
               {turn.finalPayload && (
                 <div className="assistant-row compact">
@@ -31,6 +32,8 @@ export function ChatScreen({ turns, onSubmit, onConfirm, disabled }: Props) {
                   <PlanCard
                     payload={turn.finalPayload}
                     onConfirm={() => onConfirm(turn.id)}
+                    onRuntimeReplan={() => onRuntimeReplan(turn.id)}
+                    totalDurationMs={turn.totalDurationMs}
                   />
                 </div>
               )}

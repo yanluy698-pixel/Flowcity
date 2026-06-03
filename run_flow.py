@@ -51,7 +51,7 @@ def run_from_natural_language(
     prompt = extractor.build_prompt(user_input)
     response_text = extractor.call_llm(prompt)
     structured_demand = extractor.parse_json_object(response_text)
-    structured_demand = extractor.normalize_structured_demand(structured_demand)
+    structured_demand = extractor.normalize_structured_demand(structured_demand, user_input)
     validation_errors = extractor.basic_validate(
         structured_demand, extractor.load_json(extractor.SCHEMA_PATH)
     )

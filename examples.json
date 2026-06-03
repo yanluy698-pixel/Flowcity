@@ -518,6 +518,101 @@
         "assumptions": ["用户未说明出发地、人数和具体预算金额。"],
         "clarificationQuestions": ["你从哪里出发？", "一共有几个人？", "预算大概是多少？"]
       }
+    },
+    {
+      "id": "family_qujiang_half_day",
+      "name": "五组画像1：曲江亲子半日游",
+      "userInput": "周六下午2点到6点，我从曲江池附近出发，带5岁孩子和老婆出去玩，老婆最近减脂，别太远，总预算400，最好6点前能回到家附近。",
+      "expectedStructuredDemand": {
+        "rawInput": "周六下午2点到6点，我从曲江池附近出发，带5岁孩子和老婆出去玩，老婆最近减脂，别太远，总预算400，最好6点前能回到家附近。",
+        "scene": { "primaryType": "family", "confidence": 0.95, "tags": ["亲子", "曲江池出发", "减脂", "低预算", "全程时间窗"] },
+        "timeWindow": { "dateText": "周六", "startTime": "14:00", "endTime": "18:00", "durationHours": 4, "isFlexible": false },
+        "people": { "total": 3, "adults": 2, "children": [{ "age": 5 }], "seniors": [], "relationship": "family", "specialNeeds": ["5岁儿童适龄", "妻子减脂，餐饮需要低脂清淡", "尽量少排队少走路"] },
+        "budget": { "maxTotal": 400, "perPerson": null, "currency": "CNY", "flexibility": "strict" },
+        "location": { "startPoint": "曲江池附近", "originPoints": [], "preferredArea": "曲江", "crossCityIntent": { "enabled": false, "fromCity": null, "toCity": null }, "maxTravelMinutes": null, "transportPreference": null, "distancePreference": "别太远，6点前回到家附近" },
+        "preferences": { "activityTypes": ["亲子", "儿童友好", "轻松"], "foodTags": ["低脂", "清淡", "儿童友好"], "experienceTags": ["少排队", "少走路", "路线轻松"], "avoidTags": ["太远", "排队久", "超预算", "油腻"] },
+        "constraints": { "hard": ["时间必须在14:00-18:00内", "总预算不超过400元", "活动必须适合5岁儿童", "餐饮需要低脂清淡且儿童友好"], "soft": ["优先曲江或近距离商圈", "少排队", "少走路"], "dynamic": ["活动余票状态", "餐厅座位状态", "实时排队时间", "确认前状态变化"] },
+        "potentialConflicts": [{ "type": "budget_vs_family_quality", "description": "亲子活动和三人餐饮都要控制在400元以内。" }, { "type": "diet_vs_child_friendly", "description": "低脂餐厅未必儿童友好，需要交叉过滤。" }],
+        "expectedOutput": { "planFormat": "timeline_plan", "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "推荐理由", "风险提示", "预约/排队状态", "备选方案"] },
+        "assumptions": ["400元包含活动和餐饮，交通费用按路线提示单独展示。"],
+        "clarificationQuestions": ["是否一定要18:00前回到曲江池附近？"]
+      }
+    },
+    {
+      "id": "friends_zhonglou_citywalk",
+      "name": "五组画像2：钟楼朋友Citywalk",
+      "userInput": "今晚6点半我们4个人在钟楼地铁站集合，2男2女，想citywalk加小吃，但别走太多路，最后找个地方坐下来聊，10点前结束。",
+      "expectedStructuredDemand": {
+        "rawInput": "今晚6点半我们4个人在钟楼地铁站集合，2男2女，想citywalk加小吃，但别走太多路，最后找个地方坐下来聊，10点前结束。",
+        "scene": { "primaryType": "friends", "confidence": 0.94, "tags": ["朋友聚会", "钟楼集合", "citywalk", "小吃", "坐下聊天"] },
+        "timeWindow": { "dateText": "今晚", "startTime": "18:30", "endTime": "22:00", "durationHours": 3.5, "isFlexible": false },
+        "people": { "total": 4, "adults": 4, "children": [], "seniors": [], "relationship": "friends", "specialNeeds": ["路线不能太分散", "最后需要能坐下聊天"] },
+        "budget": { "maxTotal": null, "perPerson": null, "currency": "CNY", "flexibility": "unknown" },
+        "location": { "startPoint": "钟楼地铁站集合", "originPoints": [], "preferredArea": "钟楼", "crossCityIntent": { "enabled": false, "fromCity": null, "toCity": null }, "maxTravelMinutes": null, "transportPreference": "walk", "distancePreference": "别走太多路" },
+        "preferences": { "activityTypes": ["citywalk", "小吃", "轻松聚会"], "foodTags": ["小吃", "适合多人", "可坐下"], "experienceTags": ["少走路", "路线集中", "能坐下聊天", "轻松"], "avoidTags": ["走太多路", "没有座位", "排队久", "路线分散"] },
+        "constraints": { "hard": ["适合4人同行", "22:00前结束", "最后需要有可坐下聊天地点"], "soft": ["短距离citywalk", "小吃选择丰富", "少排队"], "dynamic": ["小吃点排队时间", "最后落脚点座位状态", "今晚营业时间", "确认前排队变化"] },
+        "potentialConflicts": [{ "type": "citywalk_vs_less_walk", "description": "citywalk需要步行，但用户明确不想走太多路。" }, { "type": "snack_street_vs_chat", "description": "热门小吃区域可能排队久且座位不稳定。" }],
+        "expectedOutput": { "planFormat": "timeline_plan", "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "推荐理由", "风险提示", "预约/排队状态", "备选方案"] },
+        "assumptions": ["从钟楼地铁站集合后开始规划，不计算各自到集合点路程。"],
+        "clarificationQuestions": ["大概人均预算是多少？"]
+      }
+    },
+    {
+      "id": "xianyang_qindu_low_budget_trip",
+      "name": "五组画像3：咸阳到西安跨城低预算",
+      "userInput": "周天1点到7点，我们3个男生从咸阳秦都站附近出发，想坐地铁去西安市区玩，人均100以内，别把时间都花在路上。",
+      "expectedStructuredDemand": {
+        "rawInput": "周天1点到7点，我们3个男生从咸阳秦都站附近出发，想坐地铁去西安市区玩，人均100以内，别把时间都花在路上。",
+        "scene": { "primaryType": "friends", "confidence": 0.91, "tags": ["朋友出行", "跨城", "地铁", "低预算", "男生"] },
+        "timeWindow": { "dateText": "周天", "startTime": "13:00", "endTime": "19:00", "durationHours": 6, "isFlexible": false },
+        "people": { "total": 3, "adults": 3, "children": [], "seniors": [], "relationship": "friends", "specialNeeds": ["三名男生同行", "需要坐地铁从咸阳进西安"] },
+        "budget": { "maxTotal": null, "perPerson": 100, "currency": "CNY", "flexibility": "strict" },
+        "location": { "startPoint": "咸阳秦都站附近", "originPoints": [], "preferredArea": "西安市区", "crossCityIntent": { "enabled": true, "fromCity": "咸阳", "toCity": "西安" }, "maxTravelMinutes": null, "transportPreference": "public_transport", "distancePreference": "别把时间都花在路上" },
+        "preferences": { "activityTypes": ["朋友出行", "轻活动", "低预算"], "foodTags": ["低预算", "适合多人"], "experienceTags": ["地铁可达", "预算友好", "少折腾"], "avoidTags": ["人均超过100元", "通勤太久", "太贵"] },
+        "constraints": { "hard": ["时间必须在13:00-19:00内", "人均预算不超过100元", "需要公共交通/地铁可达", "存在咸阳到西安跨城出行"], "soft": ["适合三名朋友", "低预算", "不要把时间都花在路上"], "dynamic": ["入城通勤时间", "营业时间", "排队时间", "路线耗时变化"] },
+        "potentialConflicts": [{ "type": "cross_city_time_cost", "description": "咸阳入城会消耗较多时间窗口。" }, { "type": "budget_vs_cross_city", "description": "人均100元需要覆盖交通、活动和餐饮，预算偏紧。" }],
+        "expectedOutput": { "planFormat": "timeline_plan", "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "推荐理由", "风险提示", "预约/排队状态", "备选方案"] },
+        "assumptions": ["人均100元默认优先覆盖活动和餐饮，交通费用需单独提示。"],
+        "clarificationQuestions": ["100元人均预算是否包含往返地铁费用？"]
+      }
+    },
+    {
+      "id": "multi_campus_fair_meetup",
+      "name": "五组画像4：多校区公平集合",
+      "userInput": "我们4个大学生周六中午想出来玩，分别从长安大学、西安交大、西北大学和陕师大出发，最低预算的同学只能接受人均80，希望找个对大家都公平的地方集合，再安排吃和玩。",
+      "expectedStructuredDemand": {
+        "rawInput": "我们4个大学生周六中午想出来玩，分别从长安大学、西安交大、西北大学和陕师大出发，最低预算的同学只能接受人均80，希望找个对大家都公平的地方集合，再安排吃和玩。",
+        "scene": { "primaryType": "friends", "confidence": 0.9, "tags": ["朋友相聚", "多出发地", "大学生", "预算不一致", "公平集合"] },
+        "timeWindow": { "dateText": "周六中午", "startTime": null, "endTime": null, "durationHours": null, "isFlexible": true },
+        "people": { "total": 4, "adults": 4, "children": [], "seniors": [], "relationship": "friends", "specialNeeds": ["四人分别从不同大学出发", "预算需要照顾最低预算者"] },
+        "budget": { "maxTotal": null, "perPerson": 80, "currency": "CNY", "flexibility": "strict" },
+        "location": { "startPoint": null, "originPoints": [{ "label": "同伴1", "point": "长安大学" }, { "label": "同伴2", "point": "西安交大" }, { "label": "同伴3", "point": "西北大学" }, { "label": "同伴4", "point": "陕师大" }], "preferredArea": null, "crossCityIntent": { "enabled": false, "fromCity": null, "toCity": null }, "maxTravelMinutes": null, "transportPreference": "public_transport", "distancePreference": "多地点折中集合" },
+        "preferences": { "activityTypes": ["大学生", "朋友相聚", "轻松活动"], "foodTags": ["低预算", "适合多人"], "experienceTags": ["预算公平", "集合方便", "公共交通可达"], "avoidTags": ["超出80元人均", "单人通勤过远", "太贵"] },
+        "constraints": { "hard": ["人均预算需优先按80元以内设计", "需要考虑四个不同出发地", "公共交通可达"], "soft": ["集合点尽量公平", "活动轻松", "学生低价"], "dynamic": ["各出发地到集合点通勤时间", "营业时间", "排队时间", "团购库存"] },
+        "potentialConflicts": [{ "type": "multi_origin_fairness", "description": "最公平地点未必最好玩，需要解释取舍。" }, { "type": "budget_mismatch", "description": "最低预算限制体验质量。" }],
+        "expectedOutput": { "planFormat": "options_comparison", "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "推荐理由", "风险提示", "备选方案"] },
+        "assumptions": ["按最低预算者人均80元优先设计。"],
+        "clarificationQuestions": ["周六中午大概几点开始？"]
+      }
+    },
+    {
+      "id": "pursuing_weishui_low_budget",
+      "name": "五组画像5：渭水校区关系模糊轻约会",
+      "userInput": "周六下午2点到6点，我从长安大学渭水校区出发，想去市区和喜欢的女生玩，她最近减肥，吃的要好吃但别油腻，总预算200以内，别安排得太正式。",
+      "expectedStructuredDemand": {
+        "rawInput": "周六下午2点到6点，我从长安大学渭水校区出发，想去市区和喜欢的女生玩，她最近减肥，吃的要好吃但别油腻，总预算200以内，别安排得太正式。",
+        "scene": { "primaryType": "couple", "confidence": 0.82, "tags": ["轻约会", "关系模糊", "追求中", "低预算", "低脂"] },
+        "timeWindow": { "dateText": "周六", "startTime": "14:00", "endTime": "18:00", "durationHours": 4, "isFlexible": false },
+        "people": { "total": 2, "adults": 2, "children": [], "seniors": [], "relationship": "pursuing", "specialNeeds": ["同行女生在减肥，餐饮需要好吃但不油腻", "关系未定，不要安排太正式"] },
+        "budget": { "maxTotal": 200, "perPerson": null, "currency": "CNY", "flexibility": "strict" },
+        "location": { "startPoint": "长安大学渭水校区", "originPoints": [], "preferredArea": "西安市区", "crossCityIntent": { "enabled": false, "fromCity": null, "toCity": null }, "maxTravelMinutes": null, "transportPreference": "public_transport", "distancePreference": "去市区" },
+        "preferences": { "activityTypes": ["轻约会", "市区短时活动", "不尴尬"], "foodTags": ["好吃", "不油腻", "低脂", "清淡"], "experienceTags": ["预算友好", "自然", "不正式"], "avoidTags": ["太贵", "油腻", "太正式", "尴尬"] },
+        "constraints": { "hard": ["时间必须在14:00-18:00内", "总预算不超过200元", "餐饮必须不油腻"], "soft": ["适合关系模糊轻约会", "餐饮好吃", "预算友好", "低压力"], "dynamic": ["通勤时间", "餐厅座位状态", "排队时间", "确认前无座重排"] },
+        "potentialConflicts": [{ "type": "relationship_ambiguity", "description": "喜欢的女生不等于稳定情侣，方案不能太正式。" }, { "type": "budget_vs_quality", "description": "200元预算还要兼顾低脂和市区通勤，选择空间偏紧。" }, { "type": "distance_vs_time", "description": "渭水校区去市区会消耗明显通勤时间。" }],
+        "expectedOutput": { "planFormat": "timeline_plan", "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "推荐理由", "风险提示", "预约/排队状态", "备选方案"] },
+        "assumptions": ["女生出发地未知，先按市区会合处理。", "200元预算暂按不含交通费用处理。"],
+        "clarificationQuestions": ["女生从哪里出发？", "200元预算是否包含交通费用？"]
+      }
     }
   ]
 }

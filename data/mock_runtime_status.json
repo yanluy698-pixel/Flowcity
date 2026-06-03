@@ -1,0 +1,3456 @@
+{
+  "version": "stage6_runtime_status_v2",
+  "city": "西安",
+  "dataType": "runtime_status_pool",
+  "normalShare": 0.6,
+  "abnormalShare": 0.4,
+  "note": "确认/下单阶段使用的 Mock 异常池；多数记录保持原状态，少数记录模拟余票、座位、排队、路线和库存变化。",
+  "activityRuntimeStatus": [
+    {
+      "poiId": "act_xa_001",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 18,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "16:00",
+          "end": "18:00",
+          "ticketLeft": 9,
+          "queueMinutes": 20,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_002",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 6,
+          "queueMinutes": 28,
+          "crowdLevel": "high"
+        },
+        {
+          "start": "16:00",
+          "end": "18:00",
+          "ticketLeft": 3,
+          "queueMinutes": 35,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_003",
+      "dateText": "周六",
+      "runtimeState": "changed",
+      "eventType": "ticket_sold_out",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 0,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "16:00",
+          "end": "18:00",
+          "ticketLeft": 0,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ],
+      "runtimeMessage": "POPOME+探索乐园(万象天地店)确认前余票变为0，需要更换活动。"
+    },
+    {
+      "poiId": "act_xa_004",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 10,
+          "queueMinutes": 18,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "16:00",
+          "end": "18:00",
+          "ticketLeft": 7,
+          "queueMinutes": 22,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_005",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "18:00",
+          "ticketLeft": 15,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_006",
+      "dateText": "周日",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "17:00",
+          "end": "19:00",
+          "ticketLeft": 12,
+          "queueMinutes": 5,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "19:00",
+          "end": "21:00",
+          "ticketLeft": 8,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_007",
+      "dateText": "周日",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        {
+          "start": "18:00",
+          "end": "20:00",
+          "ticketLeft": 25,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 18,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        }
+      ],
+      "runtimeMessage": "大唐夜色光影馆(不夜城店)确认前排队变长，需要换等待更短的活动。"
+    },
+    {
+      "poiId": "act_xa_008",
+      "dateText": "周日",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "17:00",
+          "end": "19:00",
+          "ticketLeft": 14,
+          "queueMinutes": 6,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "19:00",
+          "end": "21:00",
+          "ticketLeft": 9,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_009",
+      "dateText": "周日",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "17:00",
+          "end": "19:00",
+          "ticketLeft": 4,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "19:00",
+          "end": "21:00",
+          "ticketLeft": 2,
+          "queueMinutes": 16,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_010",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 99,
+          "queueMinutes": 0,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "18:00",
+          "ticketLeft": 99,
+          "queueMinutes": 0,
+          "crowdLevel": "low"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_011",
+      "dateText": "今晚",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:00",
+          "end": "20:00",
+          "ticketLeft": 99,
+          "queueMinutes": 0,
+          "crowdLevel": "high"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 99,
+          "queueMinutes": 0,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_012",
+      "dateText": "周日",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 22,
+          "queueMinutes": 3,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "17:00",
+          "end": "19:00",
+          "ticketLeft": 20,
+          "queueMinutes": 3,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "19:00",
+          "end": "21:00",
+          "ticketLeft": 16,
+          "queueMinutes": 5,
+          "crowdLevel": "low"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_013",
+      "dateText": "周日",
+      "runtimeState": "changed",
+      "eventType": "ticket_sold_out",
+      "timeSlots": [
+        {
+          "start": "17:00",
+          "end": "19:00",
+          "ticketLeft": 0,
+          "queueMinutes": 6,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "19:00",
+          "end": "21:00",
+          "ticketLeft": 0,
+          "queueMinutes": 7,
+          "crowdLevel": "low"
+        }
+      ],
+      "runtimeMessage": "长安造物手作社(高新店)确认前余票变为0，需要更换活动。"
+    },
+    {
+      "poiId": "act_xa_014",
+      "dateText": "今晚",
+      "runtimeState": "changed",
+      "eventType": "ticket_sold_out",
+      "timeSlots": [
+        {
+          "start": "19:00",
+          "end": "20:30",
+          "ticketLeft": 0,
+          "queueMinutes": 15,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "21:00",
+          "end": "22:30",
+          "ticketLeft": 0,
+          "queueMinutes": 5,
+          "crowdLevel": "medium"
+        }
+      ],
+      "runtimeMessage": "汉唐小剧场(钟楼店)确认前余票变为0，需要更换活动。"
+    },
+    {
+      "poiId": "act_xa_015",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 99,
+          "queueMinutes": 0,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "18:00",
+          "ticketLeft": 99,
+          "queueMinutes": 0,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_016",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 6,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "18:00",
+          "ticketLeft": 4,
+          "queueMinutes": 10,
+          "crowdLevel": "low"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_017",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 18,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "18:00",
+          "ticketLeft": 12,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_018",
+      "dateText": "今晚",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        {
+          "start": "18:00",
+          "end": "20:00",
+          "ticketLeft": 99,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 99,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        }
+      ],
+      "runtimeMessage": "钟楼短线小吃Citywalk确认前排队变长，需要换等待更短的活动。"
+    },
+    {
+      "poiId": "act_xa_019",
+      "dateText": "周六",
+      "runtimeState": "changed",
+      "eventType": "ticket_sold_out",
+      "timeSlots": [
+        {
+          "start": "11:30",
+          "end": "13:30",
+          "ticketLeft": 0,
+          "queueMinutes": 5,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 0,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        }
+      ],
+      "runtimeMessage": "小寨青年轻展厅确认前余票变为0，需要更换活动。"
+    },
+    {
+      "poiId": "act_xa_020",
+      "dateText": "周日",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 18,
+          "queueMinutes": 6,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "18:30",
+          "ticketLeft": 16,
+          "queueMinutes": 9,
+          "crowdLevel": "low"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_021",
+      "dateText": "周六",
+      "runtimeState": "changed",
+      "eventType": "ticket_sold_out",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 0,
+          "queueMinutes": 4,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "18:00",
+          "ticketLeft": 0,
+          "queueMinutes": 6,
+          "crowdLevel": "low"
+        }
+      ],
+      "runtimeMessage": "小寨轻松话题书店确认前余票变为0，需要更换活动。"
+    },
+    {
+      "poiId": "act_xa_022",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "11:30",
+          "end": "13:30",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "14:00",
+          "end": "16:00",
+          "ticketLeft": 18,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_023",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_024",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        }
+      ],
+      "runtimeMessage": "小寨轻运动体验馆确认前排队变长，需要换等待更短的活动。"
+    },
+    {
+      "poiId": "act_xa_025",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_026",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_027",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "ticket_sold_out",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 0,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 0,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ],
+      "runtimeMessage": "曲江轻喜剧小剧场确认前余票变为0，需要更换活动。"
+    },
+    {
+      "poiId": "act_xa_028",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 4,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_029",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 24,
+          "queueMinutes": 5,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_030",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 23,
+          "queueMinutes": 6,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 19,
+          "queueMinutes": 9,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_031",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 22,
+          "queueMinutes": 7,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 18,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_032",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 4,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_033",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 21,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 17,
+          "queueMinutes": 11,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_034",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 20,
+          "queueMinutes": 5,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 16,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_035",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_036",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "ticket_sold_out",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 0,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 0,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ],
+      "runtimeMessage": "大明宫轻徒步盖章线确认前余票变为0，需要更换活动。"
+    },
+    {
+      "poiId": "act_xa_037",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_038",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 4,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_039",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        }
+      ],
+      "runtimeMessage": "行政中心城市绿道短走确认前排队变长，需要换等待更短的活动。"
+    },
+    {
+      "poiId": "act_xa_040",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "ticket_sold_out",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 0,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 0,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ],
+      "runtimeMessage": "行政中心共享自习茶歇确认前余票变为0，需要更换活动。"
+    },
+    {
+      "poiId": "act_xa_041",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 4,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_042",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 4,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_043",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_044",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 24,
+          "queueMinutes": 6,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_045",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 4,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_046",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 22,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 18,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_047",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 8,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_048",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        {
+          "start": "18:30",
+          "end": "20:00",
+          "ticketLeft": 20,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        },
+        {
+          "start": "20:00",
+          "end": "22:00",
+          "ticketLeft": 14,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        }
+      ],
+      "runtimeMessage": "行政中心夜间慢走线确认前排队变长，需要换等待更短的活动。"
+    },
+    {
+      "poiId": "act_xa_049",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "unchanged",
+      "runtimeMessage": "大雁塔北广场喷泉轻游确认前状态未变化。",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "15:00",
+          "ticketLeft": 60,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "15:00",
+          "end": "17:00",
+          "ticketLeft": 50,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "17:00",
+          "end": "22:30",
+          "ticketLeft": 45,
+          "queueMinutes": 15,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_050",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "runtimeMessage": "大唐不夜城中轴夜游确认前客流变大，排队约45分钟，需要换更短等待的景点。",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "15:00",
+          "ticketLeft": 60,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "15:00",
+          "end": "17:00",
+          "ticketLeft": 50,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        },
+        {
+          "start": "17:00",
+          "end": "22:30",
+          "ticketLeft": 45,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_051",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "unchanged",
+      "runtimeMessage": "大唐芙蓉园外线文化漫步确认前状态未变化。",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "15:00",
+          "ticketLeft": 60,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "15:00",
+          "end": "17:00",
+          "ticketLeft": 50,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "17:00",
+          "end": "22:30",
+          "ticketLeft": 45,
+          "queueMinutes": 15,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_052",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "unchanged",
+      "runtimeMessage": "曲江池遗址公园湖畔散步确认前状态未变化。",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "15:00",
+          "ticketLeft": 60,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "15:00",
+          "end": "17:00",
+          "ticketLeft": 50,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "17:00",
+          "end": "22:30",
+          "ticketLeft": 45,
+          "queueMinutes": 15,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_053",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "runtimeMessage": "西安城墙南门登城夜游确认前客流变大，排队约45分钟，需要换更短等待的景点。",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "15:00",
+          "ticketLeft": 60,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "15:00",
+          "end": "17:00",
+          "ticketLeft": 50,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        },
+        {
+          "start": "17:00",
+          "end": "22:30",
+          "ticketLeft": 45,
+          "queueMinutes": 45,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_054",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "unchanged",
+      "runtimeMessage": "钟鼓楼广场城市漫步确认前状态未变化。",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "15:00",
+          "ticketLeft": 60,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "15:00",
+          "end": "17:00",
+          "ticketLeft": 50,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "17:00",
+          "end": "22:30",
+          "ticketLeft": 45,
+          "queueMinutes": 15,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_055",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "unchanged",
+      "runtimeMessage": "回民街小吃短逛线确认前状态未变化。",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "15:00",
+          "ticketLeft": 60,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "15:00",
+          "end": "17:00",
+          "ticketLeft": 50,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "17:00",
+          "end": "22:30",
+          "ticketLeft": 45,
+          "queueMinutes": 15,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_056",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "unchanged",
+      "runtimeMessage": "大慈恩寺外广场轻游确认前状态未变化。",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "15:00",
+          "ticketLeft": 60,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "15:00",
+          "end": "17:00",
+          "ticketLeft": 50,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "17:00",
+          "end": "22:30",
+          "ticketLeft": 45,
+          "queueMinutes": 15,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_057",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 32,
+          "queueMinutes": 6,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 24,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "19:30",
+          "end": "22:30",
+          "ticketLeft": 18,
+          "queueMinutes": 12,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_058",
+      "dateText": "周六",
+      "runtimeState": "changed",
+      "eventType": "ticket_sold_out",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 0,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 0,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "19:30",
+          "end": "22:30",
+          "ticketLeft": 0,
+          "queueMinutes": 13,
+          "crowdLevel": "high"
+        }
+      ],
+      "runtimeMessage": "曲江大悦城影城电影票确认前售罄，需要更换同商圈活动或换影院。"
+    },
+    {
+      "poiId": "act_xa_059",
+      "dateText": "周六",
+      "runtimeState": "changed",
+      "eventType": "showtime_sold_out_with_alternatives",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 18,
+          "queueMinutes": 5,
+          "crowdLevel": "medium",
+          "showHint": "同影院同时间段其它影片还有票"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 0,
+          "queueMinutes": 6,
+          "crowdLevel": "medium",
+          "showHint": "原定影片售罄"
+        },
+        {
+          "start": "19:30",
+          "end": "22:30",
+          "ticketLeft": 16,
+          "queueMinutes": 8,
+          "crowdLevel": "medium",
+          "showHint": "同影院下一场可买"
+        }
+      ],
+      "runtimeMessage": "钟楼开元影城原定场次确认前售罄，但同影院下一场和附近影院仍有可买电影票。"
+    },
+    {
+      "poiId": "act_xa_060",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 26,
+          "queueMinutes": 9,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 18,
+          "queueMinutes": 11,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "19:30",
+          "end": "22:30",
+          "ticketLeft": 15,
+          "queueMinutes": 15,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_061",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 24,
+          "queueMinutes": 10,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 16,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "19:30",
+          "end": "22:30",
+          "ticketLeft": 14,
+          "queueMinutes": 16,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_062",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 22,
+          "queueMinutes": 11,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 14,
+          "queueMinutes": 13,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "19:30",
+          "end": "22:30",
+          "ticketLeft": 13,
+          "queueMinutes": 17,
+          "crowdLevel": "high"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_063",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 20,
+          "queueMinutes": 6,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "19:30",
+          "ticketLeft": 16,
+          "queueMinutes": 12,
+          "crowdLevel": "medium"
+        }
+      ]
+    }
+  ],
+  "restaurantRuntimeStatus": [
+    {
+      "poiId": "res_xa_001",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 8,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_002",
+      "dateText": "周日",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 18,
+      "tableAvailable": true,
+      "availableSlots": [
+        "17:30",
+        "18:00",
+        "19:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_003",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 6,
+      "tableAvailable": true,
+      "availableSlots": [
+        "17:00",
+        "17:30",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_004",
+      "dateText": "周六",
+      "runtimeState": "changed",
+      "eventType": "table_unavailable",
+      "queueMinutes": 12,
+      "tableAvailable": false,
+      "availableSlots": [],
+      "runtimeMessage": "Mellow Bowl轻食(高新店)确认前变为无座，需要更换餐厅。"
+    },
+    {
+      "poiId": "res_xa_005",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 20,
+      "tableAvailable": true,
+      "availableSlots": [
+        "17:30",
+        "18:30"
+      ]
+    },
+    {
+      "poiId": "res_xa_006",
+      "dateText": "周六",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 45,
+      "tableAvailable": true,
+      "availableSlots": [
+        "18:30",
+        "19:30"
+      ],
+      "runtimeMessage": "长安小牌档(赛格店)确认前排队变长，需要换等待更短的餐厅。"
+    },
+    {
+      "poiId": "res_xa_007",
+      "dateText": "周日",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 15,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_008",
+      "dateText": "今晚",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 12,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_009",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 6,
+      "tableAvailable": true,
+      "availableSlots": [
+        "14:30",
+        "15:30",
+        "17:00",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_010",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 7,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_011",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 8,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_012",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 12,
+      "tableAvailable": true,
+      "availableSlots": [
+        "17:00",
+        "17:30",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_013",
+      "dateText": "周日",
+      "runtimeState": "changed",
+      "eventType": "reservation_slot_gone",
+      "queueMinutes": 16,
+      "tableAvailable": true,
+      "availableSlots": [],
+      "runtimeMessage": "半糖茶餐厅(大雁塔店)确认前预约时段消失，需要更换餐厅或取号。"
+    },
+    {
+      "poiId": "res_xa_014",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 10,
+      "tableAvailable": true,
+      "availableSlots": [
+        "17:00",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_015",
+      "dateText": "今晚",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 45,
+      "tableAvailable": true,
+      "availableSlots": [
+        "20:30",
+        "21:00"
+      ],
+      "runtimeMessage": "安小野烤肉社(钟楼店)确认前排队变长，需要换等待更短的餐厅。"
+    },
+    {
+      "poiId": "res_xa_016",
+      "dateText": "周日",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 5,
+      "tableAvailable": true,
+      "availableSlots": [
+        "17:30",
+        "18:00",
+        "18:30",
+        "19:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_017",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 6,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_018",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 9,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30"
+      ]
+    },
+    {
+      "poiId": "res_xa_019",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 8,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_020",
+      "dateText": "今晚",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 45,
+      "tableAvailable": true,
+      "availableSlots": [
+        "20:00",
+        "20:30",
+        "21:00"
+      ],
+      "runtimeMessage": "钟楼茶食坐坐馆确认前排队变长，需要换等待更短的餐厅。"
+    },
+    {
+      "poiId": "res_xa_021",
+      "dateText": "周六",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 6,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_022",
+      "dateText": "周六",
+      "runtimeState": "changed",
+      "eventType": "table_unavailable",
+      "queueMinutes": 7,
+      "tableAvailable": false,
+      "availableSlots": [],
+      "runtimeMessage": "小寨清爽简餐约会店确认前变为无座，需要更换餐厅。"
+    },
+    {
+      "poiId": "res_xa_023",
+      "dateText": "周日",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 8,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_024",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "table_unavailable",
+      "queueMinutes": 6,
+      "tableAvailable": false,
+      "availableSlots": [],
+      "runtimeMessage": "小寨青禾轻食碗确认前变为无座，需要更换餐厅。"
+    },
+    {
+      "poiId": "res_xa_025",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 10,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_026",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "table_unavailable",
+      "queueMinutes": 6,
+      "tableAvailable": false,
+      "availableSlots": [],
+      "runtimeMessage": "曲江亲子面馆确认前变为无座，需要更换餐厅。"
+    },
+    {
+      "poiId": "res_xa_027",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 10,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_028",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 45,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ],
+      "runtimeMessage": "曲江茶饭小馆确认前排队变长，需要换等待更短的餐厅。"
+    },
+    {
+      "poiId": "res_xa_029",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 8,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_030",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 9,
+      "tableAvailable": true,
+      "availableSlots": [
+        "14:30",
+        "15:30",
+        "17:00",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_031",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 10,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_032",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 6,
+      "tableAvailable": true,
+      "availableSlots": [
+        "14:30",
+        "15:30",
+        "17:00",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_033",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 7,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_034",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 8,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_035",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 10,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_036",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 45,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ],
+      "runtimeMessage": "大明宫亲子简餐铺确认前排队变长，需要换等待更短的餐厅。"
+    },
+    {
+      "poiId": "res_xa_037",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 6,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_038",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "reservation_slot_gone",
+      "queueMinutes": 10,
+      "tableAvailable": true,
+      "availableSlots": [],
+      "runtimeMessage": "行政中心学生面馆确认前预约时段消失，需要更换餐厅或取号。"
+    },
+    {
+      "poiId": "res_xa_039",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 6,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_040",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 6,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_041",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 45,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ],
+      "runtimeMessage": "小寨低脂简餐局确认前排队变长，需要换等待更短的餐厅。"
+    },
+    {
+      "poiId": "res_xa_042",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 45,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ],
+      "runtimeMessage": "曲江儿童友好蒸菜馆确认前排队变长，需要换等待更短的餐厅。"
+    },
+    {
+      "poiId": "res_xa_043",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 11,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_044",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 9,
+      "tableAvailable": true,
+      "availableSlots": [
+        "14:30",
+        "15:30",
+        "17:00",
+        "18:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_045",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "reservation_slot_gone",
+      "queueMinutes": 10,
+      "tableAvailable": true,
+      "availableSlots": [],
+      "runtimeMessage": "大明宫慢炖家常菜确认前预约时段消失，需要更换餐厅或取号。"
+    },
+    {
+      "poiId": "res_xa_046",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 6,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_047",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 45,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ],
+      "runtimeMessage": "小寨清淡粉面馆确认前排队变长，需要换等待更短的餐厅。"
+    },
+    {
+      "poiId": "res_xa_048",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "table_unavailable",
+      "queueMinutes": 6,
+      "tableAvailable": false,
+      "availableSlots": [],
+      "runtimeMessage": "曲江饭后甜汤小馆确认前变为无座，需要更换餐厅。"
+    },
+    {
+      "poiId": "res_xa_049",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 6,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_050",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 8,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_051",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 10,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_052",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 12,
+      "tableAvailable": true,
+      "availableSlots": []
+    }
+  ],
+  "routeRuntimeStatus": [
+    {
+      "routeRef": "area_xa_xiaozhai->area_xa_xiaozhai",
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 8,
+      "originalMinutes": 8,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_qujiang->area_xa_qujiang",
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 10,
+      "originalMinutes": 10,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_zhonglou->area_xa_zhonglou",
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 12,
+      "originalMinutes": 12,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_gaoxin->area_xa_gaoxin",
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 9,
+      "originalMinutes": 9,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_xingzheng->area_xa_xingzheng",
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 8,
+      "originalMinutes": 8,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_daminggong->area_xa_daminggong",
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 12,
+      "originalMinutes": 12,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_xiaozhai->area_xa_qujiang",
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 18,
+      "originalMinutes": 18,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_qujiang->area_xa_xiaozhai",
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 20,
+      "originalMinutes": 20,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_xiaozhai->area_xa_gaoxin",
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "changed",
+      "eventType": "route_delayed",
+      "minutes": 44,
+      "originalMinutes": 22,
+      "estimatedCostPerPerson": 0,
+      "runtimeMessage": "小寨到高新确认前路线变慢，需要更新时间轴。"
+    },
+    {
+      "routeRef": "area_xa_gaoxin->area_xa_xiaozhai",
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 24,
+      "originalMinutes": 24,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_xiaozhai->area_xa_zhonglou",
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 18,
+      "originalMinutes": 18,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_zhonglou->area_xa_xiaozhai",
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 20,
+      "originalMinutes": 20,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_qujiang->area_xa_zhonglou",
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 25,
+      "originalMinutes": 25,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_zhonglou->area_xa_qujiang",
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "changed",
+      "eventType": "route_delayed",
+      "minutes": 49,
+      "originalMinutes": 27,
+      "estimatedCostPerPerson": 0,
+      "runtimeMessage": "钟楼到曲江确认前路线变慢，需要更新时间轴。"
+    },
+    {
+      "routeRef": "area_xa_gaoxin->area_xa_qujiang",
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 30,
+      "originalMinutes": 30,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_qujiang->area_xa_gaoxin",
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 32,
+      "originalMinutes": 32,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_xingzheng->area_xa_daminggong",
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 16,
+      "originalMinutes": 16,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_daminggong->area_xa_xingzheng",
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 18,
+      "originalMinutes": 18,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_xingzheng->area_xa_xiaozhai",
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 35,
+      "originalMinutes": 35,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_xiaozhai->area_xa_xingzheng",
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 36,
+      "originalMinutes": 36,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_daminggong->area_xa_zhonglou",
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 20,
+      "originalMinutes": 20,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_zhonglou->area_xa_daminggong",
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 22,
+      "originalMinutes": 22,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_gaoxin->area_xa_zhonglou",
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 28,
+      "originalMinutes": 28,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_zhonglou->area_xa_gaoxin",
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 30,
+      "originalMinutes": 30,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "origin_xa_qujiangchi->area_xa_qujiang",
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 12,
+      "originalMinutes": 12,
+      "estimatedCostPerPerson": 9
+    },
+    {
+      "routeRef": "origin_xa_qujiangchi->area_xa_xiaozhai",
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 28,
+      "originalMinutes": 28,
+      "estimatedCostPerPerson": 4
+    },
+    {
+      "routeRef": "origin_xa_qujiangchi->area_xa_daminggong",
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "changed",
+      "eventType": "route_delayed",
+      "minutes": 64,
+      "originalMinutes": 42,
+      "estimatedCostPerPerson": 26,
+      "runtimeMessage": "曲江池到大明宫确认前路线变慢，需要更新时间轴。"
+    },
+    {
+      "routeRef": "origin_xa_zhonglou_metro->area_xa_zhonglou",
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 5,
+      "originalMinutes": 5,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "origin_xa_zhonglou_metro->area_xa_xiaozhai",
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 20,
+      "originalMinutes": 20,
+      "estimatedCostPerPerson": 3
+    },
+    {
+      "routeRef": "origin_xa_zhonglou_metro->area_xa_qujiang",
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "changed",
+      "eventType": "route_delayed",
+      "minutes": 48,
+      "originalMinutes": 26,
+      "estimatedCostPerPerson": 18,
+      "runtimeMessage": "钟楼地铁站到曲江确认前路线变慢，需要更新时间轴。"
+    },
+    {
+      "routeRef": "origin_xianyang_qindu->area_xa_xingzheng",
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 45,
+      "originalMinutes": 45,
+      "estimatedCostPerPerson": 8
+    },
+    {
+      "routeRef": "origin_xianyang_qindu->area_xa_daminggong",
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 56,
+      "originalMinutes": 56,
+      "estimatedCostPerPerson": 9
+    },
+    {
+      "routeRef": "origin_xianyang_qindu->area_xa_zhonglou",
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "changed",
+      "eventType": "route_delayed",
+      "minutes": 85,
+      "originalMinutes": 63,
+      "estimatedCostPerPerson": 9,
+      "runtimeMessage": "咸阳秦都到钟楼确认前路线变慢，需要更新时间轴。"
+    },
+    {
+      "routeRef": "origin_xianyang_qindu->area_xa_xiaozhai",
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "changed",
+      "eventType": "route_delayed",
+      "minutes": 91,
+      "originalMinutes": 69,
+      "estimatedCostPerPerson": 10,
+      "runtimeMessage": "咸阳秦都到小寨确认前路线变慢，需要更新时间轴。"
+    },
+    {
+      "routeRef": "origin_xianyang_qindu->area_xa_qujiang",
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 82,
+      "originalMinutes": 82,
+      "estimatedCostPerPerson": 11
+    },
+    {
+      "routeRef": "origin_xa_changan_university->area_xa_xiaozhai",
+      "fromAreaId": "origin_xa_changan_university",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 28,
+      "originalMinutes": 28,
+      "estimatedCostPerPerson": 3
+    },
+    {
+      "routeRef": "origin_xa_jiaotong_university->area_xa_xiaozhai",
+      "fromAreaId": "origin_xa_jiaotong_university",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "changed",
+      "eventType": "route_delayed",
+      "minutes": 46,
+      "originalMinutes": 24,
+      "estimatedCostPerPerson": 3,
+      "runtimeMessage": "西安交大到小寨确认前路线变慢，需要更新时间轴。"
+    },
+    {
+      "routeRef": "origin_xa_northwest_university->area_xa_xiaozhai",
+      "fromAreaId": "origin_xa_northwest_university",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 18,
+      "originalMinutes": 18,
+      "estimatedCostPerPerson": 2
+    },
+    {
+      "routeRef": "origin_xa_shaanxi_normal_university->area_xa_xiaozhai",
+      "fromAreaId": "origin_xa_shaanxi_normal_university",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 16,
+      "originalMinutes": 16,
+      "estimatedCostPerPerson": 2
+    },
+    {
+      "routeRef": "origin_xa_changan_university->area_xa_zhonglou",
+      "fromAreaId": "origin_xa_changan_university",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 34,
+      "originalMinutes": 34,
+      "estimatedCostPerPerson": 4
+    },
+    {
+      "routeRef": "origin_xa_jiaotong_university->area_xa_zhonglou",
+      "fromAreaId": "origin_xa_jiaotong_university",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 22,
+      "originalMinutes": 22,
+      "estimatedCostPerPerson": 3
+    },
+    {
+      "routeRef": "origin_xa_northwest_university->area_xa_zhonglou",
+      "fromAreaId": "origin_xa_northwest_university",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 20,
+      "originalMinutes": 20,
+      "estimatedCostPerPerson": 3
+    },
+    {
+      "routeRef": "origin_xa_shaanxi_normal_university->area_xa_zhonglou",
+      "fromAreaId": "origin_xa_shaanxi_normal_university",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 32,
+      "originalMinutes": 32,
+      "estimatedCostPerPerson": 4
+    },
+    {
+      "routeRef": "origin_xa_weishui_campus->area_xa_xiaozhai",
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "changed",
+      "eventType": "route_delayed",
+      "minutes": 78,
+      "originalMinutes": 56,
+      "estimatedCostPerPerson": 6,
+      "runtimeMessage": "渭水校区到小寨确认前路线变慢，需要更新时间轴。"
+    },
+    {
+      "routeRef": "origin_xa_weishui_campus->area_xa_zhonglou",
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "changed",
+      "eventType": "route_delayed",
+      "minutes": 74,
+      "originalMinutes": 52,
+      "estimatedCostPerPerson": 6,
+      "runtimeMessage": "渭水校区到钟楼确认前路线变慢，需要更新时间轴。"
+    },
+    {
+      "routeRef": "origin_xa_weishui_campus->area_xa_xingzheng",
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 26,
+      "originalMinutes": 26,
+      "estimatedCostPerPerson": 4
+    },
+    {
+      "routeRef": "origin_xianyang_downtown->area_xa_xingzheng",
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 48,
+      "originalMinutes": 48,
+      "estimatedCostPerPerson": 8
+    },
+    {
+      "routeRef": "origin_xianyang_downtown->area_xa_daminggong",
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 58,
+      "originalMinutes": 58,
+      "estimatedCostPerPerson": 9
+    },
+    {
+      "routeRef": "origin_xianyang_downtown->area_xa_zhonglou",
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 62,
+      "originalMinutes": 62,
+      "estimatedCostPerPerson": 9
+    },
+    {
+      "routeRef": "origin_xianyang_downtown->area_xa_xiaozhai",
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 68,
+      "originalMinutes": 68,
+      "estimatedCostPerPerson": 10
+    },
+    {
+      "routeRef": "origin_xianyang_downtown->area_xa_qujiang",
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 78,
+      "originalMinutes": 78,
+      "estimatedCostPerPerson": 11
+    },
+    {
+      "routeRef": "origin_xianyang_downtown->area_xa_gaoxin",
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 72,
+      "originalMinutes": 72,
+      "estimatedCostPerPerson": 11
+    },
+    {
+      "routeRef": "area_xa_xiaozhai->area_xa_daminggong",
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 28,
+      "originalMinutes": 28,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_daminggong->area_xa_xiaozhai",
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_xiaozhai",
+      "runtimeState": "changed",
+      "eventType": "route_delayed",
+      "minutes": 52,
+      "originalMinutes": 30,
+      "estimatedCostPerPerson": 0,
+      "runtimeMessage": "大明宫到小寨确认前路线变慢，需要更新时间轴。"
+    },
+    {
+      "routeRef": "area_xa_qujiang->area_xa_daminggong",
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 35,
+      "originalMinutes": 35,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_daminggong->area_xa_qujiang",
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 36,
+      "originalMinutes": 36,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_gaoxin->area_xa_daminggong",
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 38,
+      "originalMinutes": 38,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_daminggong->area_xa_gaoxin",
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 40,
+      "originalMinutes": 40,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_gaoxin->area_xa_xingzheng",
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 32,
+      "originalMinutes": 32,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_xingzheng->area_xa_gaoxin",
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 34,
+      "originalMinutes": 34,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_qujiang->area_xa_xingzheng",
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 40,
+      "originalMinutes": 40,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_xingzheng->area_xa_qujiang",
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 42,
+      "originalMinutes": 42,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_zhonglou->area_xa_xingzheng",
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 30,
+      "originalMinutes": 30,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "area_xa_xingzheng->area_xa_zhonglou",
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 28,
+      "originalMinutes": 28,
+      "estimatedCostPerPerson": 0
+    },
+    {
+      "routeRef": "origin_xa_qujiangchi->area_xa_zhonglou",
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_zhonglou",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 34,
+      "originalMinutes": 34,
+      "estimatedCostPerPerson": 6
+    },
+    {
+      "routeRef": "origin_xa_qujiangchi->area_xa_gaoxin",
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 38,
+      "originalMinutes": 38,
+      "estimatedCostPerPerson": 6
+    },
+    {
+      "routeRef": "origin_xa_qujiangchi->area_xa_xingzheng",
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 46,
+      "originalMinutes": 46,
+      "estimatedCostPerPerson": 6
+    },
+    {
+      "routeRef": "origin_xa_zhonglou_metro->area_xa_gaoxin",
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 30,
+      "originalMinutes": 30,
+      "estimatedCostPerPerson": 6
+    },
+    {
+      "routeRef": "origin_xa_zhonglou_metro->area_xa_daminggong",
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 22,
+      "originalMinutes": 22,
+      "estimatedCostPerPerson": 6
+    },
+    {
+      "routeRef": "origin_xa_zhonglou_metro->area_xa_xingzheng",
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_xingzheng",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 28,
+      "originalMinutes": 28,
+      "estimatedCostPerPerson": 6
+    },
+    {
+      "routeRef": "origin_xianyang_qindu->area_xa_gaoxin",
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 76,
+      "originalMinutes": 76,
+      "estimatedCostPerPerson": 9
+    },
+    {
+      "routeRef": "origin_xa_weishui_campus->area_xa_qujiang",
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_qujiang",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 68,
+      "originalMinutes": 68,
+      "estimatedCostPerPerson": 9
+    },
+    {
+      "routeRef": "origin_xa_weishui_campus->area_xa_gaoxin",
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_gaoxin",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 58,
+      "originalMinutes": 58,
+      "estimatedCostPerPerson": 6
+    },
+    {
+      "routeRef": "origin_xa_weishui_campus->area_xa_daminggong",
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_daminggong",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "minutes": 48,
+      "originalMinutes": 48,
+      "estimatedCostPerPerson": 6
+    }
+  ],
+  "dealRuntimeStatus": [
+    {
+      "dealId": "deal_xa_001",
+      "poiId": "res_xa_001",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_001确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_002",
+      "poiId": "res_xa_003",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_002确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_003",
+      "poiId": "res_xa_005",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_003确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_004",
+      "poiId": "res_xa_006",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_004确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_005",
+      "poiId": "res_xa_012",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_005确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_006",
+      "poiId": "res_xa_014",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_006确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_007",
+      "poiId": "res_xa_016",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_007确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_008",
+      "poiId": "res_xa_018",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_008确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_009",
+      "poiId": "act_xa_001",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_009确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_010",
+      "poiId": "act_xa_005",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_010确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_011",
+      "poiId": "act_xa_009",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_011确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_012",
+      "poiId": "act_xa_016",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_012确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_013",
+      "poiId": "res_xa_019",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_013确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_014",
+      "poiId": "res_xa_020",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_014确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_015",
+      "poiId": "res_xa_021",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_015确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_016",
+      "poiId": "res_xa_022",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_016确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_017",
+      "poiId": "act_xa_021",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_017确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_018",
+      "poiId": "res_xa_023",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_018确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_019",
+      "poiId": "res_xa_024",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_019确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_020",
+      "poiId": "res_xa_025",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_020确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_021",
+      "poiId": "res_xa_026",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_021确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_022",
+      "poiId": "res_xa_027",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_022确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_023",
+      "poiId": "res_xa_028",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_023确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_024",
+      "poiId": "res_xa_029",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_024确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_025",
+      "poiId": "res_xa_030",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_025确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_026",
+      "poiId": "res_xa_031",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_026确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_027",
+      "poiId": "res_xa_032",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_027确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_028",
+      "poiId": "res_xa_033",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_028确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_029",
+      "poiId": "res_xa_034",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_029确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_030",
+      "poiId": "res_xa_035",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_030确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_031",
+      "poiId": "res_xa_036",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_031确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_032",
+      "poiId": "res_xa_037",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_032确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_033",
+      "poiId": "res_xa_038",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_033确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_034",
+      "poiId": "res_xa_039",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_034确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_035",
+      "poiId": "res_xa_040",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_035确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_036",
+      "poiId": "res_xa_041",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_037",
+      "poiId": "res_xa_042",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_037确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_038",
+      "poiId": "res_xa_043",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_039",
+      "poiId": "res_xa_044",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_039确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_040",
+      "poiId": "res_xa_045",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_041",
+      "poiId": "res_xa_046",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_042",
+      "poiId": "res_xa_047",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_042确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_043",
+      "poiId": "res_xa_048",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_044",
+      "poiId": "act_xa_023",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_044确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_045",
+      "poiId": "act_xa_024",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_046",
+      "poiId": "act_xa_025",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_047",
+      "poiId": "act_xa_026",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_047确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_048",
+      "poiId": "act_xa_027",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_049",
+      "poiId": "act_xa_028",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_049确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_050",
+      "poiId": "act_xa_029",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_051",
+      "poiId": "act_xa_030",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_052",
+      "poiId": "act_xa_031",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_052确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_053",
+      "poiId": "act_xa_032",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_054",
+      "poiId": "act_xa_033",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_054确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_055",
+      "poiId": "act_xa_034",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_056",
+      "poiId": "act_xa_035",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_057",
+      "poiId": "act_xa_036",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_057确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_058",
+      "poiId": "act_xa_037",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_059",
+      "poiId": "act_xa_038",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_059确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_060",
+      "poiId": "act_xa_039",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_061",
+      "poiId": "act_xa_040",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_062",
+      "poiId": "act_xa_041",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_062确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_063",
+      "poiId": "act_xa_042",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_064",
+      "poiId": "act_xa_043",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_064确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_065",
+      "poiId": "act_xa_044",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_066",
+      "poiId": "act_xa_045",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_067",
+      "poiId": "act_xa_046",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_067确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_068",
+      "poiId": "act_xa_047",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_069",
+      "poiId": "act_xa_048",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "deal_xa_069确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_070",
+      "poiId": "act_xa_057",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 10
+    },
+    {
+      "dealId": "deal_xa_071",
+      "poiId": "act_xa_058",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "曲江大悦城影城双人电影票+饮品确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_072",
+      "poiId": "act_xa_059",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 8
+    },
+    {
+      "dealId": "deal_xa_073",
+      "poiId": "act_xa_060",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 7
+    },
+    {
+      "dealId": "deal_xa_074",
+      "poiId": "act_xa_061",
+      "runtimeState": "changed",
+      "eventType": "deal_sold_out",
+      "stockLeft": 0,
+      "runtimeMessage": "行政中心大融城影城双人电影票+饮品确认前库存售罄，需要更新预算提示。"
+    },
+    {
+      "dealId": "deal_xa_075",
+      "poiId": "act_xa_062",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "stockLeft": 5
+    }
+  ]
+}
+

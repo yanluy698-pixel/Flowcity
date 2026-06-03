@@ -4,37 +4,711 @@
   "dataType": "route_time_matrix",
   "note": "Mock 路线数据。基于西安商圈相对位置做简化通勤模拟，不代表真实导航结果。",
   "routes": [
-    { "fromAreaId": "area_xa_xiaozhai", "toAreaId": "area_xa_xiaozhai", "transport": "walk", "minutes": 8, "distanceKm": 0.8, "walkMinutesInsideArea": 8 },
-    { "fromAreaId": "area_xa_qujiang", "toAreaId": "area_xa_qujiang", "transport": "walk", "minutes": 10, "distanceKm": 1.0, "walkMinutesInsideArea": 10 },
-    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_zhonglou", "transport": "walk", "minutes": 12, "distanceKm": 1.1, "walkMinutesInsideArea": 12 },
-    { "fromAreaId": "area_xa_gaoxin", "toAreaId": "area_xa_gaoxin", "transport": "walk", "minutes": 9, "distanceKm": 0.9, "walkMinutesInsideArea": 9 },
-    { "fromAreaId": "area_xa_xingzheng", "toAreaId": "area_xa_xingzheng", "transport": "walk", "minutes": 8, "distanceKm": 0.8, "walkMinutesInsideArea": 8 },
-    { "fromAreaId": "area_xa_daminggong", "toAreaId": "area_xa_daminggong", "transport": "walk", "minutes": 12, "distanceKm": 1.2, "walkMinutesInsideArea": 12 },
-
-    { "fromAreaId": "area_xa_xiaozhai", "toAreaId": "area_xa_qujiang", "transport": "taxi", "minutes": 18, "distanceKm": 5.2, "walkMinutesInsideArea": 7 },
-    { "fromAreaId": "area_xa_qujiang", "toAreaId": "area_xa_xiaozhai", "transport": "taxi", "minutes": 20, "distanceKm": 5.2, "walkMinutesInsideArea": 7 },
-    { "fromAreaId": "area_xa_xiaozhai", "toAreaId": "area_xa_gaoxin", "transport": "taxi", "minutes": 22, "distanceKm": 7.5, "walkMinutesInsideArea": 6 },
-    { "fromAreaId": "area_xa_gaoxin", "toAreaId": "area_xa_xiaozhai", "transport": "taxi", "minutes": 24, "distanceKm": 7.5, "walkMinutesInsideArea": 6 },
-    { "fromAreaId": "area_xa_xiaozhai", "toAreaId": "area_xa_zhonglou", "transport": "public_transport", "minutes": 18, "distanceKm": 4.5, "walkMinutesInsideArea": 12 },
-    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_xiaozhai", "transport": "public_transport", "minutes": 20, "distanceKm": 4.5, "walkMinutesInsideArea": 12 },
-    { "fromAreaId": "area_xa_qujiang", "toAreaId": "area_xa_zhonglou", "transport": "taxi", "minutes": 25, "distanceKm": 8.0, "walkMinutesInsideArea": 14 },
-    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_qujiang", "transport": "taxi", "minutes": 27, "distanceKm": 8.0, "walkMinutesInsideArea": 14 },
-    { "fromAreaId": "area_xa_gaoxin", "toAreaId": "area_xa_qujiang", "transport": "taxi", "minutes": 30, "distanceKm": 11.0, "walkMinutesInsideArea": 8 },
-    { "fromAreaId": "area_xa_qujiang", "toAreaId": "area_xa_gaoxin", "transport": "taxi", "minutes": 32, "distanceKm": 11.0, "walkMinutesInsideArea": 8 },
-    { "fromAreaId": "area_xa_xingzheng", "toAreaId": "area_xa_daminggong", "transport": "taxi", "minutes": 16, "distanceKm": 5.5, "walkMinutesInsideArea": 10 },
-    { "fromAreaId": "area_xa_daminggong", "toAreaId": "area_xa_xingzheng", "transport": "taxi", "minutes": 18, "distanceKm": 5.5, "walkMinutesInsideArea": 10 },
-    { "fromAreaId": "area_xa_xingzheng", "toAreaId": "area_xa_xiaozhai", "transport": "public_transport", "minutes": 35, "distanceKm": 12.0, "walkMinutesInsideArea": 8 },
-    { "fromAreaId": "area_xa_xiaozhai", "toAreaId": "area_xa_xingzheng", "transport": "public_transport", "minutes": 36, "distanceKm": 12.0, "walkMinutesInsideArea": 8 },
-    { "fromAreaId": "area_xa_daminggong", "toAreaId": "area_xa_zhonglou", "transport": "taxi", "minutes": 20, "distanceKm": 6.5, "walkMinutesInsideArea": 13 },
-    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_daminggong", "transport": "taxi", "minutes": 22, "distanceKm": 6.5, "walkMinutesInsideArea": 13 },
-    { "fromAreaId": "area_xa_gaoxin", "toAreaId": "area_xa_zhonglou", "transport": "taxi", "minutes": 28, "distanceKm": 9.5, "walkMinutesInsideArea": 12 },
-    { "fromAreaId": "area_xa_zhonglou", "toAreaId": "area_xa_gaoxin", "transport": "taxi", "minutes": 30, "distanceKm": 9.5, "walkMinutesInsideArea": 12 },
-
-    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_xingzheng", "transport": "public_transport", "minutes": 48, "distanceKm": 23.0, "walkMinutesInsideArea": 8, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 8, "mockDescription": "咸阳市区经地铁/市域公共交通进入行政中心商圈的入城成本模拟" },
-    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_daminggong", "transport": "public_transport", "minutes": 58, "distanceKm": 29.0, "walkMinutesInsideArea": 12, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 9, "mockDescription": "咸阳市区进入大明宫-龙首原商圈的入城成本模拟" },
-    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_zhonglou", "transport": "public_transport", "minutes": 62, "distanceKm": 31.0, "walkMinutesInsideArea": 12, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 9, "mockDescription": "咸阳市区进入钟楼-回民街商圈的入城成本模拟" },
-    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_xiaozhai", "transport": "public_transport", "minutes": 68, "distanceKm": 35.0, "walkMinutesInsideArea": 8, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 10, "mockDescription": "咸阳市区进入小寨商圈的入城成本模拟" },
-    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_qujiang", "transport": "public_transport", "minutes": 78, "distanceKm": 41.0, "walkMinutesInsideArea": 10, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 11, "mockDescription": "咸阳市区进入大雁塔-曲江商圈的入城成本模拟" },
-    { "fromAreaId": "origin_xianyang_downtown", "toAreaId": "area_xa_gaoxin", "transport": "public_transport", "minutes": 72, "distanceKm": 39.0, "walkMinutesInsideArea": 9, "routeType": "cross_city_inbound", "estimatedCostPerPerson": 11, "mockDescription": "咸阳市区进入高新商圈的入城成本模拟" }
+    {
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "walk",
+      "minutes": 8,
+      "distanceKm": 0.8,
+      "walkMinutesInsideArea": 8
+    },
+    {
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "walk",
+      "minutes": 10,
+      "distanceKm": 1.0,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "walk",
+      "minutes": 12,
+      "distanceKm": 1.1,
+      "walkMinutesInsideArea": 12
+    },
+    {
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "walk",
+      "minutes": 9,
+      "distanceKm": 0.9,
+      "walkMinutesInsideArea": 9
+    },
+    {
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "walk",
+      "minutes": 8,
+      "distanceKm": 0.8,
+      "walkMinutesInsideArea": 8
+    },
+    {
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "walk",
+      "minutes": 12,
+      "distanceKm": 1.2,
+      "walkMinutesInsideArea": 12
+    },
+    {
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "taxi",
+      "minutes": 18,
+      "distanceKm": 5.2,
+      "walkMinutesInsideArea": 7
+    },
+    {
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "taxi",
+      "minutes": 20,
+      "distanceKm": 5.2,
+      "walkMinutesInsideArea": 7
+    },
+    {
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "taxi",
+      "minutes": 22,
+      "distanceKm": 7.5,
+      "walkMinutesInsideArea": 6
+    },
+    {
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "taxi",
+      "minutes": 24,
+      "distanceKm": 7.5,
+      "walkMinutesInsideArea": 6
+    },
+    {
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "public_transport",
+      "minutes": 18,
+      "distanceKm": 4.5,
+      "walkMinutesInsideArea": 12
+    },
+    {
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 20,
+      "distanceKm": 4.5,
+      "walkMinutesInsideArea": 12
+    },
+    {
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "taxi",
+      "minutes": 25,
+      "distanceKm": 8.0,
+      "walkMinutesInsideArea": 14
+    },
+    {
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "taxi",
+      "minutes": 27,
+      "distanceKm": 8.0,
+      "walkMinutesInsideArea": 14
+    },
+    {
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "taxi",
+      "minutes": 30,
+      "distanceKm": 11.0,
+      "walkMinutesInsideArea": 8
+    },
+    {
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "taxi",
+      "minutes": 32,
+      "distanceKm": 11.0,
+      "walkMinutesInsideArea": 8
+    },
+    {
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "taxi",
+      "minutes": 16,
+      "distanceKm": 5.5,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "taxi",
+      "minutes": 18,
+      "distanceKm": 5.5,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 35,
+      "distanceKm": 12.0,
+      "walkMinutesInsideArea": 8
+    },
+    {
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "public_transport",
+      "minutes": 36,
+      "distanceKm": 12.0,
+      "walkMinutesInsideArea": 8
+    },
+    {
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "taxi",
+      "minutes": 20,
+      "distanceKm": 6.5,
+      "walkMinutesInsideArea": 13
+    },
+    {
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "taxi",
+      "minutes": 22,
+      "distanceKm": 6.5,
+      "walkMinutesInsideArea": 13
+    },
+    {
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "taxi",
+      "minutes": 28,
+      "distanceKm": 9.5,
+      "walkMinutesInsideArea": 12
+    },
+    {
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "taxi",
+      "minutes": 30,
+      "distanceKm": 9.5,
+      "walkMinutesInsideArea": 12
+    },
+    {
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "taxi",
+      "minutes": 12,
+      "distanceKm": 3.2,
+      "walkMinutesInsideArea": 8,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 9,
+      "mockDescription": "曲江池附近到曲江商圈，适合亲子半日游低折腾方案"
+    },
+    {
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 28,
+      "distanceKm": 8.2,
+      "walkMinutesInsideArea": 10,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 4,
+      "mockDescription": "曲江池附近到小寨，作为亲子室内活动和轻食备选"
+    },
+    {
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "taxi",
+      "minutes": 42,
+      "distanceKm": 16.0,
+      "walkMinutesInsideArea": 12,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 26,
+      "mockDescription": "曲江池附近到大明宫，低预算但通勤较长的亲子备选"
+    },
+    {
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "walk",
+      "minutes": 5,
+      "distanceKm": 0.4,
+      "walkMinutesInsideArea": 8,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 0,
+      "mockDescription": "钟楼地铁站集合后就地开始短线 citywalk"
+    },
+    {
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 20,
+      "distanceKm": 4.8,
+      "walkMinutesInsideArea": 8,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 3,
+      "mockDescription": "钟楼集合后转小寨，作为省力商场版备选"
+    },
+    {
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "taxi",
+      "minutes": 26,
+      "distanceKm": 8.1,
+      "walkMinutesInsideArea": 10,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 18,
+      "mockDescription": "钟楼集合后去曲江夜游，体验更强但通勤更高"
+    },
+    {
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "public_transport",
+      "minutes": 45,
+      "distanceKm": 22.0,
+      "walkMinutesInsideArea": 8,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 8,
+      "mockDescription": "咸阳秦都/白马河附近入城到行政中心，低预算男生朋友优先路线"
+    },
+    {
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "public_transport",
+      "minutes": 56,
+      "distanceKm": 28.0,
+      "walkMinutesInsideArea": 11,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 9,
+      "mockDescription": "咸阳秦都/白马河附近入城到大明宫，低预算公园和轻活动备选"
+    },
+    {
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "public_transport",
+      "minutes": 68,
+      "distanceKm": 31.0,
+      "walkMinutesInsideArea": 12,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 9,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 76,
+      "distanceKm": 35.0,
+      "walkMinutesInsideArea": 9,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 10,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "public_transport",
+      "minutes": 88,
+      "distanceKm": 42.0,
+      "walkMinutesInsideArea": 10,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 11,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "origin_xa_changan_university",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 72,
+      "distanceKm": 8.0,
+      "walkMinutesInsideArea": 8,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 3,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "origin_xa_jiaotong_university",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 24,
+      "distanceKm": 6.5,
+      "walkMinutesInsideArea": 8,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 3,
+      "mockDescription": "西安交大到小寨，四校区公平集合候选"
+    },
+    {
+      "fromAreaId": "origin_xa_northwest_university",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 18,
+      "distanceKm": 4.5,
+      "walkMinutesInsideArea": 7,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 2,
+      "mockDescription": "西北大学到小寨，四校区公平集合候选"
+    },
+    {
+      "fromAreaId": "origin_xa_shaanxi_normal_university",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 16,
+      "distanceKm": 4.2,
+      "walkMinutesInsideArea": 7,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 2,
+      "mockDescription": "陕师大到小寨，四校区公平集合候选"
+    },
+    {
+      "fromAreaId": "origin_xa_changan_university",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "public_transport",
+      "minutes": 62,
+      "distanceKm": 9.5,
+      "walkMinutesInsideArea": 10,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 4,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "origin_xa_jiaotong_university",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "public_transport",
+      "minutes": 22,
+      "distanceKm": 5.8,
+      "walkMinutesInsideArea": 10,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 3,
+      "mockDescription": "西安交大到钟楼，四校区备选集合路线"
+    },
+    {
+      "fromAreaId": "origin_xa_northwest_university",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "public_transport",
+      "minutes": 20,
+      "distanceKm": 4.8,
+      "walkMinutesInsideArea": 10,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 3,
+      "mockDescription": "西北大学到钟楼，四校区备选集合路线"
+    },
+    {
+      "fromAreaId": "origin_xa_shaanxi_normal_university",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "public_transport",
+      "minutes": 32,
+      "distanceKm": 8.5,
+      "walkMinutesInsideArea": 10,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 4,
+      "mockDescription": "陕师大到钟楼，四校区备选集合路线"
+    },
+    {
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 74,
+      "distanceKm": 24.0,
+      "walkMinutesInsideArea": 8,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 6,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "public_transport",
+      "minutes": 66,
+      "distanceKm": 21.0,
+      "walkMinutesInsideArea": 10,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 6,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "public_transport",
+      "minutes": 26,
+      "distanceKm": 11.0,
+      "walkMinutesInsideArea": 8,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 4,
+      "mockDescription": "渭水校区到行政中心，省时但约会氛围较弱的备选"
+    },
+    {
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "public_transport",
+      "minutes": 48,
+      "distanceKm": 23.0,
+      "walkMinutesInsideArea": 8,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 8,
+      "mockDescription": "咸阳市区经地铁/市域公共交通进入行政中心商圈的入城成本模拟"
+    },
+    {
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "public_transport",
+      "minutes": 58,
+      "distanceKm": 29.0,
+      "walkMinutesInsideArea": 12,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 9,
+      "mockDescription": "咸阳市区进入大明宫-龙首原商圈的入城成本模拟"
+    },
+    {
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "public_transport",
+      "minutes": 62,
+      "distanceKm": 31.0,
+      "walkMinutesInsideArea": 12,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 9,
+      "mockDescription": "咸阳市区进入钟楼-回民街商圈的入城成本模拟"
+    },
+    {
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 68,
+      "distanceKm": 35.0,
+      "walkMinutesInsideArea": 8,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 10,
+      "mockDescription": "咸阳市区进入小寨商圈的入城成本模拟"
+    },
+    {
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "public_transport",
+      "minutes": 78,
+      "distanceKm": 41.0,
+      "walkMinutesInsideArea": 10,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 11,
+      "mockDescription": "咸阳市区进入大雁塔-曲江商圈的入城成本模拟"
+    },
+    {
+      "fromAreaId": "origin_xianyang_downtown",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "public_transport",
+      "minutes": 72,
+      "distanceKm": 39.0,
+      "walkMinutesInsideArea": 9,
+      "routeType": "cross_city_inbound",
+      "estimatedCostPerPerson": 11,
+      "mockDescription": "咸阳市区进入高新商圈的入城成本模拟"
+    },
+    {
+      "fromAreaId": "area_xa_xiaozhai",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "public_transport",
+      "minutes": 28,
+      "distanceKm": 9.8,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_xiaozhai",
+      "transport": "public_transport",
+      "minutes": 30,
+      "distanceKm": 10.5,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "public_transport",
+      "minutes": 35,
+      "distanceKm": 12.2,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "public_transport",
+      "minutes": 36,
+      "distanceKm": 12.6,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "public_transport",
+      "minutes": 38,
+      "distanceKm": 13.3,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "public_transport",
+      "minutes": 40,
+      "distanceKm": 14.0,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_gaoxin",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "public_transport",
+      "minutes": 32,
+      "distanceKm": 11.2,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "public_transport",
+      "minutes": 34,
+      "distanceKm": 11.9,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_qujiang",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "public_transport",
+      "minutes": 40,
+      "distanceKm": 14.0,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "public_transport",
+      "minutes": 42,
+      "distanceKm": 14.7,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_zhonglou",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "public_transport",
+      "minutes": 30,
+      "distanceKm": 10.5,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "public_transport",
+      "minutes": 28,
+      "distanceKm": 9.8,
+      "walkMinutesInsideArea": 10
+    },
+    {
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_zhonglou",
+      "transport": "public_transport",
+      "minutes": 34,
+      "distanceKm": 15.3,
+      "walkMinutesInsideArea": 9,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 6,
+      "mockDescription": "曲江池到钟楼路线补充"
+    },
+    {
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "public_transport",
+      "minutes": 38,
+      "distanceKm": 17.1,
+      "walkMinutesInsideArea": 9,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 6,
+      "mockDescription": "曲江池到高新路线补充"
+    },
+    {
+      "fromAreaId": "origin_xa_qujiangchi",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "public_transport",
+      "minutes": 46,
+      "distanceKm": 20.7,
+      "walkMinutesInsideArea": 9,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 6,
+      "mockDescription": "曲江池到行政中心路线补充"
+    },
+    {
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "public_transport",
+      "minutes": 30,
+      "distanceKm": 13.5,
+      "walkMinutesInsideArea": 9,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 6,
+      "mockDescription": "钟楼地铁站到高新路线补充"
+    },
+    {
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "public_transport",
+      "minutes": 22,
+      "distanceKm": 9.9,
+      "walkMinutesInsideArea": 9,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 6,
+      "mockDescription": "钟楼地铁站到大明宫路线补充"
+    },
+    {
+      "fromAreaId": "origin_xa_zhonglou_metro",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "public_transport",
+      "minutes": 28,
+      "distanceKm": 12.6,
+      "walkMinutesInsideArea": 9,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 6,
+      "mockDescription": "钟楼地铁站到行政中心路线补充"
+    },
+    {
+      "fromAreaId": "origin_xianyang_qindu",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "public_transport",
+      "minutes": 82,
+      "distanceKm": 34.2,
+      "walkMinutesInsideArea": 9,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 9,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_qujiang",
+      "transport": "public_transport",
+      "minutes": 82,
+      "distanceKm": 30.6,
+      "walkMinutesInsideArea": 9,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 9,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_gaoxin",
+      "transport": "public_transport",
+      "minutes": 70,
+      "distanceKm": 26.1,
+      "walkMinutesInsideArea": 9,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 6,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "origin_xa_weishui_campus",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "public_transport",
+      "minutes": 58,
+      "distanceKm": 21.6,
+      "walkMinutesInsideArea": 9,
+      "routeType": "origin_to_area",
+      "estimatedCostPerPerson": 6,
+      "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    }
   ]
 }

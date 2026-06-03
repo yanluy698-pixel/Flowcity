@@ -13,6 +13,9 @@ __pycache__/
 *.log
 *.tmp
 *.bak
+llm_*eval*.json
+llm_*_retest.json
+product_fix_eval_cases.json
 
 .DS_Store
 Thumbs.db

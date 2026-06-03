@@ -9,8 +9,17 @@
       "name": "稚趣星球Mini乐园(MOMOPARK店)",
       "areaId": "area_xa_xiaozhai",
       "category": "parent_child_playground",
-      "tags": ["亲子", "室内", "儿童友好", "少走路", "商场"],
-      "openHours": { "weekday": "10:00-20:00", "weekend": "09:30-21:00" },
+      "tags": [
+        "亲子",
+        "室内",
+        "儿童友好",
+        "少走路",
+        "商场"
+      ],
+      "openHours": {
+        "weekday": "10:00-20:00",
+        "weekend": "09:30-21:00"
+      },
       "suggestedDurationMinutes": 90,
       "pricePerPerson": 98,
       "ageMin": 2,
@@ -24,8 +33,17 @@
       "name": "卡通尼成长乐园(熙地港店)",
       "areaId": "area_xa_xingzheng",
       "category": "parent_child_playground",
-      "tags": ["亲子", "室内", "儿童友好", "电玩", "商场"],
-      "openHours": { "weekday": "10:00-21:00", "weekend": "10:00-21:30" },
+      "tags": [
+        "亲子",
+        "室内",
+        "儿童友好",
+        "电玩",
+        "商场"
+      ],
+      "openHours": {
+        "weekday": "10:00-21:00",
+        "weekend": "10:00-21:30"
+      },
       "suggestedDurationMinutes": 100,
       "pricePerPerson": 88,
       "ageMin": 3,
@@ -39,8 +57,17 @@
       "name": "POPOME+探索乐园(万象天地店)",
       "areaId": "area_xa_gaoxin",
       "category": "parent_child_playground",
-      "tags": ["亲子", "室内", "益智", "儿童友好", "商场"],
-      "openHours": { "weekday": "10:00-20:30", "weekend": "10:00-21:30" },
+      "tags": [
+        "亲子",
+        "室内",
+        "益智",
+        "儿童友好",
+        "商场"
+      ],
+      "openHours": {
+        "weekday": "10:00-20:30",
+        "weekend": "10:00-21:30"
+      },
       "suggestedDurationMinutes": 90,
       "pricePerPerson": 118,
       "ageMin": 3,
@@ -54,8 +81,17 @@
       "name": "多奇妙亲子空间(曲江大悦城店)",
       "areaId": "area_xa_qujiang",
       "category": "parent_child_playground",
-      "tags": ["亲子", "室内", "儿童友好", "拍照", "商场"],
-      "openHours": { "weekday": "10:00-20:30", "weekend": "09:30-21:30" },
+      "tags": [
+        "亲子",
+        "室内",
+        "儿童友好",
+        "拍照",
+        "商场"
+      ],
+      "openHours": {
+        "weekday": "10:00-20:30",
+        "weekend": "09:30-21:30"
+      },
       "suggestedDurationMinutes": 100,
       "pricePerPerson": 128,
       "ageMin": 2,
@@ -69,8 +105,17 @@
       "name": "赛格云顶水族体验馆(小寨店)",
       "areaId": "area_xa_xiaozhai",
       "category": "aquarium_experience",
-      "tags": ["亲子", "室内", "拍照", "轻松", "科普"],
-      "openHours": { "weekday": "10:00-20:00", "weekend": "10:00-21:00" },
+      "tags": [
+        "亲子",
+        "室内",
+        "拍照",
+        "轻松",
+        "科普"
+      ],
+      "openHours": {
+        "weekday": "10:00-20:00",
+        "weekend": "10:00-21:00"
+      },
       "suggestedDurationMinutes": 75,
       "pricePerPerson": 68,
       "ageMin": 3,
@@ -84,8 +129,17 @@
       "name": "曲江艺想展览馆(大悦城店)",
       "areaId": "area_xa_qujiang",
       "category": "exhibition",
-      "tags": ["展览", "拍照", "室内", "约会", "安静"],
-      "openHours": { "weekday": "11:00-20:30", "weekend": "10:30-21:30" },
+      "tags": [
+        "展览",
+        "拍照",
+        "室内",
+        "约会",
+        "安静"
+      ],
+      "openHours": {
+        "weekday": "11:00-20:30",
+        "weekend": "10:30-21:30"
+      },
       "suggestedDurationMinutes": 80,
       "pricePerPerson": 78,
       "ageMin": 8,
@@ -99,8 +153,17 @@
       "name": "大唐夜色光影馆(不夜城店)",
       "areaId": "area_xa_qujiang",
       "category": "photo_spot",
-      "tags": ["拍照", "夜游", "约会", "游客密集", "氛围"],
-      "openHours": { "weekday": "15:00-22:30", "weekend": "14:00-23:00" },
+      "tags": [
+        "拍照",
+        "夜游",
+        "约会",
+        "游客密集",
+        "氛围"
+      ],
+      "openHours": {
+        "weekday": "15:00-22:30",
+        "weekend": "14:00-23:00"
+      },
       "suggestedDurationMinutes": 70,
       "pricePerPerson": 88,
       "ageMin": 6,
@@ -114,8 +177,17 @@
       "name": "城墙里光影展厅(南门店)",
       "areaId": "area_xa_zhonglou",
       "category": "exhibition",
-      "tags": ["展览", "拍照", "历史", "约会", "室内"],
-      "openHours": { "weekday": "10:30-20:00", "weekend": "10:00-21:00" },
+      "tags": [
+        "展览",
+        "拍照",
+        "历史",
+        "约会",
+        "室内"
+      ],
+      "openHours": {
+        "weekday": "10:30-20:00",
+        "weekend": "10:00-21:00"
+      },
       "suggestedDurationMinutes": 60,
       "pricePerPerson": 58,
       "ageMin": 7,
@@ -129,8 +201,17 @@
       "name": "唐潮手作工坊(大唐不夜城店)",
       "areaId": "area_xa_qujiang",
       "category": "handcraft",
-      "tags": ["手作", "亲子", "约会", "室内", "安静"],
-      "openHours": { "weekday": "11:00-20:30", "weekend": "10:30-21:30" },
+      "tags": [
+        "手作",
+        "亲子",
+        "约会",
+        "室内",
+        "安静"
+      ],
+      "openHours": {
+        "weekday": "11:00-20:30",
+        "weekend": "10:30-21:30"
+      },
       "suggestedDurationMinutes": 90,
       "pricePerPerson": 108,
       "ageMin": 6,
@@ -144,8 +225,17 @@
       "name": "大明宫轻游营地(龙首原店)",
       "areaId": "area_xa_daminggong",
       "category": "park_light_walk",
-      "tags": ["户外", "亲子", "低预算", "少排队", "空间开阔"],
-      "openHours": { "weekday": "09:00-19:00", "weekend": "08:30-20:00" },
+      "tags": [
+        "户外",
+        "亲子",
+        "低预算",
+        "少排队",
+        "空间开阔"
+      ],
+      "openHours": {
+        "weekday": "09:00-19:00",
+        "weekend": "08:30-20:00"
+      },
       "suggestedDurationMinutes": 80,
       "pricePerPerson": 20,
       "ageMin": 3,
@@ -159,8 +249,17 @@
       "name": "北院门食光Citywalk(钟楼店)",
       "areaId": "area_xa_zhonglou",
       "category": "citywalk",
-      "tags": ["citywalk", "小吃", "朋友", "夜游", "热闹"],
-      "openHours": { "weekday": "15:00-22:30", "weekend": "14:00-23:00" },
+      "tags": [
+        "citywalk",
+        "小吃",
+        "朋友",
+        "夜游",
+        "热闹"
+      ],
+      "openHours": {
+        "weekday": "15:00-22:30",
+        "weekend": "14:00-23:00"
+      },
       "suggestedDurationMinutes": 90,
       "pricePerPerson": 0,
       "ageMin": 10,
@@ -174,8 +273,17 @@
       "name": "兴善寺东街书房(小寨店)",
       "areaId": "area_xa_xiaozhai",
       "category": "bookstore_cafe",
-      "tags": ["安静", "轻松", "室内", "约会", "少走路"],
-      "openHours": { "weekday": "10:00-21:00", "weekend": "10:00-21:30" },
+      "tags": [
+        "安静",
+        "轻松",
+        "室内",
+        "约会",
+        "少走路"
+      ],
+      "openHours": {
+        "weekday": "10:00-21:00",
+        "weekend": "10:00-21:30"
+      },
       "suggestedDurationMinutes": 60,
       "pricePerPerson": 35,
       "ageMin": 6,
@@ -189,8 +297,17 @@
       "name": "长安造物手作社(高新店)",
       "areaId": "area_xa_gaoxin",
       "category": "handcraft",
-      "tags": ["手作", "安静", "室内", "约会", "朋友"],
-      "openHours": { "weekday": "12:00-21:00", "weekend": "10:30-21:30" },
+      "tags": [
+        "手作",
+        "安静",
+        "室内",
+        "约会",
+        "朋友"
+      ],
+      "openHours": {
+        "weekday": "12:00-21:00",
+        "weekend": "10:30-21:30"
+      },
       "suggestedDurationMinutes": 100,
       "pricePerPerson": 138,
       "ageMin": 12,
@@ -204,8 +321,17 @@
       "name": "汉唐小剧场(钟楼店)",
       "areaId": "area_xa_zhonglou",
       "category": "performance",
-      "tags": ["演出", "室内", "历史", "约会", "朋友"],
-      "openHours": { "weekday": "14:00-22:00", "weekend": "13:00-22:30" },
+      "tags": [
+        "演出",
+        "室内",
+        "历史",
+        "约会",
+        "朋友"
+      ],
+      "openHours": {
+        "weekday": "14:00-22:00",
+        "weekend": "13:00-22:30"
+      },
       "suggestedDurationMinutes": 75,
       "pricePerPerson": 168,
       "ageMin": 8,
@@ -216,26 +342,45 @@
     },
     {
       "id": "act_xa_015",
-      "name": "大明宫风筝草坪(遗址公园店)",
+      "name": "大明宫遗址公园四季漫步",
       "areaId": "area_xa_daminggong",
       "category": "park_light_walk",
-      "tags": ["户外", "亲子", "低预算", "少排队", "轻松"],
-      "openHours": { "weekday": "09:00-18:30", "weekend": "08:30-19:30" },
+      "tags": [
+        "户外",
+        "全年可去",
+        "亲子",
+        "低预算",
+        "少排队",
+        "轻松"
+      ],
+      "openHours": {
+        "weekday": "09:00-18:30",
+        "weekend": "08:30-19:30"
+      },
       "suggestedDurationMinutes": 70,
       "pricePerPerson": 15,
       "ageMin": 4,
       "ageMax": 99,
       "indoorOutdoor": "outdoor",
       "baseRating": 4.1,
-      "mockBasis": "参考大明宫公园型亲子户外活动命名风格微调"
+      "mockBasis": "参考大明宫遗址公园全年开放型轻户外活动命名风格微调"
     },
     {
       "id": "act_xa_016",
       "name": "秦岭自然课堂(高新亲子中心)",
       "areaId": "area_xa_gaoxin",
       "category": "science_workshop",
-      "tags": ["亲子", "科普", "室内", "安静", "儿童友好"],
-      "openHours": { "weekday": "13:00-19:00", "weekend": "10:00-20:00" },
+      "tags": [
+        "亲子",
+        "科普",
+        "室内",
+        "安静",
+        "儿童友好"
+      ],
+      "openHours": {
+        "weekday": "13:00-19:00",
+        "weekend": "10:00-20:00"
+      },
       "suggestedDurationMinutes": 90,
       "pricePerPerson": 158,
       "ageMin": 6,
@@ -243,6 +388,1173 @@
       "indoorOutdoor": "indoor",
       "baseRating": 4.6,
       "mockBasis": "参考西安自然教育和亲子科普课程命名风格微调"
+    },
+    {
+      "id": "act_xa_017",
+      "name": "曲江池亲子自然观察站",
+      "areaId": "area_xa_qujiang",
+      "category": "parent_child_nature_walk",
+      "tags": [
+        "亲子",
+        "户外",
+        "儿童友好",
+        "少走路",
+        "低预算",
+        "曲江"
+      ],
+      "openHours": {
+        "weekday": "09:30-18:30",
+        "weekend": "09:00-19:30"
+      },
+      "suggestedDurationMinutes": 70,
+      "pricePerPerson": 25,
+      "ageMin": 4,
+      "ageMax": 12,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.3,
+      "mockBasis": "为曲江池出发的亲子半日游补充低预算、低折腾活动。"
+    },
+    {
+      "id": "act_xa_018",
+      "name": "钟楼短线小吃Citywalk",
+      "areaId": "area_xa_zhonglou",
+      "category": "compact_citywalk",
+      "tags": [
+        "citywalk",
+        "小吃",
+        "朋友",
+        "少走路",
+        "路线集中",
+        "夜游"
+      ],
+      "openHours": {
+        "weekday": "16:00-22:30",
+        "weekend": "15:00-23:00"
+      },
+      "suggestedDurationMinutes": 75,
+      "pricePerPerson": 0,
+      "ageMin": 10,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.2,
+      "mockBasis": "为朋友小聚补充短距离 citywalk 版本，避免原始路线过度分散。"
+    },
+    {
+      "id": "act_xa_019",
+      "name": "小寨青年轻展厅",
+      "areaId": "area_xa_xiaozhai",
+      "category": "student_exhibition",
+      "tags": [
+        "展览",
+        "大学生",
+        "低预算",
+        "室内",
+        "朋友",
+        "地铁便利"
+      ],
+      "openHours": {
+        "weekday": "11:00-20:30",
+        "weekend": "10:30-21:00"
+      },
+      "suggestedDurationMinutes": 65,
+      "pricePerPerson": 28,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "为多校区大学生公平集合补充小寨低价活动。"
+    },
+    {
+      "id": "act_xa_020",
+      "name": "龙首原轻运动桌游局",
+      "areaId": "area_xa_daminggong",
+      "category": "board_game_light_sport",
+      "tags": [
+        "朋友",
+        "男生",
+        "低预算",
+        "室内",
+        "轻运动",
+        "少排队"
+      ],
+      "openHours": {
+        "weekday": "13:00-22:00",
+        "weekend": "12:00-22:30"
+      },
+      "suggestedDurationMinutes": 90,
+      "pricePerPerson": 35,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.3,
+      "mockBasis": "为咸阳到西安的男生朋友低预算场景补充轻活动。"
+    },
+    {
+      "id": "act_xa_021",
+      "name": "小寨轻松话题书店",
+      "areaId": "area_xa_xiaozhai",
+      "category": "low_pressure_date",
+      "tags": [
+        "轻约会",
+        "关系模糊",
+        "不尴尬",
+        "安静",
+        "室内",
+        "低预算"
+      ],
+      "openHours": {
+        "weekday": "10:00-21:30",
+        "weekend": "10:00-22:00"
+      },
+      "suggestedDurationMinutes": 60,
+      "pricePerPerson": 30,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.4,
+      "mockBasis": "为关系模糊轻约会补充自然、不正式、有话题的低预算活动。"
+    },
+    {
+      "id": "act_xa_022",
+      "name": "行政中心学生拼团桌游社",
+      "areaId": "area_xa_xingzheng",
+      "category": "student_board_game",
+      "tags": [
+        "大学生",
+        "朋友",
+        "低预算",
+        "室内",
+        "公共交通",
+        "预算公平"
+      ],
+      "openHours": {
+        "weekday": "12:00-22:00",
+        "weekend": "11:00-22:30"
+      },
+      "suggestedDurationMinutes": 90,
+      "pricePerPerson": 32,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "为多校区和咸阳低预算场景补充行政中心备选活动。"
+    },
+    {
+      "id": "act_xa_023",
+      "name": "小寨桌游轻聚社",
+      "areaId": "area_xa_xiaozhai",
+      "category": "board_game",
+      "tags": [
+        "大学生",
+        "朋友",
+        "低预算",
+        "室内",
+        "少排队"
+      ],
+      "openHours": {
+        "weekday": "11:00-22:30",
+        "weekend": "11:00-22:30"
+      },
+      "suggestedDurationMinutes": 90,
+      "pricePerPerson": 38,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.3,
+      "mockBasis": "补充小寨学生低预算桌游活动。"
+    },
+    {
+      "id": "act_xa_024",
+      "name": "小寨轻运动体验馆",
+      "areaId": "area_xa_xiaozhai",
+      "category": "light_sport",
+      "tags": [
+        "轻运动",
+        "朋友",
+        "室内",
+        "低预算",
+        "少排队"
+      ],
+      "openHours": {
+        "weekday": "10:30-21:30",
+        "weekend": "10:30-21:30"
+      },
+      "suggestedDurationMinutes": 75,
+      "pricePerPerson": 45,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "补充小寨全年可去轻运动活动。"
+    },
+    {
+      "id": "act_xa_025",
+      "name": "小寨胶片拍照小课",
+      "areaId": "area_xa_xiaozhai",
+      "category": "photo_workshop",
+      "tags": [
+        "手作",
+        "轻约会",
+        "室内",
+        "聊天",
+        "低压力"
+      ],
+      "openHours": {
+        "weekday": "11:00-21:00",
+        "weekend": "11:00-21:00"
+      },
+      "suggestedDurationMinutes": 70,
+      "pricePerPerson": 48,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.4,
+      "mockBasis": "补充小寨轻约会和朋友拍照体验。"
+    },
+    {
+      "id": "act_xa_026",
+      "name": "曲江亲子手作工坊",
+      "areaId": "area_xa_qujiang",
+      "category": "parent_child_workshop",
+      "tags": [
+        "亲子",
+        "儿童友好",
+        "手作",
+        "室内",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "10:00-20:30",
+        "weekend": "10:00-20:30"
+      },
+      "suggestedDurationMinutes": 90,
+      "pricePerPerson": 86,
+      "ageMin": 3,
+      "ageMax": 12,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.5,
+      "mockBasis": "补充曲江亲子全年室内体验。"
+    },
+    {
+      "id": "act_xa_027",
+      "name": "曲江轻喜剧小剧场",
+      "areaId": "area_xa_qujiang",
+      "category": "light_performance",
+      "tags": [
+        "演出",
+        "轻约会",
+        "朋友",
+        "室内",
+        "夜间"
+      ],
+      "openHours": {
+        "weekday": "15:00-22:30",
+        "weekend": "15:00-22:30"
+      },
+      "suggestedDurationMinutes": 80,
+      "pricePerPerson": 96,
+      "ageMin": 8,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.4,
+      "mockBasis": "补充曲江夜间轻松演出。"
+    },
+    {
+      "id": "act_xa_028",
+      "name": "大唐不夜城短线拍照走",
+      "areaId": "area_xa_qujiang",
+      "category": "photo_walk",
+      "tags": [
+        "拍照",
+        "citywalk",
+        "轻松",
+        "夜间",
+        "低预算"
+      ],
+      "openHours": {
+        "weekday": "10:00-22:00",
+        "weekend": "10:00-22:00"
+      },
+      "suggestedDurationMinutes": 65,
+      "pricePerPerson": 18,
+      "ageMin": 10,
+      "ageMax": 99,
+      "indoorOutdoor": "mixed",
+      "baseRating": 4.2,
+      "mockBasis": "补充曲江全年短线 citywalk。"
+    },
+    {
+      "id": "act_xa_029",
+      "name": "钟楼夜色短线Citywalk",
+      "areaId": "area_xa_zhonglou",
+      "category": "night_citywalk",
+      "tags": [
+        "citywalk",
+        "夜间",
+        "朋友",
+        "小吃",
+        "低预算"
+      ],
+      "openHours": {
+        "weekday": "16:00-23:00",
+        "weekend": "16:00-23:00"
+      },
+      "suggestedDurationMinutes": 70,
+      "pricePerPerson": 0,
+      "ageMin": 10,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.2,
+      "mockBasis": "补充钟楼夜间短线 citywalk。"
+    },
+    {
+      "id": "act_xa_030",
+      "name": "钟楼屋顶轻聊书吧",
+      "areaId": "area_xa_zhonglou",
+      "category": "handcraft",
+      "tags": [
+        "聊天",
+        "室内",
+        "轻约会",
+        "朋友",
+        "少排队"
+      ],
+      "openHours": {
+        "weekday": "11:00-21:30",
+        "weekend": "11:00-21:30"
+      },
+      "suggestedDurationMinutes": 85,
+      "pricePerPerson": 78,
+      "ageMin": 8,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.5,
+      "mockBasis": "补充钟楼坐下聊天活动。"
+    },
+    {
+      "id": "act_xa_031",
+      "name": "回民街非遗小吃讲解",
+      "areaId": "area_xa_zhonglou",
+      "category": "board_game",
+      "tags": [
+        "小吃",
+        "citywalk",
+        "本地",
+        "低预算",
+        "朋友"
+      ],
+      "openHours": {
+        "weekday": "13:00-23:00",
+        "weekend": "13:00-23:00"
+      },
+      "suggestedDurationMinutes": 100,
+      "pricePerPerson": 42,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.3,
+      "mockBasis": "补充钟楼小吃文化体验。"
+    },
+    {
+      "id": "act_xa_032",
+      "name": "高新轻食手冲体验课",
+      "areaId": "area_xa_gaoxin",
+      "category": "exhibition",
+      "tags": [
+        "低脂",
+        "手作",
+        "轻约会",
+        "室内",
+        "聊天"
+      ],
+      "openHours": {
+        "weekday": "10:30-20:30",
+        "weekend": "10:30-20:30"
+      },
+      "suggestedDurationMinutes": 60,
+      "pricePerPerson": 28,
+      "ageMin": 8,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "补充高新低脂轻约会体验。"
+    },
+    {
+      "id": "act_xa_033",
+      "name": "高新桌面推理小局",
+      "areaId": "area_xa_gaoxin",
+      "category": "script_game",
+      "tags": [
+        "桌游",
+        "朋友",
+        "室内",
+        "低压力",
+        "少排队"
+      ],
+      "openHours": {
+        "weekday": "12:00-23:00",
+        "weekend": "12:00-23:00"
+      },
+      "suggestedDurationMinutes": 120,
+      "pricePerPerson": 88,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.4,
+      "mockBasis": "补充高新朋友室内活动。"
+    },
+    {
+      "id": "act_xa_034",
+      "name": "高新城市运动打卡馆",
+      "areaId": "area_xa_gaoxin",
+      "category": "exhibition",
+      "tags": [
+        "轻运动",
+        "朋友",
+        "室内",
+        "全年可去",
+        "低预算"
+      ],
+      "openHours": {
+        "weekday": "10:30-21:00",
+        "weekend": "10:30-21:00"
+      },
+      "suggestedDurationMinutes": 70,
+      "pricePerPerson": 58,
+      "ageMin": 8,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.3,
+      "mockBasis": "补充高新全年轻运动。"
+    },
+    {
+      "id": "act_xa_035",
+      "name": "大明宫遗址微展厅",
+      "areaId": "area_xa_daminggong",
+      "category": "handcraft",
+      "tags": [
+        "展览",
+        "本地",
+        "室内",
+        "低预算",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "11:00-21:30",
+        "weekend": "11:00-21:30"
+      },
+      "suggestedDurationMinutes": 85,
+      "pricePerPerson": 98,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.5,
+      "mockBasis": "补充大明宫全年室内展览。"
+    },
+    {
+      "id": "act_xa_036",
+      "name": "大明宫轻徒步盖章线",
+      "areaId": "area_xa_daminggong",
+      "category": "science_workshop",
+      "tags": [
+        "轻松",
+        "户外",
+        "citywalk",
+        "低预算",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "10:00-20:00",
+        "weekend": "10:00-20:00"
+      },
+      "suggestedDurationMinutes": 90,
+      "pricePerPerson": 128,
+      "ageMin": 5,
+      "ageMax": 12,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.6,
+      "mockBasis": "补充大明宫全年可走的短线活动。"
+    },
+    {
+      "id": "act_xa_037",
+      "name": "大明宫城市考古体验课",
+      "areaId": "area_xa_daminggong",
+      "category": "light_sport",
+      "tags": [
+        "亲子",
+        "展览",
+        "手作",
+        "室内",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "12:00-22:00",
+        "weekend": "12:00-22:00"
+      },
+      "suggestedDurationMinutes": 80,
+      "pricePerPerson": 46,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "补充大明宫亲子文化体验。"
+    },
+    {
+      "id": "act_xa_038",
+      "name": "行政中心青年桌游社",
+      "areaId": "area_xa_xingzheng",
+      "category": "park_game",
+      "tags": [
+        "大学生",
+        "朋友",
+        "桌游",
+        "低预算",
+        "室内"
+      ],
+      "openHours": {
+        "weekday": "09:00-19:30",
+        "weekend": "09:00-19:30"
+      },
+      "suggestedDurationMinutes": 80,
+      "pricePerPerson": 25,
+      "ageMin": 5,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.2,
+      "mockBasis": "补充行政中心学生聚会活动。"
+    },
+    {
+      "id": "act_xa_039",
+      "name": "行政中心城市绿道短走",
+      "areaId": "area_xa_xingzheng",
+      "category": "board_game",
+      "tags": [
+        "citywalk",
+        "轻松",
+        "户外",
+        "低预算",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "12:00-22:30",
+        "weekend": "12:00-22:30"
+      },
+      "suggestedDurationMinutes": 95,
+      "pricePerPerson": 36,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.3,
+      "mockBasis": "补充行政中心饭后短走。"
+    },
+    {
+      "id": "act_xa_040",
+      "name": "行政中心共享自习茶歇",
+      "areaId": "area_xa_xingzheng",
+      "category": "handcraft",
+      "tags": [
+        "大学生",
+        "安静",
+        "聊天",
+        "低预算",
+        "室内"
+      ],
+      "openHours": {
+        "weekday": "10:30-20:30",
+        "weekend": "10:30-20:30"
+      },
+      "suggestedDurationMinutes": 90,
+      "pricePerPerson": 68,
+      "ageMin": 4,
+      "ageMax": 12,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.4,
+      "mockBasis": "补充行政中心安静聊天点。"
+    },
+    {
+      "id": "act_xa_041",
+      "name": "小寨青年轻展厅",
+      "areaId": "area_xa_xiaozhai",
+      "category": "exhibition",
+      "tags": [
+        "展览",
+        "大学生",
+        "低预算",
+        "室内",
+        "公共交通"
+      ],
+      "openHours": {
+        "weekday": "10:30-20:30",
+        "weekend": "10:30-20:30"
+      },
+      "suggestedDurationMinutes": 60,
+      "pricePerPerson": 26,
+      "ageMin": 8,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "补充小寨青年展览。"
+    },
+    {
+      "id": "act_xa_042",
+      "name": "小寨轻松话题书店",
+      "areaId": "area_xa_xiaozhai",
+      "category": "light_sport",
+      "tags": [
+        "聊天",
+        "安静",
+        "轻约会",
+        "室内",
+        "少排队"
+      ],
+      "openHours": {
+        "weekday": "17:00-22:00",
+        "weekend": "17:00-22:00"
+      },
+      "suggestedDurationMinutes": 70,
+      "pricePerPerson": 0,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.0,
+      "mockBasis": "补充小寨轻松书店。"
+    },
+    {
+      "id": "act_xa_043",
+      "name": "曲江自然观察小站",
+      "areaId": "area_xa_qujiang",
+      "category": "parent_child_playground",
+      "tags": [
+        "亲子",
+        "儿童友好",
+        "轻松",
+        "低预算",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "10:00-21:00",
+        "weekend": "10:00-21:00"
+      },
+      "suggestedDurationMinutes": 90,
+      "pricePerPerson": 78,
+      "ageMin": 3,
+      "ageMax": 12,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.4,
+      "mockBasis": "补充曲江亲子自然观察。"
+    },
+    {
+      "id": "act_xa_044",
+      "name": "钟楼小剧场轻喜夜",
+      "areaId": "area_xa_zhonglou",
+      "category": "board_game",
+      "tags": [
+        "演出",
+        "夜间",
+        "朋友",
+        "轻约会",
+        "室内"
+      ],
+      "openHours": {
+        "weekday": "12:00-22:30",
+        "weekend": "12:00-22:30"
+      },
+      "suggestedDurationMinutes": 95,
+      "pricePerPerson": 34,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "补充钟楼夜间小剧场。"
+    },
+    {
+      "id": "act_xa_045",
+      "name": "钟楼短线小吃Citywalk",
+      "areaId": "area_xa_zhonglou",
+      "category": "exhibition",
+      "tags": [
+        "citywalk",
+        "小吃",
+        "夜间",
+        "朋友",
+        "低预算"
+      ],
+      "openHours": {
+        "weekday": "10:30-20:30",
+        "weekend": "10:30-20:30"
+      },
+      "suggestedDurationMinutes": 65,
+      "pricePerPerson": 32,
+      "ageMin": 8,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "补充钟楼小吃短线。"
+    },
+    {
+      "id": "act_xa_046",
+      "name": "高新安静画室体验",
+      "areaId": "area_xa_gaoxin",
+      "category": "light_sport",
+      "tags": [
+        "手作",
+        "安静",
+        "轻约会",
+        "室内",
+        "低压力"
+      ],
+      "openHours": {
+        "weekday": "12:00-22:00",
+        "weekend": "12:00-22:00"
+      },
+      "suggestedDurationMinutes": 80,
+      "pricePerPerson": 45,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "补充高新安静手作。"
+    },
+    {
+      "id": "act_xa_047",
+      "name": "大明宫文化轻展廊",
+      "areaId": "area_xa_daminggong",
+      "category": "handcraft",
+      "tags": [
+        "展览",
+        "本地",
+        "室内",
+        "全年可去",
+        "低预算"
+      ],
+      "openHours": {
+        "weekday": "11:00-21:30",
+        "weekend": "11:00-21:30"
+      },
+      "suggestedDurationMinutes": 85,
+      "pricePerPerson": 72,
+      "ageMin": 10,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.3,
+      "mockBasis": "补充大明宫全年文化展廊。"
+    },
+    {
+      "id": "act_xa_048",
+      "name": "行政中心夜间慢走线",
+      "areaId": "area_xa_xingzheng",
+      "category": "chat_space",
+      "tags": [
+        "citywalk",
+        "夜间",
+        "轻松",
+        "低预算",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "14:00-23:00",
+        "weekend": "14:00-23:00"
+      },
+      "suggestedDurationMinutes": 80,
+      "pricePerPerson": 28,
+      "ageMin": 12,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "补充行政中心夜间慢走。"
+    },
+    {
+      "id": "act_xa_049",
+      "name": "大雁塔北广场喷泉轻游",
+      "areaId": "area_xa_qujiang",
+      "category": "landmark_walk",
+      "tags": [
+        "大雁塔",
+        "地标",
+        "citywalk",
+        "夜游",
+        "低预算",
+        "全年可去",
+        "拍照"
+      ],
+      "openHours": {
+        "weekday": "10:00-22:30",
+        "weekend": "10:00-23:00"
+      },
+      "suggestedDurationMinutes": 55,
+      "pricePerPerson": 0,
+      "ageMin": 3,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.7,
+      "mockBasis": "参考大雁塔北广场和曲江夜游地标场景，作为全年可逛免费 POI。"
+    },
+    {
+      "id": "act_xa_050",
+      "name": "大唐不夜城中轴夜游",
+      "areaId": "area_xa_qujiang",
+      "category": "night_citywalk",
+      "tags": [
+        "大唐不夜城",
+        "夜游",
+        "citywalk",
+        "拍照",
+        "朋友",
+        "低预算",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "16:00-23:30",
+        "weekend": "15:00-23:30"
+      },
+      "suggestedDurationMinutes": 80,
+      "pricePerPerson": 0,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.8,
+      "mockBasis": "参考大唐不夜城开放式街区夜游，适合跨城进城后明确游玩。"
+    },
+    {
+      "id": "act_xa_051",
+      "name": "大唐芙蓉园外线文化漫步",
+      "areaId": "area_xa_qujiang",
+      "category": "culture_walk",
+      "tags": [
+        "大唐芙蓉园",
+        "文旅",
+        "拍照",
+        "轻松",
+        "全年可去",
+        "约会"
+      ],
+      "openHours": {
+        "weekday": "10:00-22:00",
+        "weekend": "10:00-22:30"
+      },
+      "suggestedDurationMinutes": 75,
+      "pricePerPerson": 35,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "mixed",
+      "baseRating": 4.5,
+      "mockBasis": "参考曲江芙蓉园片区文旅动线，作为中低预算文化漫步候选。"
+    },
+    {
+      "id": "act_xa_052",
+      "name": "曲江池遗址公园湖畔散步",
+      "areaId": "area_xa_qujiang",
+      "category": "park_walk",
+      "tags": [
+        "曲江池",
+        "公园",
+        "citywalk",
+        "亲子",
+        "低预算",
+        "全年可去",
+        "少排队"
+      ],
+      "openHours": {
+        "weekday": "09:00-22:00",
+        "weekend": "09:00-22:30"
+      },
+      "suggestedDurationMinutes": 70,
+      "pricePerPerson": 0,
+      "ageMin": 3,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.4,
+      "mockBasis": "参考曲江池遗址公园全年开放式湖畔漫步体验。"
+    },
+    {
+      "id": "act_xa_053",
+      "name": "西安城墙南门登城夜游",
+      "areaId": "area_xa_zhonglou",
+      "category": "landmark_ticket",
+      "tags": [
+        "城墙",
+        "南门",
+        "地标",
+        "夜游",
+        "历史",
+        "朋友",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "10:00-22:00",
+        "weekend": "10:00-22:30"
+      },
+      "suggestedDurationMinutes": 85,
+      "pricePerPerson": 54,
+      "ageMin": 8,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.6,
+      "mockBasis": "参考西安城墙南门夜游，作为钟楼片区明确景点型活动。"
+    },
+    {
+      "id": "act_xa_054",
+      "name": "钟鼓楼广场城市漫步",
+      "areaId": "area_xa_zhonglou",
+      "category": "landmark_walk",
+      "tags": [
+        "钟楼",
+        "鼓楼",
+        "citywalk",
+        "地标",
+        "小吃",
+        "低预算",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "10:00-23:00",
+        "weekend": "10:00-23:30"
+      },
+      "suggestedDurationMinutes": 65,
+      "pricePerPerson": 0,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.5,
+      "mockBasis": "参考钟鼓楼广场和回民街周边城市漫步。"
+    },
+    {
+      "id": "act_xa_055",
+      "name": "回民街小吃短逛线",
+      "areaId": "area_xa_zhonglou",
+      "category": "snack_citywalk",
+      "tags": [
+        "回民街",
+        "小吃",
+        "citywalk",
+        "朋友",
+        "低预算",
+        "夜间",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "11:00-23:30",
+        "weekend": "10:30-23:30"
+      },
+      "suggestedDurationMinutes": 60,
+      "pricePerPerson": 25,
+      "ageMin": 8,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.2,
+      "mockBasis": "参考回民街小吃街区，作为朋友低预算短逛候选。"
+    },
+    {
+      "id": "act_xa_056",
+      "name": "大慈恩寺外广场轻游",
+      "areaId": "area_xa_qujiang",
+      "category": "temple_square_walk",
+      "tags": [
+        "大慈恩寺",
+        "大雁塔",
+        "地标",
+        "文化",
+        "低预算",
+        "全年可去",
+        "拍照"
+      ],
+      "openHours": {
+        "weekday": "10:00-21:30",
+        "weekend": "10:00-22:00"
+      },
+      "suggestedDurationMinutes": 60,
+      "pricePerPerson": 0,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.5,
+      "mockBasis": "参考大慈恩寺与大雁塔外广场文化地标动线。"
+    },
+    {
+      "id": "act_xa_057",
+      "name": "小寨赛格IMAX影城电影票",
+      "areaId": "area_xa_xiaozhai",
+      "category": "cinema_ticket",
+      "tags": [
+        "电影",
+        "电影票",
+        "影院",
+        "室内",
+        "大学生",
+        "轻约会",
+        "朋友",
+        "全年可去",
+        "地铁可达"
+      ],
+      "openHours": {
+        "weekday": "10:00-23:30",
+        "weekend": "10:00-23:50"
+      },
+      "suggestedDurationMinutes": 125,
+      "pricePerPerson": 45,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.5,
+      "mockBasis": "模拟小寨赛格商圈可购电影票，适合学生、朋友和轻约会。"
+    },
+    {
+      "id": "act_xa_058",
+      "name": "曲江大悦城影城电影票",
+      "areaId": "area_xa_qujiang",
+      "category": "cinema_ticket",
+      "tags": [
+        "电影",
+        "电影票",
+        "影院",
+        "亲子",
+        "轻约会",
+        "室内",
+        "全年可去",
+        "大雁塔"
+      ],
+      "openHours": {
+        "weekday": "10:30-23:30",
+        "weekend": "10:00-23:50"
+      },
+      "suggestedDurationMinutes": 125,
+      "pricePerPerson": 48,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.5,
+      "mockBasis": "模拟曲江大悦城影院，可与大雁塔、大唐不夜城动线组合。"
+    },
+    {
+      "id": "act_xa_059",
+      "name": "钟楼开元影城夜场电影票",
+      "areaId": "area_xa_zhonglou",
+      "category": "cinema_ticket",
+      "tags": [
+        "电影",
+        "电影票",
+        "影院",
+        "钟楼",
+        "室内",
+        "夜间",
+        "朋友",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "10:00-23:40",
+        "weekend": "10:00-23:55"
+      },
+      "suggestedDurationMinutes": 120,
+      "pricePerPerson": 42,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.4,
+      "mockBasis": "模拟钟楼片区夜场电影票，适合饭后继续安排。"
+    },
+    {
+      "id": "act_xa_060",
+      "name": "高新大都荟影院电影票",
+      "areaId": "area_xa_gaoxin",
+      "category": "cinema_ticket",
+      "tags": [
+        "电影",
+        "电影票",
+        "影院",
+        "室内",
+        "轻约会",
+        "安静",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "10:30-23:20",
+        "weekend": "10:00-23:50"
+      },
+      "suggestedDurationMinutes": 125,
+      "pricePerPerson": 50,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.5,
+      "mockBasis": "模拟高新大都荟商圈电影票，适合高新出发的室内轻活动。"
+    },
+    {
+      "id": "act_xa_061",
+      "name": "行政中心大融城影城电影票",
+      "areaId": "area_xa_xingzheng",
+      "category": "cinema_ticket",
+      "tags": [
+        "电影",
+        "电影票",
+        "影院",
+        "行政中心",
+        "室内",
+        "朋友",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "10:30-23:20",
+        "weekend": "10:00-23:40"
+      },
+      "suggestedDurationMinutes": 120,
+      "pricePerPerson": 46,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.3,
+      "mockBasis": "模拟行政中心商圈可买电影票，适合北郊轻松聚会。"
+    },
+    {
+      "id": "act_xa_062",
+      "name": "大明宫龙首印象城影院电影票",
+      "areaId": "area_xa_daminggong",
+      "category": "cinema_ticket",
+      "tags": [
+        "电影",
+        "电影票",
+        "影院",
+        "室内",
+        "朋友",
+        "雨天",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "10:30-23:10",
+        "weekend": "10:00-23:40"
+      },
+      "suggestedDurationMinutes": 120,
+      "pricePerPerson": 44,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.3,
+      "mockBasis": "模拟大明宫-龙首原片区影院票务，补足全年室内活动。"
+    },
+    {
+      "id": "act_xa_063",
+      "name": "行政中心熙地港桌游茶歇",
+      "areaId": "area_xa_xingzheng",
+      "category": "indoor_board_game_tea",
+      "tags": [
+        "桌游",
+        "室内",
+        "朋友",
+        "可坐下聊天",
+        "低预算",
+        "行政中心",
+        "全年可去"
+      ],
+      "openHours": {
+        "weekday": "10:30-22:00",
+        "weekend": "10:30-22:30"
+      },
+      "suggestedDurationMinutes": 85,
+      "pricePerPerson": 38,
+      "ageMin": 8,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.3,
+      "mockBasis": "补充行政中心全年室内低预算活动，适合雨天和朋友聊天。"
     }
   ]
 }
