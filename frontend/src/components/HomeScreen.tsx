@@ -70,7 +70,12 @@ export function HomeScreen({ onSubmit, disabled }: Props) {
             ))}
           </div>
         </div>
-        <ChatInput onSubmit={onSubmit} disabled={disabled} draftText={draftText} />
+        <ChatInput
+          onSubmit={onSubmit}
+          disabled={disabled}
+          draft={draftText ? { label: "示例", suggestion: draftText, systemPrompt: "" } : undefined}
+          onClearDraft={() => setDraftText("")}
+        />
       </section>
     </main>
   );

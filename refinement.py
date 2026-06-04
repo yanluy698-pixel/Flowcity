@@ -21,6 +21,13 @@ FOLLOW_UP_HINTS = (
     "想玩",
     "景点",
     "逛一下",
+    "晚饭",
+    "晚餐",
+    "吃饭",
+    "早一点",
+    "早点",
+    "提前",
+    "先吃",
     "为什么",
     "解释",
 )
@@ -39,20 +46,29 @@ def parse_refinement_intent(text: str) -> dict[str, Any]:
     avoid_terms: list[str] = []
     preferred_area: str | None = None
     time_hints: list[str] = []
+    meal_timing: str | None = None
     require_activity = False
+    skip_activity = False
 
-    if any(value in text for value in ("我要玩", "想玩", "景点", "逛一下", "没有什么景点", "自由活动")):
+    if any(value in text for value in ("只吃饭", "只安排吃饭", "不安排活动", "不要活动", "不玩了", "不安排项目")):
+        operations.append("replace_restaurant")
+        changed_items.append("restaurant")
+        skip_activity = True
+    if not skip_activity and any(value in text for value in ("我要玩", "想玩", "景点", "逛一下", "没有什么景点", "自由活动")):
         operations.append("replace_activity")
         changed_items.append("activity")
         require_activity = True
-    if any(value in text for value in ("餐厅", "吃饭", "太贵", "便宜", "低脂", "清淡", "排队")):
+    if any(value in text for value in ("餐厅", "饭店", "烤肉", "火锅", "太贵", "便宜", "低脂", "清淡", "排队")):
         operations.append("replace_restaurant")
         changed_items.append("restaurant")
     if any(value in text for value in ("太贵", "便宜", "预算", "人均")):
         operations.append("tighten_budget")
     if any(value in text for value in ("少走路", "太远", "远一点", "近一点", "地铁", "路线")):
         operations.append("adjust_time_or_route")
-    if any(value in text for value in ("几点", "点", "左右", "那会", "先去", "再去")):
+    if any(value in text for value in ("几点", "点", "左右", "那会", "先去", "再去", "早一点", "早点", "提前", "先吃")):
+        operations.append("adjust_time_or_route")
+    if any(value in text for value in ("晚饭早一点", "晚餐早一点", "吃饭早一点", "早点吃", "早些吃", "提前吃", "先吃")):
+        meal_timing = "earlier"
         operations.append("adjust_time_or_route")
     if any(value in text for value in ("为什么", "解释", "合理吗")):
         operations.append("explain_plan")
@@ -88,7 +104,9 @@ def parse_refinement_intent(text: str) -> dict[str, Any]:
         "avoidTerms": avoid_terms,
         "preferredArea": preferred_area,
         "timeHints": time_hints,
+        "mealTiming": meal_timing,
         "requireActivity": require_activity,
+        "skipActivity": skip_activity,
         "lockedItems": locked_items,
         "changedItems": sorted(set(changed_items)),
         "rawFeedback": text,
@@ -120,6 +138,13 @@ def apply_refinement(
         location = demand.setdefault("location", {})
         location["preferredArea"] = intent["preferredArea"]
 
+    plan_control = demand.setdefault("planControl", {})
+    if intent.get("mealTiming"):
+        plan_control["mealTiming"] = intent["mealTiming"]
+    if intent.get("skipActivity"):
+        plan_control["skipActivity"] = True
+        plan_control["requireActivity"] = False
+
     constraints = demand.setdefault("constraints", {})
     hard = constraints.setdefault("hard", [])
     if isinstance(hard, list):
@@ -129,12 +154,27 @@ def apply_refinement(
                 hard.append(item)
         if intent["requireActivity"] and "必须安排明确可玩的景点或活动，不能只给吃饭和自由闲逛" not in hard:
             hard.append("必须安排明确可玩的景点或活动，不能只给吃饭和自由闲逛")
+        if intent.get("skipActivity"):
+            constraints["hard"] = [
+                item
+                for item in hard
+                if "必须安排明确可玩的景点或活动" not in str(item)
+                and "活动必须适合儿童" not in str(item)
+            ]
+            hard = constraints["hard"]
+            item = "二次修改要求只安排餐饮，不再安排活动节点。"
+            if item not in hard:
+                hard.append(item)
         if intent.get("preferredArea"):
             item = f"二次修改要求优先围绕{intent['preferredArea']}安排。"
             if item not in hard:
                 hard.append(item)
         for hint in intent.get("timeHints", []):
             item = f"二次修改提到时间点：{hint}，规划时尽量按该时间附近安排相关节点。"
+            if item not in hard:
+                hard.append(item)
+        if intent.get("mealTiming") == "earlier":
+            item = "二次修改要求晚饭/吃饭早一点，调度时优先把餐饮节点提前到可预约的较早时段。"
             if item not in hard:
                 hard.append(item)
 

@@ -16,6 +16,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import intent_taxonomy
+
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
@@ -55,7 +57,102 @@ AREA_LABELS = {
     "area_xa_daminggong": "大明宫",
     "area_xa_xingzheng": "行政中心",
     "origin_xianyang_downtown": "咸阳秦都",
+    "origin_xa_changan_university": "长安大学",
+    "origin_xa_jiaotong_university": "西安交大",
+    "origin_xa_northwest_university": "西北大学",
+    "origin_xa_shaanxi_normal_university": "陕师大",
+    "origin_xa_weishui_campus": "长安大学渭水校区",
 }
+
+NEARBY_AREA_IDS = {
+    "area_xa_xingzheng": {"area_xa_daminggong"},
+    "area_xa_daminggong": {"area_xa_xingzheng"},
+    "area_xa_xiaozhai": {"area_xa_qujiang"},
+    "area_xa_qujiang": {"area_xa_xiaozhai"},
+}
+
+ORIGIN_POINT_ALIASES = {
+    "origin_xa_changan_university": ("长安大学", "长大本部"),
+    "origin_xa_jiaotong_university": ("西安交大", "交通大学", "交大"),
+    "origin_xa_northwest_university": ("西北大学", "西大"),
+    "origin_xa_shaanxi_normal_university": ("陕师大", "陕西师范大学", "师大"),
+    "origin_xa_weishui_campus": ("渭水校区", "长安大学渭水校区"),
+}
+
+POI_METADATA_RULES = [
+    {
+        "keywords": ("轻约会", "约会", "Bistro", "日料", "泰餐", "氛围", "手冲"),
+        "vibeTags": ("轻约会", "自然不尴尬", "浪漫轻松"),
+        "behaviorTags": (),
+        "audienceTags": ("轻约会",),
+    },
+    {
+        "keywords": ("聊天", "可坐下", "安静", "慢聊", "茶餐厅", "咖啡", "书吧", "桌游茶歇"),
+        "vibeTags": ("安静慢聊", "低压力"),
+        "behaviorTags": ("可坐下聊天",),
+        "audienceTags": (),
+    },
+    {
+        "keywords": ("朋友", "同学", "多人", "桌游", "台球", "剧本", "密室", "运动"),
+        "vibeTags": ("朋友高互动", "兄弟局"),
+        "behaviorTags": (),
+        "audienceTags": ("朋友多人", "大学生"),
+    },
+    {
+        "keywords": ("地标", "钟楼", "城墙", "大雁塔", "大唐不夜城", "citywalk", "夜游", "文旅"),
+        "vibeTags": ("游客地标", "城市记忆点"),
+        "behaviorTags": (),
+        "audienceTags": ("游客",),
+    },
+    {
+        "keywords": ("儿童", "亲子", "孩子"),
+        "vibeTags": ("亲子照顾",),
+        "behaviorTags": (),
+        "audienceTags": ("亲子",),
+    },
+    {
+        "keywords": ("快餐", "面食", "粉面", "盖饭", "沙拉", "轻食"),
+        "vibeTags": (),
+        "behaviorTags": ("快餐简餐",),
+        "audienceTags": (),
+    },
+    {
+        "keywords": ("电影", "影院"),
+        "vibeTags": (),
+        "behaviorTags": ("看电影", "弱交流"),
+        "audienceTags": (),
+    },
+    {
+        "keywords": ("KTV", "运动", "打卡馆", "篮球", "滑雪"),
+        "vibeTags": (),
+        "behaviorTags": ("高噪高动", "弱交流"),
+        "audienceTags": (),
+    },
+    {
+        "keywords": ("等位", "休息等待", "茶歇等位", "商场休息"),
+        "vibeTags": ("休息等待", "低压力"),
+        "behaviorTags": ("休息等待", "可坐下聊天"),
+        "audienceTags": (),
+    },
+]
+
+SOCIAL_HARD_FILTER_RULES = [
+    {
+        "primary": "deep_talk",
+        "blockedTags": ("看电影", "影院", "电影", "弱交流", "高噪高动"),
+        "reason": "用户核心诉求是坐下来聊天，过滤电影院/运动馆/KTV等弱交流活动",
+    }
+]
+
+SCENIC_RECALL_PRIMARY = {"tourist_sightseeing"}
+SCENIC_RECALL_KEYWORDS = ("想玩", "我要玩", "景点", "逛一下", "城市景点")
+NEGATED_DIRECTED_MARKERS = ("别", "不要", "不能", "不去", "避开", "排除")
+NEGATED_DIRECTED_PATTERNS = (
+    "{marker}{alias}",
+    "{marker}去{alias}",
+    "{marker}看{alias}",
+    "{marker}用户明确不想去的地点或商圈：{alias}",
+)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -231,11 +328,168 @@ def _time_slot_matches(slot: dict[str, Any], demand: dict[str, Any]) -> bool:
 def _all_tags(demand: dict[str, Any]) -> list[str]:
     preferences = demand.get("preferences", {})
     scene_tags = demand.get("scene", {}).get("tags", [])
+    social = demand.get("socialIntent", {}) if isinstance(demand.get("socialIntent"), dict) else {}
     values: list[str] = []
     for key in ("activityTypes", "foodTags", "experienceTags", "avoidTags"):
         values.extend(preferences.get(key, []))
     values.extend(scene_tags)
+    values.append(social.get("primary"))
+    values.extend(social.get("preferredVibes", []))
+    values.extend(social.get("avoidVibes", []))
     return [str(value) for value in values if value]
+
+
+def _social_intent(demand: dict[str, Any]) -> dict[str, Any]:
+    social = demand.get("socialIntent") if isinstance(demand.get("socialIntent"), dict) else {}
+    primary = str(social.get("primary") or "unknown")
+    if primary not in {
+        "light_date",
+        "deep_talk",
+        "group_bonding",
+        "tourist_sightseeing",
+        "family_care",
+        "casual_meetup",
+        "unknown",
+    }:
+        primary = "unknown"
+    completed = intent_taxonomy.complete_social_intent(
+        {
+            **social,
+            "primary": primary,
+            "preferredVibes": [str(item) for item in social.get("preferredVibes", []) if item],
+            "avoidVibes": [str(item) for item in social.get("avoidVibes", []) if item],
+            "evidence": [str(item) for item in social.get("evidence", []) if item],
+        },
+        str(demand.get("rawInput") or ""),
+    )
+    return {
+        **completed,
+        "primary": primary,
+    }
+
+
+def _tagged(values: list[str], *items: str) -> list[str]:
+    merged = list(values)
+    for item in items:
+        if item and item not in merged:
+            merged.append(item)
+    return merged
+
+
+def _enriched_poi_metadata(poi: dict[str, Any]) -> dict[str, Any]:
+    tags = [str(tag) for tag in poi.get("tags", [])]
+    searchable = " ".join([poi.get("name", ""), poi.get("category", ""), poi.get("cuisine", ""), *tags])
+    vibe_tags = [str(tag) for tag in poi.get("vibeTags", [])]
+    behavior_tags = [str(tag) for tag in poi.get("behaviorTags", [])]
+    audience_tags = [str(tag) for tag in poi.get("audienceTags", [])]
+
+    for rule in POI_METADATA_RULES:
+        if any(value in searchable for value in rule["keywords"]):
+            vibe_tags = _tagged(vibe_tags, *rule["vibeTags"])
+            behavior_tags = _tagged(behavior_tags, *rule["behaviorTags"])
+            audience_tags = _tagged(audience_tags, *rule["audienceTags"])
+    if poi.get("isFiller"):
+        vibe_tags = _tagged(vibe_tags, "休息等待", "低压力")
+        behavior_tags = _tagged(behavior_tags, "休息等待", "可坐下聊天")
+
+    return {
+        "vibeTags": vibe_tags,
+        "behaviorTags": behavior_tags,
+        "audienceTags": audience_tags,
+        "isFiller": bool(poi.get("isFiller")),
+    }
+
+
+def _poi_tags(poi: dict[str, Any]) -> list[str]:
+    meta = _enriched_poi_metadata(poi)
+    values = [
+        *[str(item) for item in poi.get("tags", [])],
+        *meta["vibeTags"],
+        *meta["behaviorTags"],
+        *meta["audienceTags"],
+        str(poi.get("category") or ""),
+        str(poi.get("cuisine") or ""),
+    ]
+    return [value for value in values if value]
+
+
+def _candidate_semantic_tags(poi: dict[str, Any], metadata: dict[str, Any]) -> set[str]:
+    values = [
+        str(poi.get("name") or ""),
+        str(poi.get("category") or ""),
+        str(poi.get("cuisine") or ""),
+        *[str(item) for item in poi.get("tags", [])],
+        *metadata.get("vibeTags", []),
+        *metadata.get("behaviorTags", []),
+        *metadata.get("audienceTags", []),
+    ]
+    text = " ".join(values)
+    tags = {value for value in values if value}
+    for tag, aliases in intent_taxonomy.TAG_ALIASES.items():
+        if any(alias in text for alias in aliases):
+            tags.add(tag)
+            tags.update(aliases)
+    return tags
+
+
+def calculate_semantic_score(
+    poi: dict[str, Any],
+    structured_demand: dict[str, Any],
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    metadata = metadata or _enriched_poi_metadata(poi)
+    social = _social_intent(structured_demand)
+    has_explicit = bool(social.get("explicitPreferredVibes") or social.get("explicitAvoidVibes"))
+    if social.get("primary") in intent_taxonomy.UNKNOWN_PRIMARIES and not has_explicit:
+        return {
+            "semanticScoreDelta": 0.0,
+            "semanticReasons": [],
+            "matchedSemanticTags": [],
+            "penalizedSemanticTags": [],
+        }
+
+    positive_weights, negative_weights = intent_taxonomy.semantic_weights(social)
+    candidate_tags = _candidate_semantic_tags(poi, metadata)
+    score = 0.0
+    reasons: list[str] = []
+    matched: list[str] = []
+    penalized: list[str] = []
+
+    for audience_tag in intent_taxonomy.INTENT_AUDIENCE_TAGS.get(str(social.get("primary")), []):
+        if audience_tag in candidate_tags:
+            score += 5
+            matched.append(audience_tag)
+            reasons.append(f"适合{audience_tag}")
+
+    for tag, weight in positive_weights.items():
+        if tag in candidate_tags:
+            score += weight
+            matched.append(tag)
+            if weight >= intent_taxonomy.EXPLICIT_PREFERENCE_BOOST:
+                reasons.append(f"命中你明确提到的{tag}")
+            else:
+                reasons.append(f"氛围契合：{tag}")
+
+    for tag, weight in negative_weights.items():
+        if tag in candidate_tags:
+            score += weight
+            penalized.append(tag)
+            reasons.append(f"避开项提醒：{tag}")
+
+    return {
+        "semanticScoreDelta": round(score, 3),
+        "semanticReasons": intent_taxonomy.unique(reasons)[:6],
+        "matchedSemanticTags": intent_taxonomy.unique(matched),
+        "penalizedSemanticTags": intent_taxonomy.unique(penalized),
+    }
+
+
+def _social_hard_filter_reason(primary: str, poi_tags: list[str]) -> str | None:
+    tag_set = set(poi_tags)
+    for rule in SOCIAL_HARD_FILTER_RULES:
+        if rule["primary"] == primary and tag_set.intersection(rule["blockedTags"]):
+            return str(rule["reason"])
+    return None
 
 
 def _has_any_text(demand: dict[str, Any], keywords: list[str]) -> bool:
@@ -259,6 +513,14 @@ def _raw_and_structured_text(demand: dict[str, Any]) -> str:
             " ".join(str(item) for item in demand.get("constraints", {}).get("hard", [])),
         ]
     )
+
+
+def _wants_scenic_recall(social: dict[str, Any], demand: dict[str, Any]) -> bool:
+    primary = str(social.get("primary") or "")
+    if primary in SCENIC_RECALL_PRIMARY:
+        return True
+    text = _raw_and_structured_text(demand)
+    return any(keyword in text for keyword in SCENIC_RECALL_KEYWORDS)
 
 
 def _avoid_terms(demand: dict[str, Any]) -> list[str]:
@@ -287,7 +549,7 @@ def _matches_avoid_term(poi: dict[str, Any], area: dict[str, Any], term: str) ->
             poi.get("cuisine", ""),
             area.get("name", ""),
             area.get("district", ""),
-            " ".join(poi.get("tags", [])),
+            " ".join(_poi_tags(poi)),
             " ".join(area.get("landmarks", [])),
         ]
     )
@@ -298,7 +560,7 @@ def _seasonally_unsuitable(poi: dict[str, Any], demand: dict[str, Any]) -> bool:
     text = _raw_and_structured_text(demand)
     if "春" in text:
         return False
-    searchable = " ".join([poi.get("name", ""), " ".join(poi.get("tags", [])), str(poi.get("mockBasis", ""))])
+    searchable = " ".join([poi.get("name", ""), " ".join(_poi_tags(poi)), str(poi.get("mockBasis", ""))])
     return any(keyword in searchable for keyword in ("风筝", "春季限定", "春天限定"))
 
 
@@ -350,13 +612,27 @@ def _budget_mode(demand: dict[str, Any]) -> str:
 
 def _directed_activity_types(demand: dict[str, Any]) -> list[str]:
     preferences = demand.get("preferences", {})
-    hard_constraints = demand.get("constraints", {}).get("hard", [])
     structured_values = [str(value) for value in preferences.get("activityTypes", [])]
-    structured_values.extend(str(value) for value in hard_constraints)
     haystack = " ".join(structured_values)
+    social = demand.get("socialIntent", {}) if isinstance(demand.get("socialIntent"), dict) else {}
+    avoid_values = [
+        *[str(value) for value in preferences.get("avoidTags", [])],
+        *[str(value) for value in demand.get("constraints", {}).get("hard", [])],
+        *[str(value) for value in social.get("avoidVibes", [])],
+        str(demand.get("rawInput") or ""),
+    ]
+    avoid_haystack = " ".join(avoid_values)
 
     directed: list[str] = []
     for canonical, aliases in DIRECTED_ACTIVITY_ALIASES.items():
+        negated = any(
+            pattern.format(marker=marker, alias=alias) in avoid_haystack
+            for alias in aliases
+            for marker in NEGATED_DIRECTED_MARKERS
+            for pattern in NEGATED_DIRECTED_PATTERNS
+        )
+        if negated:
+            continue
         if any(alias in haystack for alias in aliases):
             directed.append(canonical)
     return directed
@@ -369,7 +645,7 @@ def _activity_matches_directed(activity: dict[str, Any], directed_types: list[st
         [
             activity.get("name", ""),
             activity.get("category", ""),
-            " ".join(activity.get("tags", [])),
+            " ".join(_poi_tags(activity)),
         ]
     ).lower()
     for directed_type in directed_types:
@@ -432,6 +708,13 @@ def _target_preferred_area_ids(demand: dict[str, Any], data: dict[str, Any]) -> 
         if preferred_text in searchable or token_hit or any(part and part in searchable for part in preferred_text.split()):
             matched.add(area["areaId"])
     return matched
+
+
+def _nearby_area_ids(area_ids: set[str]) -> set[str]:
+    nearby: set[str] = set()
+    for area_id in area_ids:
+        nearby.update(NEARBY_AREA_IDS.get(area_id, set()))
+    return nearby
 
 
 def _availability_for_activity(
@@ -520,6 +803,8 @@ def search_activities(
     data = data or load_mock_data()
     areas = _area_by_id(data)
     demand_tags = _all_tags(structured_demand)
+    social = _social_intent(structured_demand)
+    social_primary = social["primary"]
     children_ages = _children_ages(structured_demand)
     people_total = _people_total(structured_demand)
     max_budget = _budget_max(structured_demand)
@@ -527,10 +812,11 @@ def search_activities(
     queue_limit = _queue_limit(structured_demand)
     preferred_areas = _preferred_area_ids(structured_demand, data)
     target_preferred_areas = _target_preferred_area_ids(structured_demand, data)
+    nearby_preferred_areas = _nearby_area_ids(target_preferred_areas)
     wants_near = _has_any_text(structured_demand, ["别太远", "附近", "近", "少走路"])
     directed_types = _directed_activity_types(structured_demand)
     avoid_terms = _avoid_terms(structured_demand)
-    wants_scenic = any(keyword in _raw_and_structured_text(structured_demand) for keyword in ("想玩", "我要玩", "景点", "逛一下", "城市景点"))
+    wants_scenic = _wants_scenic_recall(social, structured_demand)
     requires_indoor = any(keyword in _raw_and_structured_text(structured_demand) for keyword in ("室内", "下雨", "雨天"))
 
     candidates: list[dict[str, Any]] = []
@@ -546,6 +832,8 @@ def search_activities(
     for activity in data["activities"]:
         reasons: list[str] = []
         area = areas[activity["areaId"]]
+        metadata = _enriched_poi_metadata(activity)
+        poi_tags = _poi_tags(activity)
 
         avoided = next((term for term in avoid_terms if _matches_avoid_term(activity, area, term)), None)
         if avoided:
@@ -560,7 +848,12 @@ def search_activities(
             filtered_out.append(_filtered(activity, "activity", "用户需要室内/雨天友好活动，过滤户外候选"))
             continue
 
-        if not _activity_matches_directed(activity, directed_types):
+        social_block_reason = _social_hard_filter_reason(social_primary, poi_tags)
+        if social_block_reason:
+            filtered_out.append(_filtered(activity, "activity", social_block_reason))
+            continue
+
+        if not metadata["isFiller"] and not _activity_matches_directed(activity, directed_types):
             filtered_out.append(
                 _filtered(
                     activity,
@@ -623,44 +916,52 @@ def search_activities(
             )
             continue
 
-        matched_tags = _matched_tags(activity.get("tags", []), demand_tags)
-        score = 0
-        score += len(matched_tags) * 2
+        matched_tags = _matched_tags(poi_tags, demand_tags)
+        base_quality_score = 0.0
+        constraint_fit_score = float(len(matched_tags) * 2)
         if children_ages and "儿童友好" in activity.get("tags", []):
-            score += 2
+            constraint_fit_score += 2
         if availability["minQueueMinutes"] <= 15:
-            score += 1
+            base_quality_score += 1
             reasons.append("排队较短")
         if target_preferred_areas and activity["areaId"] in target_preferred_areas:
-            score += 8
+            constraint_fit_score += 8
             reasons.append("匹配目标商圈")
+        elif target_preferred_areas and activity["areaId"] in nearby_preferred_areas:
+            constraint_fit_score += 2
+            reasons.append("目标商圈 10 分钟内近邻补位")
         elif target_preferred_areas and activity["areaId"] not in target_preferred_areas:
-            score -= 6
+            constraint_fit_score -= 6
         elif preferred_areas and activity["areaId"] in preferred_areas:
-            score += 1
+            constraint_fit_score += 1
             reasons.append("匹配偏好商圈")
         elif wants_near and activity["areaId"] in {"area_xa_xiaozhai", "area_xa_xingzheng", "area_xa_daminggong"}:
-            score += 1
+            constraint_fit_score += 1
             reasons.append("适合作为近距离/低折腾候选")
         if activity.get("baseRating", 0) >= 4.5:
-            score += 1
+            base_quality_score += max(0, float(activity.get("baseRating", 0)) - 4.0) * 2
             reasons.append("基础评分较高")
         if max_budget is not None and estimated_cost <= max_budget * 0.6:
-            score += 1
+            base_quality_score += 1
             reasons.append("预算友好")
         if budget_mode in {"free_required", "free_preferred", "low_cost_preferred"}:
             if activity["pricePerPerson"] == 0:
-                score += 8 if budget_mode in {"free_required", "free_preferred"} else 5
+                constraint_fit_score += 8 if budget_mode in {"free_required", "free_preferred"} else 5
                 reasons.append("免费活动")
             elif activity["pricePerPerson"] <= LOW_COST_ACTIVITY_LIMIT:
-                score += 3
+                constraint_fit_score += 3
                 reasons.append("低消费活动")
             elif "低预算" in activity.get("tags", []):
-                score += 2
+                constraint_fit_score += 2
                 reasons.append("低预算标签")
-        if wants_scenic and any(tag in activity.get("tags", []) for tag in ("地标", "citywalk", "文旅", "夜游", "大雁塔", "大唐不夜城", "城墙", "钟楼")):
-            score += 7
+        if wants_scenic and any(tag in poi_tags for tag in ("地标", "citywalk", "文旅", "夜游", "大雁塔", "大唐不夜城", "城墙", "钟楼", "游客地标", "城市记忆点")):
+            constraint_fit_score += 7
             reasons.append("明确可逛景点/城市地标")
+        semantic = calculate_semantic_score(activity, structured_demand, metadata)
+        semantic_score = float(semantic["semanticScoreDelta"])
+        route_hint_score = 0.0
+        score = round(base_quality_score + constraint_fit_score + semantic_score + route_hint_score, 3)
+        reasons.extend(semantic["semanticReasons"])
         reasons.extend([f"命中标签：{tag}" for tag in matched_tags])
 
         candidates.append(
@@ -671,7 +972,20 @@ def search_activities(
                 "areaId": activity["areaId"],
                 "areaName": area["name"],
                 "category": activity["category"],
+                "openHours": activity.get("openHours"),
+                "vibeTags": metadata["vibeTags"],
+                "behaviorTags": metadata["behaviorTags"],
+                "audienceTags": metadata["audienceTags"],
+                "isFiller": metadata["isFiller"],
+                "suggestedDurationMinutes": activity.get("suggestedDurationMinutes"),
                 "score": score,
+                "baseQualityScore": round(base_quality_score, 3),
+                "constraintFitScore": round(constraint_fit_score, 3),
+                "semanticScoreDelta": semantic["semanticScoreDelta"],
+                "routeHintScore": route_hint_score,
+                "semanticReasons": semantic["semanticReasons"],
+                "matchedSemanticTags": semantic["matchedSemanticTags"],
+                "penalizedSemanticTags": semantic["penalizedSemanticTags"],
                 "matchedReasons": reasons,
                 "estimatedCost": estimated_cost,
                 "availability": availability,
@@ -680,7 +994,9 @@ def search_activities(
             }
         )
 
-    candidates.sort(key=lambda item: (-item["score"], item["estimatedCost"], item["name"]))
+    if directed_types and not any(not item.get("isFiller") for item in candidates):
+        candidates = []
+    candidates.sort(key=lambda item: (1 if item.get("isFiller") else 0, -item["score"], item["estimatedCost"], item["name"]))
     logs.append(
         {
             "tool": "search_activities",
@@ -699,12 +1015,15 @@ def search_restaurants(
     data = data or load_mock_data()
     areas = _area_by_id(data)
     demand_tags = _all_tags(structured_demand)
+    social = _social_intent(structured_demand)
+    social_primary = social["primary"]
     people_total = _people_total(structured_demand)
     max_budget = _budget_max(structured_demand)
     budget_mode = _budget_mode(structured_demand)
     queue_limit = _queue_limit(structured_demand)
     preferred_areas = _preferred_area_ids(structured_demand, data)
     target_preferred_areas = _target_preferred_area_ids(structured_demand, data)
+    nearby_preferred_areas = _nearby_area_ids(target_preferred_areas)
     wants_low_fat = _has_any_text(structured_demand, ["低脂", "清淡", "减肥", "少油"])
     wants_reservation = _has_any_text(structured_demand, ["订座", "预约", "可订"])
     has_children = bool(_children_ages(structured_demand))
@@ -723,6 +1042,8 @@ def search_restaurants(
     for restaurant in data["restaurants"]:
         reasons: list[str] = []
         area = areas[restaurant["areaId"]]
+        metadata = _enriched_poi_metadata(restaurant)
+        poi_tags = _poi_tags(restaurant)
 
         avoided = next((term for term in avoid_terms if _matches_avoid_term(restaurant, area, term)), None)
         if avoided:
@@ -770,42 +1091,52 @@ def search_restaurants(
             )
             continue
 
-        matched_tags = _matched_tags(restaurant.get("tags", []), demand_tags)
-        score = 0
-        score += len(matched_tags) * 2
+        matched_tags = _matched_tags(poi_tags, demand_tags)
+        base_quality_score = 0.0
+        constraint_fit_score = float(len(matched_tags) * 2)
         if has_children and restaurant.get("childFriendly"):
-            score += 2
+            constraint_fit_score += 2
             reasons.append("儿童友好")
         if wants_low_fat and restaurant.get("lowFatOptions"):
-            score += 2
+            constraint_fit_score += 2
             reasons.append("提供低脂/清淡选项")
-        if restaurant.get("reservable"):
-            score += 1
+        if restaurant.get("reservable") and availability.get("availableSlots"):
+            base_quality_score += 1
             reasons.append("支持预约")
+        elif restaurant.get("reservable"):
+            reasons.append("当前时段以线上取号/到店排队为主")
         if availability.get("queueMinutes", 0) <= 15:
-            score += 1
+            base_quality_score += 1
             reasons.append("排队较短")
         if target_preferred_areas and restaurant["areaId"] in target_preferred_areas:
-            score += 8
+            constraint_fit_score += 8
             reasons.append("匹配目标商圈")
+        elif target_preferred_areas and restaurant["areaId"] in nearby_preferred_areas:
+            constraint_fit_score += 2
+            reasons.append("目标商圈 10 分钟内近邻补位")
         elif target_preferred_areas and restaurant["areaId"] not in target_preferred_areas:
-            score -= 6
+            constraint_fit_score -= 6
         elif preferred_areas and restaurant["areaId"] in preferred_areas:
-            score += 1
+            constraint_fit_score += 1
             reasons.append("匹配偏好商圈")
         if restaurant.get("baseRating", 0) >= 4.5:
-            score += 1
+            base_quality_score += max(0, float(restaurant.get("baseRating", 0)) - 4.0) * 2
             reasons.append("基础评分较高")
         if max_budget is not None and estimated_cost <= max_budget * 0.6:
-            score += 1
+            base_quality_score += 1
             reasons.append("预算友好")
         if budget_mode in {"free_preferred", "low_cost_preferred"}:
             if restaurant["avgPricePerPerson"] <= LOW_COST_RESTAURANT_LIMIT:
-                score += 3
+                constraint_fit_score += 3
                 reasons.append("低消费餐饮候选")
             elif "低预算" in restaurant.get("tags", []):
-                score += 2
+                constraint_fit_score += 2
                 reasons.append("低预算标签")
+        semantic = calculate_semantic_score(restaurant, structured_demand, metadata)
+        semantic_score = float(semantic["semanticScoreDelta"])
+        route_hint_score = 0.0
+        score = round(base_quality_score + constraint_fit_score + semantic_score + route_hint_score, 3)
+        reasons.extend(semantic["semanticReasons"])
         reasons.extend([f"命中标签：{tag}" for tag in matched_tags])
 
         candidates.append(
@@ -816,7 +1147,19 @@ def search_restaurants(
                 "areaId": restaurant["areaId"],
                 "areaName": area["name"],
                 "cuisine": restaurant["cuisine"],
+                "openHours": restaurant.get("openHours"),
+                "vibeTags": metadata["vibeTags"],
+                "behaviorTags": metadata["behaviorTags"],
+                "audienceTags": metadata["audienceTags"],
+                "isFiller": metadata["isFiller"],
                 "score": score,
+                "baseQualityScore": round(base_quality_score, 3),
+                "constraintFitScore": round(constraint_fit_score, 3),
+                "semanticScoreDelta": semantic["semanticScoreDelta"],
+                "routeHintScore": route_hint_score,
+                "semanticReasons": semantic["semanticReasons"],
+                "matchedSemanticTags": semantic["matchedSemanticTags"],
+                "penalizedSemanticTags": semantic["penalizedSemanticTags"],
                 "matchedReasons": reasons,
                 "estimatedCost": estimated_cost,
                 "availability": availability,
@@ -877,6 +1220,108 @@ def _route_summary(route: dict[str, Any], data: dict[str, Any]) -> str:
     return f"{from_name}到{to_name}，{transport_name}约{route['minutes']}分钟"
 
 
+def _origin_id_from_point(point: str | None) -> str | None:
+    text = str(point or "")
+    if not text:
+        return None
+    for origin_id, aliases in ORIGIN_POINT_ALIASES.items():
+        if any(alias in text for alias in aliases):
+            return origin_id
+    return None
+
+
+def _origin_points_with_ids(demand: dict[str, Any]) -> list[dict[str, str]]:
+    origins = demand.get("location", {}).get("originPoints") or []
+    mapped: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for index, origin in enumerate(origins):
+        if not isinstance(origin, dict):
+            continue
+        origin_id = _origin_id_from_point(str(origin.get("point") or origin.get("label") or ""))
+        if not origin_id or origin_id in seen:
+            continue
+        seen.add(origin_id)
+        mapped.append(
+            {
+                "originId": origin_id,
+                "label": str(origin.get("label") or f"同伴{index + 1}"),
+                "point": str(origin.get("point") or AREA_LABELS.get(origin_id, origin_id)),
+                "displayName": AREA_LABELS.get(origin_id, str(origin.get("point") or origin_id)),
+            }
+        )
+    return mapped
+
+
+def _route_fairness_by_area(
+    demand: dict[str, Any],
+    area_ids: list[str],
+    route_candidates: list[dict[str, Any]],
+    data: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    origins = _origin_points_with_ids(demand)
+    if len(origins) <= 1:
+        return {}
+
+    routes_by_origin_area: dict[tuple[str, str], dict[str, Any]] = {}
+    for route in route_candidates:
+        key = (str(route.get("fromAreaId") or ""), str(route.get("toAreaId") or ""))
+        if key[0].startswith("origin_"):
+            current = routes_by_origin_area.get(key)
+            if current is None or (route.get("minutes", 999), route.get("estimatedCostPerPerson", 999)) < (
+                current.get("minutes", 999),
+                current.get("estimatedCostPerPerson", 999),
+            ):
+                routes_by_origin_area[key] = route
+
+    fairness: dict[str, dict[str, Any]] = {}
+    for area_id in sorted(set(area_ids)):
+        origin_routes: list[dict[str, Any]] = []
+        missing: list[dict[str, str]] = []
+        for origin in origins:
+            route = routes_by_origin_area.get((origin["originId"], area_id))
+            if not route:
+                missing.append(origin)
+                continue
+            origin_routes.append(
+                {
+                    "originId": origin["originId"],
+                    "label": origin["label"],
+                    "point": origin["point"],
+                    "displayName": origin["displayName"],
+                    "minutes": route.get("minutes"),
+                    "estimatedCostPerPerson": route.get("estimatedCostPerPerson", 0),
+                    "routeRef": f"{route.get('fromAreaId')}->{route.get('toAreaId')}",
+                    "summary": _route_summary(route, data),
+                }
+            )
+        if origin_routes:
+            minutes = [float(item["minutes"]) for item in origin_routes if isinstance(item.get("minutes"), (int, float))]
+            avg = sum(minutes) / len(minutes) if minutes else 0
+            variance = sum((value - avg) ** 2 for value in minutes) / len(minutes) if minutes else 0
+            total_route_cost = sum(float(item.get("estimatedCostPerPerson") or 0) for item in origin_routes)
+        else:
+            minutes = []
+            avg = 0
+            variance = 0
+            total_route_cost = 0
+        fairness[area_id] = {
+            "type": "multi_origin_fairness",
+            "areaId": area_id,
+            "areaName": _route_endpoint_name(area_id, _area_by_id(data)),
+            "originCount": len(origins),
+            "coveredOriginCount": len(origin_routes),
+            "missingOrigins": missing,
+            "originRoutes": origin_routes,
+            "maxMinutes": max(minutes) if minutes else None,
+            "minMinutes": min(minutes) if minutes else None,
+            "avgMinutes": round(avg, 1) if minutes else None,
+            "variance": round(variance, 1) if minutes else None,
+            "estimatedCostTotal": round(total_route_cost, 2),
+            "isComplete": not missing and len(origin_routes) == len(origins),
+        }
+    return fairness
+
+
 def _attach_route_costs(
     candidates: list[dict[str, Any]],
     route_candidates: list[dict[str, Any]],
@@ -903,11 +1348,18 @@ def _attach_route_costs(
         route = best_route_by_area.get(candidate["areaId"])
         if route:
             route_cost = route["estimatedCostTotal"]
+            route_hint_score = round(
+                -(float(route.get("minutes", 0)) / 60)
+                - (float(route.get("estimatedCostPerPerson", 0)) / 40),
+                3,
+            )
             enriched["routeSummary"] = _route_summary(route, data)
             enriched["estimatedRouteCost"] = route_cost
             enriched["estimatedTotalCostWithRoute"] = candidate["estimatedCost"] + route_cost
+            enriched["routeHintScore"] = route_hint_score
+            enriched["score"] = round(float(candidate["score"]) + route_hint_score, 3)
             enriched["routeAdjustedScore"] = round(
-                candidate["score"]
+                enriched["score"]
                 - (route["minutes"] / 45)
                 - (route["estimatedCostPerPerson"] / 30),
                 3,
@@ -916,17 +1368,18 @@ def _attach_route_costs(
             enriched["routeSummary"] = None
             enriched["estimatedRouteCost"] = 0
             enriched["estimatedTotalCostWithRoute"] = candidate["estimatedCost"]
+            enriched["routeHintScore"] = 0.0
             enriched["routeAdjustedScore"] = candidate["score"]
         enriched_candidates.append(enriched)
 
-    if prefer_cross_city:
-        enriched_candidates.sort(
-            key=lambda item: (
-                -item["routeAdjustedScore"],
-                item["estimatedTotalCostWithRoute"],
-                item["name"],
-            )
+    enriched_candidates.sort(
+        key=lambda item: (
+            1 if item.get("isFiller") else 0,
+            -float(item["routeAdjustedScore"] if prefer_cross_city else item["score"]),
+            item["estimatedTotalCostWithRoute"],
+            item["name"],
         )
+    )
     return enriched_candidates
 
 
@@ -941,6 +1394,8 @@ def search_routes(
     people_total = _people_total(structured_demand)
     is_xianyang_to_xian = _is_xianyang_to_xian(structured_demand)
     transport_preference = structured_demand.get("location", {}).get("transportPreference")
+    multi_origins = _origin_points_with_ids(structured_demand)
+    multi_origin_ids = {item["originId"] for item in multi_origins}
     route_candidates: list[dict[str, Any]] = []
     seen_route_keys: set[tuple[str, str, str]] = set()
 
@@ -965,6 +1420,16 @@ def search_routes(
         if route["fromAreaId"] == route["toAreaId"] and route["fromAreaId"] in unique_area_ids:
             add_route(route)
             continue
+        if (
+            len(multi_origin_ids) > 1
+            and route.get("routeType") == "origin_to_area"
+            and route.get("fromAreaId") in multi_origin_ids
+            and route.get("toAreaId") in unique_area_ids
+        ):
+            if transport_preference and route.get("transport") != transport_preference:
+                continue
+            add_route(route)
+            continue
         if route["fromAreaId"] in unique_area_ids and route["toAreaId"] in unique_area_ids:
             add_route(route)
             continue
@@ -979,15 +1444,20 @@ def search_routes(
             item["distanceKm"],
         )
     )
+    fairness_by_area = _route_fairness_by_area(structured_demand, unique_area_ids, route_candidates, data)
     logs = [
         {
             "tool": "search_routes",
             "action": "route_time_lookup",
             "inputAreaCount": len(unique_area_ids),
             "outputCount": len(route_candidates),
+            "multiOriginCount": len(multi_origins),
+            "completeFairnessAreaCount": len([item for item in fairness_by_area.values() if item.get("isComplete")]),
+            "routeFairnessByArea": fairness_by_area,
         }
     ]
-    return route_candidates[:40], logs
+    route_limit = 80 if len(multi_origins) > 1 else 40
+    return route_candidates[:route_limit], logs
 
 
 def _build_supply_status(
@@ -1056,6 +1526,7 @@ def search_supply(structured_demand: dict[str, Any]) -> dict[str, Any]:
         item["areaId"] for item in [*activity_candidates[:10], *restaurant_candidates[:10]]
     ]
     route_candidates, route_logs = search_routes(structured_demand, area_ids, data)
+    route_fairness_by_area = _route_fairness_by_area(structured_demand, area_ids, route_candidates, data)
     activity_candidates = _attach_route_costs(
         activity_candidates, route_candidates, data, prefer_cross_city
     )
@@ -1071,6 +1542,7 @@ def search_supply(structured_demand: dict[str, Any]) -> dict[str, Any]:
         "activityCandidates": activity_candidates,
         "restaurantCandidates": restaurant_candidates,
         "routeCandidates": route_candidates,
+        "routeFairnessByArea": route_fairness_by_area,
         "supplyStatus": supply_status,
         "filteredOut": [*filtered_activities, *filtered_restaurants],
         "toolLogs": [

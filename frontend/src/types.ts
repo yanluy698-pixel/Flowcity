@@ -32,6 +32,12 @@ export type ChatTurn = {
   error?: string;
 };
 
+export type ModifyDraft = {
+  label: string;
+  suggestion: string;
+  systemPrompt: string;
+};
+
 export type TimelineItem = {
   start?: string;
   end?: string;

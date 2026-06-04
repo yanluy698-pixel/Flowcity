@@ -39,9 +39,90 @@ def validate_expected_examples(examples: list[dict[str, Any]]) -> list[str]:
 
     for example in examples:
         example_id = example["id"]
-        demand = example["expectedStructuredDemand"]
+        demand = extractor.normalize_structured_demand(
+            json.loads(json.dumps(example["expectedStructuredDemand"], ensure_ascii=False)),
+            example.get("userInput"),
+        )
         validation_errors = extractor.basic_validate(demand, schema)
         errors.extend(f"{example_id}: {error}" for error in validation_errors)
+
+    return errors
+
+
+def _base_semantic_test_demand(raw_input: str) -> dict[str, Any]:
+    return extractor.normalize_structured_demand(
+        {
+            "rawInput": raw_input,
+            "scene": {"primaryType": "open", "confidence": 0.5, "tags": []},
+            "timeWindow": {
+                "dateText": "周六",
+                "startTime": "14:00",
+                "endTime": "18:00",
+                "durationHours": 4,
+                "isFlexible": True,
+            },
+            "people": {"total": 2, "adults": 2, "children": [], "seniors": [], "relationship": "friends", "specialNeeds": []},
+            "budget": {"maxTotal": None, "perPerson": None, "currency": "CNY", "flexibility": "unknown"},
+            "location": {
+                "startPoint": None,
+                "originPoints": [],
+                "preferredArea": None,
+                "crossCityIntent": {"enabled": False, "fromCity": None, "toCity": None},
+                "maxTravelMinutes": None,
+                "transportPreference": None,
+                "distancePreference": None,
+            },
+            "preferences": {"activityTypes": [], "foodTags": [], "experienceTags": [], "avoidTags": []},
+            "constraints": {"hard": [], "soft": [], "dynamic": []},
+            "potentialConflicts": [],
+            "expectedOutput": {"planFormat": "timeline_plan", "mustInclude": ["时间轴", "餐饮安排", "预算估算", "风险提示"]},
+            "assumptions": [],
+            "clarificationQuestions": [],
+        },
+        raw_input,
+    )
+
+
+def check_semantic_bridge_behavior() -> list[str]:
+    errors: list[str] = []
+
+    explicit = _base_semantic_test_demand("第一次和有好感的女生约会，她特别爱市井大排档烤肉。")
+    social = explicit.get("socialIntent", {})
+    preferred = set(social.get("preferredVibes", []))
+    avoid = set(social.get("avoidVibes", []))
+    if "大排档" not in preferred and "市井大排档" not in preferred:
+        errors.append("semantic_bridge: explicit 大排档 preference should enter preferredVibes")
+    if preferred & avoid:
+        errors.append(f"semantic_bridge: preferred/avoid collision should be removed, got {sorted(preferred & avoid)}")
+    supply = mock_api.search_supply(explicit)
+    restaurant_text = json.dumps(supply.get("restaurantCandidates", [])[:8], ensure_ascii=False)
+    if "烤肉" not in restaurant_text and "烧烤" not in restaurant_text:
+        errors.append("semantic_bridge: explicit 烤肉/大排档 preference should keep related restaurants in top candidates")
+
+    unknown = _base_semantic_test_demand("周六下午两人去高新吃个饭。")
+    unknown["socialIntent"] = {
+        "primary": "unknown",
+        "subScenario": "unknown",
+        "preferredVibes": [],
+        "avoidVibes": [],
+        "evidence": ["信息较少"],
+    }
+    unknown["location"]["preferredArea"] = "高新"
+    unknown_supply = mock_api.search_supply(unknown)
+    unknown_restaurants = unknown_supply.get("restaurantCandidates", [])[:5]
+    if any(float(item.get("semanticScoreDelta") or 0) != 0 for item in unknown_restaurants):
+        errors.append("semantic_bridge: unknown intent without explicit tags should have zero semantic score")
+    if not all("高新" in str(item.get("areaName") or item.get("name") or "") for item in unknown_restaurants[:3]):
+        errors.append("semantic_bridge: unknown high-tech meal should rank by area/base quality, not JSON order")
+
+    hard_hotpot = _base_semantic_test_demand("周六晚上就想吃火锅，别的不要。")
+    hard_hotpot["preferences"]["foodTags"] = ["火锅"]
+    hard_hotpot["constraints"]["hard"] = ["只想吃火锅"]
+    soft_hotpot = _base_semantic_test_demand("周六晚上想吃点火锅也行。")
+    soft_hotpot["preferences"]["foodTags"] = ["火锅"]
+    soft_supply = mock_api.search_supply(soft_hotpot)
+    if len(soft_supply.get("restaurantCandidates", [])) <= 1:
+        errors.append("semantic_bridge: soft hotpot preference should not clear other feasible restaurants")
 
     return errors
 
@@ -784,6 +865,7 @@ def main() -> int:
     errors.extend(check_stage2_normalization())
     errors.extend(check_stage3_compatibility(examples))
     errors.extend(check_stage3_behavior(examples))
+    errors.extend(check_semantic_bridge_behavior())
     errors.extend(check_stage4_planner(examples))
     errors.extend(check_stage5_validator(examples))
     errors.extend(check_stage6_executor(examples))

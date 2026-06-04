@@ -629,6 +629,20 @@
       "dateText": "周末",
       "timeSlots": [
         {
+          "start": "13:00",
+          "end": "16:00",
+          "ticketLeft": 20,
+          "queueMinutes": 4,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "16:00",
+          "end": "18:30",
+          "ticketLeft": 18,
+          "queueMinutes": 5,
+          "crowdLevel": "low"
+        },
+        {
           "start": "18:30",
           "end": "20:00",
           "ticketLeft": 20,
@@ -1410,6 +1424,150 @@
           "crowdLevel": "medium"
         }
       ]
+    },
+    {
+      "poiId": "act_xa_064",
+      "dateText": "周末",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "18:00",
+          "ticketLeft": 40,
+          "queueMinutes": 5,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "18:00",
+          "end": "21:30",
+          "ticketLeft": 35,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_065",
+      "dateText": "周末",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "18:00",
+          "ticketLeft": 45,
+          "queueMinutes": 5,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "18:00",
+          "end": "21:30",
+          "ticketLeft": 38,
+          "queueMinutes": 8,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_066",
+      "dateText": "周末",
+      "timeSlots": [
+        {
+          "start": "14:00",
+          "end": "18:00",
+          "ticketLeft": 40,
+          "queueMinutes": 4,
+          "crowdLevel": "low"
+        },
+        {
+          "start": "18:00",
+          "end": "21:30",
+          "ticketLeft": 34,
+          "queueMinutes": 7,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_067",
+      "dateText": "周末",
+      "timeSlots": [
+        {
+          "start": "13:00",
+          "end": "18:00",
+          "ticketLeft": 80,
+          "queueMinutes": 0,
+          "crowdLevel": "medium"
+        },
+        {
+          "start": "18:00",
+          "end": "21:30",
+          "ticketLeft": 70,
+          "queueMinutes": 0,
+          "crowdLevel": "medium"
+        }
+      ]
+    },
+    {
+      "poiId": "act_xa_068",
+      "dateText": "周末",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:00", "ticketLeft": 45, "queueMinutes": 5, "crowdLevel": "low" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 36, "queueMinutes": 8, "crowdLevel": "medium" }
+      ]
+    },
+    {
+      "poiId": "act_xa_069",
+      "dateText": "周末",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:30", "ticketLeft": 120, "queueMinutes": 0, "crowdLevel": "medium" },
+        { "start": "18:30", "end": "22:30", "ticketLeft": 120, "queueMinutes": 0, "crowdLevel": "high" }
+      ]
+    },
+    {
+      "poiId": "act_xa_070",
+      "dateText": "周末",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:00", "ticketLeft": 40, "queueMinutes": 5, "crowdLevel": "low" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 30, "queueMinutes": 8, "crowdLevel": "medium" }
+      ]
+    },
+    {
+      "poiId": "act_xa_071",
+      "dateText": "周末",
+      "timeSlots": [
+        { "start": "13:00", "end": "18:00", "ticketLeft": 80, "queueMinutes": 0, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 70, "queueMinutes": 0, "crowdLevel": "medium" }
+      ]
+    },
+    {
+      "poiId": "act_xa_072",
+      "dateText": "周末",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:00", "ticketLeft": 35, "queueMinutes": 4, "crowdLevel": "low" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 28, "queueMinutes": 7, "crowdLevel": "medium" }
+      ]
+    },
+    {
+      "poiId": "act_xa_073",
+      "dateText": "周末",
+      "timeSlots": [
+        { "start": "13:00", "end": "18:00", "ticketLeft": 80, "queueMinutes": 0, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 70, "queueMinutes": 0, "crowdLevel": "medium" }
+      ]
+    },
+    {
+      "poiId": "act_xa_074",
+      "dateText": "周末",
+      "timeSlots": [
+        { "start": "10:00", "end": "18:00", "ticketLeft": 120, "queueMinutes": 0, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "22:00", "ticketLeft": 100, "queueMinutes": 0, "crowdLevel": "medium" }
+      ]
+    },
+    {
+      "poiId": "act_xa_075",
+      "dateText": "周末",
+      "timeSlots": [
+        { "start": "10:00", "end": "18:00", "ticketLeft": 100, "queueMinutes": 0, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "22:00", "ticketLeft": 80, "queueMinutes": 0, "crowdLevel": "medium" }
+      ]
     }
   ],
   "restaurantAvailability": [
@@ -1918,6 +2076,30 @@
       "queueMinutes": 12,
       "tableAvailable": true,
       "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_053",
+      "dateText": "周末",
+      "queueMinutes": 8,
+      "tableAvailable": true,
+      "availableSlots": [
+        "17:30",
+        "18:00",
+        "18:30",
+        "19:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_054",
+      "dateText": "周末",
+      "queueMinutes": 9,
+      "tableAvailable": true,
+      "availableSlots": [
+        "17:30",
+        "18:00",
+        "18:30",
+        "19:00"
+      ]
     }
   ]
 }

@@ -20,6 +20,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+import intent_taxonomy
+
 
 ROOT = Path(__file__).resolve().parent
 SCHEMA_PATH = ROOT / "schema.json"
@@ -320,7 +322,17 @@ def _time_from_raw(raw_input: str) -> dict[str, Any]:
 
     start_time = None
     end_time = None
-    if "6点半" in raw_input or "六点半" in raw_input:
+    range_match = re.search(r"(\d{1,2})\s*点\s*(?:到|至|-|~)\s*(\d{1,2})\s*点", raw_input)
+    if range_match:
+        start_hour = int(range_match.group(1))
+        end_hour = int(range_match.group(2))
+        if "下午" in raw_input and start_hour < 12:
+            start_hour += 12
+        if end_hour < start_hour:
+            end_hour += 12
+        start_time = f"{start_hour:02d}:00"
+        end_time = f"{end_hour:02d}:00"
+    elif "6点半" in raw_input or "六点半" in raw_input:
         start_time = "18:30"
     else:
         for match in re.finditer(r"(\d{1,2})\s*点", raw_input):
@@ -331,11 +343,13 @@ def _time_from_raw(raw_input: str) -> dict[str, Any]:
                 hour += 12
             start_time = f"{hour:02d}:00"
             break
-    if "10点前" in raw_input or "十点前" in raw_input:
+    if end_time:
+        pass
+    elif "10点前" in raw_input or "十点前" in raw_input:
         end_time = "22:00"
-    elif "7点" in raw_input or "七点" in raw_input:
+    elif "7点前" in raw_input or "七点前" in raw_input:
         end_time = "19:00"
-    elif "6点" in raw_input or "六点" in raw_input:
+    elif "6点前" in raw_input or "六点前" in raw_input:
         end_time = "18:00"
     if start_time is None and end_time and "下午" in raw_input:
         start_time = "13:00"
@@ -346,6 +360,22 @@ def _time_from_raw(raw_input: str) -> dict[str, Any]:
         "durationHours": None,
         "isFlexible": start_time is None or end_time is None,
     }
+
+
+def _minutes_from_time_text(value: Any) -> int | None:
+    if not isinstance(value, str):
+        return None
+    match = re.match(r"^(\d{1,2}):(\d{2})$", value.strip())
+    if not match:
+        return None
+    return int(match.group(1)) * 60 + int(match.group(2))
+
+
+def _has_explicit_time_range(raw_input: str) -> bool:
+    return bool(
+        re.search(r"\d{1,2}\s*点\s*(?:到|至|-|~)\s*\d{1,2}\s*点", raw_input)
+        or any(keyword in raw_input for keyword in ("玩到", "逛到", "待到", "坐到", "结束前", "之前", "前回"))
+    )
 
 
 def _people_from_raw(raw_input: str) -> dict[str, Any]:
@@ -415,18 +445,44 @@ def _location_from_raw(raw_input: str) -> dict[str, Any]:
     start_point = None
     preferred_area = None
     origin_points: list[dict[str, str]] = []
+
+    if "熙地港" in raw_input:
+        preferred_area = "熙地港"
+    elif "小寨" in raw_input or "赛格" in raw_input:
+        preferred_area = "小寨"
+    elif "高新" in raw_input or "大都荟" in raw_input:
+        preferred_area = "高新"
+    elif "钟楼" in raw_input:
+        preferred_area = "钟楼"
+    elif any(keyword in raw_input for keyword in ("大雁塔", "大唐不夜城", "曲江大悦城")):
+        preferred_area = "曲江"
+    elif "咸阳秦都" in raw_input or "秦都站" in raw_input or "渭水校区" in raw_input:
+        preferred_area = "西安市区"
+
     if "曲江池" in raw_input:
         start_point = "曲江池附近"
-        preferred_area = "曲江"
-    elif "钟楼地铁站" in raw_input or "钟楼" in raw_input:
+        if preferred_area is None:
+            preferred_area = "曲江"
+    elif "钟楼地铁站" in raw_input:
         start_point = "钟楼地铁站集合" if "地铁站" in raw_input else None
-        preferred_area = "钟楼"
+        if preferred_area is None:
+            preferred_area = "钟楼"
+    elif "小寨" in raw_input or "赛格" in raw_input:
+        start_point = "小寨附近" if "附近" in raw_input else None
+        if preferred_area is None:
+            preferred_area = "小寨"
+    elif "高新" in raw_input or "大都荟" in raw_input:
+        start_point = "高新附近" if "附近" in raw_input else None
+        if preferred_area is None:
+            preferred_area = "高新"
     elif "咸阳秦都" in raw_input or "秦都站" in raw_input:
         start_point = "咸阳秦都站附近"
-        preferred_area = "西安市区"
+        if preferred_area is None:
+            preferred_area = "西安市区"
     elif "渭水校区" in raw_input:
         start_point = "长安大学渭水校区"
-        preferred_area = "西安市区"
+        if preferred_area is None:
+            preferred_area = "西安市区"
     if "长安大学" in raw_input and "西安交大" in raw_input and "西北大学" in raw_input and "陕师大" in raw_input:
         origin_points = [
             {"label": "同伴1", "point": "长安大学"},
@@ -558,6 +614,88 @@ def _merge_list_tags(existing: Any, additions: list[str]) -> list[str]:
     return merged
 
 
+def _compact_evidence(raw_input: str, keywords: list[str]) -> list[str]:
+    evidence: list[str] = []
+    for keyword in keywords:
+        if keyword in raw_input and keyword not in evidence:
+            evidence.append(keyword)
+    return evidence
+
+
+def _infer_social_intent(result: dict[str, Any], raw_input: str) -> dict[str, Any]:
+    social = result.get("socialIntent") if isinstance(result.get("socialIntent"), dict) else {}
+    text_parts = [
+        raw_input,
+        str(result.get("scene", {}).get("primaryType") or ""),
+        str(result.get("people", {}).get("relationship") or ""),
+        " ".join(str(item) for item in result.get("scene", {}).get("tags", [])),
+        " ".join(str(item) for item in result.get("people", {}).get("specialNeeds", [])),
+        " ".join(str(item) for item in result.get("preferences", {}).get("activityTypes", [])),
+        " ".join(str(item) for item in result.get("preferences", {}).get("foodTags", [])),
+        " ".join(str(item) for item in result.get("preferences", {}).get("experienceTags", [])),
+        " ".join(str(item) for item in result.get("constraints", {}).get("hard", [])),
+        " ".join(str(item) for item in result.get("constraints", {}).get("soft", [])),
+    ]
+    text = " ".join(text_parts)
+    preferred: list[str] = []
+    avoid: list[str] = []
+    evidence: list[str] = []
+    sub_scenario = str(social.get("subScenario") or social.get("sub_scenario") or "")
+
+    def add(values: list[str], *items: str) -> None:
+        for item in items:
+            if item and item not in values:
+                values.append(item)
+
+    valid_primary = {
+        "light_date",
+        "deep_talk",
+        "group_bonding",
+        "tourist_sightseeing",
+        "family_care",
+        "casual_meetup",
+        "unknown",
+    }
+    primary = str(social.get("primary") or "unknown")
+    if primary not in valid_primary:
+        primary = "unknown"
+
+    cross_city = result.get("location", {}).get("crossCityIntent", {})
+    is_xianyang_trip = (
+        bool(cross_city.get("enabled"))
+        and "咸阳" in str(cross_city.get("fromCity") or "")
+        and "西安" in str(cross_city.get("toCity") or "")
+    )
+    inferred_primary, inferred_sub_scenario, inferred_evidence = intent_taxonomy.infer_primary_and_sub_scenario(
+        text,
+        scene_type=str(result.get("scene", {}).get("primaryType") or "open"),
+        relationship=str(result.get("people", {}).get("relationship") or ""),
+        cross_city=is_xianyang_trip,
+        existing_primary=primary,
+    )
+    primary = inferred_primary
+    sub_scenario = sub_scenario or inferred_sub_scenario
+    evidence.extend(inferred_evidence)
+
+    add(preferred, *[str(item) for item in social.get("preferredVibes", []) if item])
+    add(avoid, *[str(item) for item in social.get("avoidVibes", []) if item])
+    add(evidence, *[str(item) for item in social.get("evidence", []) if item])
+    if not evidence and raw_input:
+        evidence.append(raw_input[:40])
+
+    inferred = {
+        "primary": primary,
+        "subScenario": sub_scenario or intent_taxonomy.default_sub_scenario(primary),
+        "preferredVibes": preferred,
+        "avoidVibes": avoid,
+        "evidence": evidence[:6],
+    }
+    for key in ("confidence", "explicitPreferredVibes", "explicitAvoidVibes", "limits", "profileSource"):
+        if key in social:
+            inferred[key] = social[key]
+    return intent_taxonomy.complete_social_intent(inferred, raw_input)
+
+
 def _augment_missing_from_raw(result: dict[str, Any], raw_input: str) -> None:
     raw_time = _time_from_raw(raw_input)
     time_window = result.setdefault("timeWindow", {})
@@ -574,6 +712,17 @@ def _augment_missing_from_raw(result: dict[str, Any], raw_input: str) -> None:
             time_window["startTime"] = raw_time["startTime"]
         if time_window.get("startTime") and time_window.get("endTime"):
             time_window["isFlexible"] = bool(time_window.get("isFlexible") and False)
+        start_minutes = _minutes_from_time_text(time_window.get("startTime"))
+        end_minutes = _minutes_from_time_text(time_window.get("endTime"))
+        if (
+            start_minutes is not None
+            and end_minutes is not None
+            and end_minutes <= start_minutes
+            and not _has_explicit_time_range(raw_input)
+        ):
+            time_window["endTime"] = None
+            time_window["durationHours"] = None
+            time_window["isFlexible"] = True
 
     raw_people = _people_from_raw(raw_input)
     people = result.setdefault("people", {})
@@ -649,6 +798,7 @@ def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str 
         result["rawInput"] = fallback_raw_input
         _augment_missing_from_raw(result, fallback_raw_input)
     _normalize_child_accompanying_adult(result, raw_input)
+    result["socialIntent"] = _infer_social_intent(result, raw_input)
 
     has_low_cost_intent = _has_low_cost_intent(raw_input)
     has_free_preference = _has_free_preference(raw_input)

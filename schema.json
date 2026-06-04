@@ -8,6 +8,7 @@
   "required": [
     "rawInput",
     "scene",
+    "socialIntent",
     "timeWindow",
     "people",
     "budget",
@@ -51,6 +52,92 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "从用户需求中识别出的场景标签，例如亲子、约会、citywalk、放松、拍照、聚餐。"
+        }
+      }
+    },
+    "socialIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "preferredVibes", "avoidVibes", "evidence"],
+      "properties": {
+        "primary": {
+          "type": "string",
+          "enum": [
+            "light_date",
+            "deep_talk",
+            "group_bonding",
+            "tourist_sightseeing",
+            "family_care",
+            "casual_meetup",
+            "unknown"
+          ],
+          "description": "用户隐含的社交根本目的，用于后续氛围、行为和画像排序。"
+        },
+        "preferredVibes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "应强化的氛围标签，例如轻约会、安静慢聊、兄弟局、游客地标、亲子照顾。"
+        },
+        "subScenario": {
+          "type": "string",
+          "enum": [
+            "first_meet",
+            "romantic_step",
+            "interactive_date",
+            "bestie_tea",
+            "brother_vent",
+            "business_casual",
+            "active_carnival",
+            "brain_battle",
+            "night_feast",
+            "kid_energy_drain",
+            "senior_care",
+            "family_reunion",
+            "landmark_checkin",
+            "local_food_hunt",
+            "casual",
+            "unknown"
+          ],
+          "description": "一级意图下的细分场景，由 LLM 选择或后端按 primary 兜底。"
+        },
+        "avoidVibes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "应避免的氛围或体验，例如油腻快餐、尴尬正式、无法聊天、过度消耗体力。"
+        },
+        "explicitPreferredVibes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "用户原话显式喜欢或要求的语义标签，优先级高于默认画像避雷。"
+        },
+        "explicitAvoidVibes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "用户原话显式避开的语义标签，优先级高于默认画像偏好。"
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "画像补全得到的体力、噪音、互动等边界。"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "模型或本地规则对该社交画像的置信度。"
+        },
+        "profileSource": {
+          "type": "string",
+          "description": "画像来源，例如 llm+taxonomy 或 llm+explicit。"
+        },
+        "taxonomyKey": {
+          "type": ["string", "null"],
+          "description": "后端 taxonomy 命中的 primary.subScenario key。"
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "支撑该 socialIntent 的用户原话或结构化线索。"
         }
       }
     },

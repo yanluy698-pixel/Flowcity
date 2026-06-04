@@ -193,8 +193,13 @@ def _pending_actions(final_plan: dict[str, Any], mock_supply: dict[str, Any]) ->
             availability = candidate.get("availability") or {}
             slots = availability.get("availableSlots", [])
             if slots:
-                action_type = "mock_restaurant_reservation"
-                description = f"用户确认后模拟预约餐厅，优先时段 {slots[0]}。"
+                planned_slot = item.get("start")
+                if planned_slot in slots:
+                    action_type = "mock_restaurant_reservation"
+                    description = f"用户确认后模拟预约餐厅，预约时段 {planned_slot}。"
+                else:
+                    action_type = "reservation_slot_mismatch_blocked"
+                    description = "餐厅计划到店时间没有命中可预约时段，执行层拒绝生成预约号。"
             else:
                 action_type = "mock_queue_number"
                 description = "用户确认后模拟线上取号。"
@@ -208,6 +213,8 @@ def _pending_actions(final_plan: dict[str, Any], mock_supply: dict[str, Any]) ->
                         "poiId": poi_id,
                         "dateText": availability.get("dateText"),
                     },
+                    "reservedSlot": item.get("start") if action_type == "mock_restaurant_reservation" else None,
+                    "availableSlotsAtDraft": slots,
                     **_deal_preview_fields(candidate),
                 }
             )
@@ -348,6 +355,19 @@ def _restaurant_runtime_check(
                 blocking=True,
                 expected="availableSlots 非空",
                 actual=[],
+                runtime_status=status,
+            )
+        )
+    reserved_slot = action.get("reservedSlot")
+    if action.get("actionType") == "mock_restaurant_reservation" and reserved_slot and reserved_slot not in (status.get("availableSlots") or []):
+        issues.append(
+            _runtime_issue(
+                "RUNTIME_RESERVATION_SLOT_GONE",
+                action,
+                f"确认前餐厅 {reserved_slot} 预约时段已不可用，不能继续生成 Mock 预约号。",
+                blocking=True,
+                expected=f"availableSlots 包含 {reserved_slot}",
+                actual=status.get("availableSlots") or [],
                 runtime_status=status,
             )
         )
@@ -669,7 +689,7 @@ def build_execution_draft(
         timeline_plan, validation_result, replan_result
     )
     validation_status = final_validation.get("status")
-    blocked = validation_status == "failed"
+    blocked = validation_status == "failed" or final_plan.get("status") == "failed"
     draft_status = "blocked" if blocked else "warning" if validation_status == "warning" else "ready"
 
     pending_actions = [] if blocked else _pending_actions(final_plan, mock_supply)
@@ -683,7 +703,13 @@ def build_execution_draft(
         "alternativeCandidates": _alternative_candidates(mock_supply, final_plan),
         "estimatedTotalCost": (final_plan.get("budgetEstimate") or {}).get("totalCost", 0),
         "executionBoundary": "Mock only: no real booking, reservation, queueing, payment, or Meituan API call.",
-        "blockedReason": "Stage 5 validation failed; execution is not allowed." if blocked else None,
+        "blockedReason": (
+            "Timeline planning failed; execution is not allowed."
+            if final_plan.get("status") == "failed"
+            else "Stage 5 validation failed; execution is not allowed."
+            if blocked
+            else None
+        ),
     }
 
 
@@ -714,6 +740,18 @@ def confirm_execution(
     for action in execution_draft.get("pendingActions", []):
         action_type = action.get("actionType")
         poi_id = action.get("poiId")
+        if action_type == "reservation_slot_mismatch_blocked":
+            issue = _runtime_issue(
+                "EXECUTOR_RESTAURANT_SLOT_MISMATCH",
+                action,
+                "执行草案中的餐厅时间没有命中可预约时段，已阻断 Mock 预约号生成。",
+                blocking=True,
+                expected=action.get("availableSlotsAtDraft") or [],
+                actual=action.get("reservedSlot"),
+            )
+            runtime_issues.append(issue)
+            blocked_actions.append({**action, "status": "draft_blocked", "runtimeIssues": [issue]})
+            continue
         action_runtime_status, action_issues = _runtime_check_action(action, runtime_status)
         runtime_issues.extend(action_issues)
         if action_runtime_status and action_runtime_status.get("runtimeState") == "changed":

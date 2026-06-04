@@ -4,413 +4,212 @@
 
 FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent。
 
-它区别于传统搜索推荐：不是让用户自己在大量商家和活动中筛选，而是让用户用一句自然语言表达目标后，系统自动拆解时间、预算、距离、人群、饮食、排队、预约等多重约束，并最终生成可履约、可执行的出行方案。
-
-一句话定位：
+它的核心不是“给用户搜几个店”，而是把用户一句话里的隐性目标、硬边界、软偏好、时间预算、同行关系和履约风险拆清楚，再组合出能执行的时间轴。
 
 ```text
-FlowCity = 开放式需求理解 + 多约束拆解 + 本地生活工具调用 + 履约校验 + 确认执行闭环
+FlowCity = 开放式需求理解 + 语义画像桥 + 本地生活供给打分 + 时间轴调度 + 履约校验 + 交互式修改
 ```
 
-## 2. 阶段一结论
+## 2. 这次升级解决的问题
 
-阶段一已经明确：
+旧问题主要有三类：
 
-- 三个场景不是产品能力边界，只是 Demo 验证样例。
-- 产品核心是开放式需求理解和个性化多约束拆解。
-- 美团业务链路应覆盖用户需求、商家供给、平台匹配、交易转化和履约执行。
-- 技术路线是 LLM 负责理解和规划，规则与工具负责事实查询和履约校验。
+- LLM 一步跨太大：既要理解“暧昧对象不尴尬”，又要直接决定具体 POI，结果不稳定。
+- 后端容易写死：如果用 `if light_date then 避开面馆` 这类逻辑，场景一多就会变成无法维护的分支堆。
+- 交互像机器：用户说“晚饭早一点”或“不安排活动”时，系统直接失败或硬重排，没有像人一样解释取舍。
 
-## 3. 阶段二目标与优化
-
-阶段二完成 Constraint Extractor，也就是需求结构化器。
-
-输入：
+本轮改成：
 
 ```text
-用户自然语言需求
+LLM 负责共情抽取 -> 后端 taxonomy 补画像 -> 矩阵打分召回 -> Scheduler 确定性组合 -> 冲突时先引导确认
 ```
 
-输出：
+## 3. 语义画像桥
+
+LLM 不再每次输出一大堆完整画像，也不直接决定去哪。它只负责输出较小的结构：
 
 ```text
-符合 schema.json 的结构化 JSON
+socialIntent.primary
+socialIntent.subScenario
+explicitPreferredVibes
+explicitAvoidVibes
+confidence
+evidence
 ```
 
-阶段二重点回答：
+后端的 `intent_taxonomy.py` 保存完整画像库：
 
-- 用户说了什么？
-- 里面包含哪些时间、人群、预算、地点和偏好？
-- 哪些是硬约束？
-- 哪些是软偏好？
-- 有哪些潜在冲突？
-- 后续 Planner 应该输出什么类型的方案？
+- 每个 `primary/subScenario` 的默认 `preferredVibes`
+- 默认 `avoidVibes`
+- 画像权重
+- 显式偏好 boost
+- unknown/casual 的降级策略
 
-本轮阶段二已针对真实复杂需求做过优化：
+这样做的好处是：
 
-- 关系模糊：例如“喜欢的女生”不直接判定为稳定情侣关系，而是标记为 `pursuing` 或 `ambiguous`。
-- 多地点相聚：记录多人不同出发地，后续由 Planner 选择折中集合点。
-- 城市群/跨城：识别咸阳到西安等跨城意图，但不擅自生成路线。
-- 矛盾需求：例如“不想花钱但不想累”，写入 `potentialConflicts`。
-- 定向活动：例如“就想滑雪/酒吧”，进入硬约束，而不是泛化成普通推荐。
-- 防止脑补：不把用户没说的“少排队”“citywalk”“氛围好”等自动写入偏好。
+- Prompt 里只放短版 taxonomy，减少上下文膨胀。
+- 完整画像留在代码配置里，稳定、可测试、可版本管理。
+- 新增场景主要改 taxonomy 和数据标签，不需要在打分器里加业务 if。
 
-阶段二不做：
+## 4. 显式偏好怎么处理
 
-- 不做 Mock API。
-- 不做 POI 数据。
-- 不做真实路线。
-- 不做预约或下单。
-- 不做完整履约校验。
+原则：用户原话优先于默认刻板画像，但不高于物理硬约束。
 
-## 4. 当前模块说明
-
-### schema.json
-
-定义大模型输出的结构化需求格式。它既给大模型参考，也给后端程序做校验。
-
-关键字段：
-
-- `rawInput`：用户原话。
-- `scene`：场景判断。
-- `timeWindow`：时间窗口。
-- `people`：同行人和关系。
-- `budget`：预算。
-- `location`：出发地、区域、距离偏好、多出发地、跨城意图。
-- `preferences`：活动、餐饮、体验偏好。
-- `constraints`：硬约束、软偏好、动态约束。
-- `potentialConflicts`：潜在冲突。
-- `expectedOutput`：后续方案应包含什么。
-
-### prompt.md
-
-定义给大模型的抽取指令。它告诉模型：
-
-- 只做需求理解，不做规划。
-- 只输出 JSON，不输出解释。
-- 不编造用户没说的信息。
-- 按 `schema.json` 的字段输出。
-
-### examples.json
-
-存放 8 套标准样例：
-
-- 亲子半日游。
-- 情侣约会。
-- 朋友小聚。
-- 多大学相聚。
-- 喜欢的女生但关系未定。
-- 咸阳到西安跨城出行。
-- 矛盾需求：不花钱但不想累。
-- 定向活动：一定要滑雪。
-
-它有两个作用：
-
-- 给大模型做 few-shot 示例。
-- 给开发者做测试基准。
-
-### extractor.py
-
-最小需求结构化原型。
-
-流程：
+例如默认画像认为 `light_date.first_meet` 应避开“大排档/高噪/太市井”。但用户明确说：
 
 ```text
-读取 prompt.md
-读取 schema.json
-读取 examples.json
-拼接最终 Prompt
-调用 DeepSeek API
-解析 JSON
-按 schema.json 校验
-打印结果
+第一次和有好感的女生约会，她特别爱市井大排档烤肉。
 ```
 
-### test_examples.py
+系统会做排他合并：
 
-阶段二批量测试脚本。
+- “市井大排档/烤肉”进入高权重 preferred。
+- 与它冲突的默认 avoid 被剔除或削弱。
+- 不会出现同一个标签既 preferred 又 avoid 的精神分裂。
+- 仍然不会击穿营业、余票、座位、预算、儿童适龄等物理硬约束。
 
-默认不调用大模型，检查：
+## 5. 矩阵打分怎么理解
 
-- 8 个 examples 是否符合 `schema.json`。
-- 8 个 examples 是否能进入阶段三 `mock_api.search_supply`。
-- 阶段三关键行为是否符合业务约束，例如定向滑雪不返回展览、咸阳入城路线必须带成本、不想花钱不能被预算 0 误杀。
+这里的“矩阵”不是复杂数学库，而是把“用户画像标签”和“候选 POI 标签”放到同一张语义表里做交集加权。
 
-可选 `--llm` 调用 DeepSeek 批量评测模型输出质量。
-
-## 5. 当前模型配置
-
-当前默认使用 DeepSeek：
+候选总分：
 
 ```text
-model: deepseek-v4-flash
-base_url: https://api.deepseek.com
-JSON Output: enabled
+candidateScore = baseQualityScore + semanticScoreDelta + constraintFitScore + routeHintScore
 ```
 
-真实 API Key 放在 `.env` 中，不进入 Git。
+字段含义：
 
-## 6. 后续阶段衔接
+- `baseQualityScore`：评分、排队短、可预约/有座、预算友好、商圈匹配。
+- `semanticScoreDelta`：用户画像和 POI 标签的正负交集，例如“安静慢聊”命中加分，“高噪高动”踩雷扣分。
+- `constraintFitScore`：明确约束匹配，例如儿童友好、清淡低脂、低体力、低成本、目标商圈。
+- `routeHintScore`：轻量路线提示，例如同商圈少折腾、跨城路线成本、少走路。
 
-阶段二输出的结构化 JSON 会作为阶段三输入。
+核心点是：大排档本身不是坏标签。它只是在某些画像下可能是避雷，比如“初见轻约会”。如果用户是两个男生兄弟局，大排档可能反而命中“烟火气/轻松/兄弟局”，会加分。
 
-阶段三已经基于这些字段实现第一版函数式 Mock API：
+## 6. Unknown 为什么语义分为 0
 
-- `data/mock_areas.json`：西安商圈数据。
-- `data/mock_activities.json`：活动 POI。
-- `data/mock_restaurants.json`：餐厅 POI。
-- `data/mock_routes.json`：路线/通勤时间。
-- `data/mock_availability.json`：排队、余票、座位和预约状态。
-- `data/mock_deals.json`：团购/套餐库存。
-- `mock_api.py`：读取 Mock 数据，完成硬约束过滤、软偏好打分、供给失败状态和路线成本挂载。
-- `run_flow.py`：串联阶段二和阶段三，支持自然语言输入后直接查询 Mock 供给。
-
-后续接入真实 API 时，供给价格口径需要从 Demo 期的“人均/估算价辅助规划”升级为“可履约真实价格辅助决策”。由于链路最终会进入锁票、预约、团购下单或支付前确认，机器决策不能依赖模糊人均价；API 应直接给出活动票型价、套餐价、团购价、适用人数、库存、有效时段和履约限制。人均价可以保留给用户理解消费水平，但不能作为执行链路的价格依据。
-
-也就是说：
+如果用户只说：
 
 ```text
-阶段二：把用户需求拆清楚
-阶段三：用本地 Mock 数据和工具响应这些需求
+周六下午两人去高新吃个饭。
 ```
 
-阶段三当前不调用大模型。它是确定性工具层，模拟本地生活平台的供给查询能力。
+这种需求没有明显社交意图。此时如果强行补默认画像，比如“随便/放松”，会让有这些标签的店莫名上浮，反而污染结果。
 
-本轮阶段三优化明确了工具层边界：
+所以策略是：
 
-- 不让 `mock_api.py` 重新理解自然语言。它只读取阶段二已经产出的结构化字段，例如 `preferences.activityTypes`、`constraints.hard`、`location.crossCityIntent`、`budget`。
-- 定向活动属于硬约束。例如结构化结果中出现“滑雪”时，阶段三只召回滑雪相关供给；当前 Mock 数据没有滑雪，就返回硬约束失败，而不是推荐展览、手作或书房。
-- 替代建议不在阶段三生成。阶段三只返回机器事实层的失败原因，后续阶段四 Planner 或阶段五 Replanner 再决定如何向用户解释和是否放宽约束。
-- “不想花钱”不等于严格预算 0。阶段三把它处理为免费/低消费优先信号，保留低成本候选，避免误杀所有供给。
-- “咸阳到西安”作为小都市圈周末出行能力进入路线成本。`mock_routes.json` 增加咸阳入城到西安主要商圈的 `cross_city_inbound` 路线，活动/餐厅候选会挂载 `routeSummary`、`estimatedRouteCost`、`estimatedTotalCostWithRoute`。
+- `primary in {"unknown", "casual_meetup"}` 且无显式偏好时，不补默认 vibes。
+- `semanticScoreDelta = 0`。
+- Top-K 不再靠 JSON 文件顺序，而靠 `baseQualityScore/constraintFitScore/routeHintScore`。
 
-阶段三输出：
+这样语义不明确时，系统会退回到更可靠的本地生活基础因素：目标商圈、评分、预算、座位、排队、路线。
+
+## 7. 多轮交互链路
+
+前端时间轴卡片现在支持两种修改：
+
+- 单节点修改：活动、餐厅、路线、过渡点分别有不同隐藏提示词。
+- 整体大改：允许释放活动/餐厅/路线锁，重排整套方案。
+
+用户点击卡片上的“修改”后，输入框上方会出现浅黄色修改上下文块。它不是直接替用户说话，而是把后端需要的结构化上下文一起发给 LLM：
 
 ```text
-activityCandidates
-restaurantCandidates
-routeCandidates
-supplyStatus
-filteredOut
-toolLogs
+targetKind=restaurant/activity/route/filler/whole_plan
+targetTitle
+targetTimeRange
+targetPoiId
+allowedPatchKeys
+用户补充
 ```
 
-其中 `filteredOut` 用于解释为什么某些活动或餐厅不可用，例如不适龄、超预算、无票、无座、排队过久或缺少目标日期动态状态。
+后端据此知道这不是普通闲聊，而是有目标的局部修改。
 
-`supplyStatus` 用于告诉后续 Planner 阶段三供给查询是否完整可用：
+## 8. 冲突时怎么像人一样回复
 
-- `ok`：主要供给候选可用。
-- `partial`：部分供给缺失，例如有活动没餐厅。
-- `failed`：硬约束下没有可用供给，例如“必须滑雪”但 Mock 供给池没有滑雪。
+当用户说“晚饭早一点”“早点回家”“这段路线别折腾”这类可能影响时间窗/营业/路线的需求时，系统不会立刻硬排或直接报错。
 
-## 7. 阶段四：规则约束下的 LLM Planner
-
-阶段四已经完成第一版 AI 规划能力。它不提前做阶段五 Validator，也不做执行链路，而是专注回答一个问题：
+它会先进入引导确认：
 
 ```text
-给定用户结构化需求和 Mock 供给事实，如何组合出一个合理的周末活动时间轴方案？
+当前修改可能影响正餐时间和可预约餐厅。
+4点多正餐选择会少一点，我建议：
+1. 16:30 简餐/茶点垫一下
+2. 保留原餐厅，提前到最早可约
+3. 放宽到 17:30 正餐
 ```
 
-阶段四输入：
+这些选项不是泛泛聊天，每个选项都能转成后端补丁，例如：
 
 ```text
-structuredDemand + mockSupply
+mealTiming=earlier
+restaurantLock=keep/release
+timeWindowEnd=null
+budgetFlex=strict/flexible
 ```
 
-阶段四输出：
+## 9. 当前端到端流程
 
 ```text
-timelinePlan
+1. 用户一句话输入
+2. router 判断新规划/追问/解释/确认/局部修改
+3. extractor 调 LLM 产出结构化需求
+4. normalize_structured_demand 补齐字段并调用 taxonomy
+5. mock_api 搜活动、餐厅、路线
+6. Stage 3 综合分排序，修复 Top-K 漏斗
+7. scheduler 组合活动 x 餐厅 x 路线，生成时间轴
+8. validator 校验预算、营业、余票、座位、排队、路线
+9. executor 生成执行草案
+10. 前端展示时间轴卡片、理由 badge、修改入口
+11. 用户继续追问时，带会话状态进入 refinement
 ```
 
-`timelinePlan` 固定包含：
+## 10. 本轮新增和重点文件
 
-- `status`：`ok | partial | failed`
-- `summary`：一句话概览
-- `timeline`：活动、餐饮、路线/通勤、缓冲时间
-- `selectedItems`：被选中的活动、餐厅、路线候选
-- `budgetEstimate`：活动、餐饮、路线、总价、人均
-- `recommendationReasons`：为什么这样组合
-- `riskTips`：排队、余票、座位、预算、通勤和供给不足风险
-- `tradeoffs`：对矛盾需求的取舍说明
-- `rawPlannerNotes`：可选调试摘要，不面向最终用户展示
+- `intent_taxonomy.py`：语义画像库和显式偏好策略。
+- `router.py`：多轮交互路由，识别局部修改、整体大改、解释、确认。
+- `refinement.py`：会话内二次修改补丁，支持早饭/晚饭时间、少走路、只吃饭不活动等边界。
+- `mock_api.py`：语义矩阵打分、基础质量分、约束分、路线提示分。
+- `scheduler.py`：时间轴组合、早餐饮策略、跳过活动策略、失败人话建议。
+- `backend/app/services/pipeline.py`：流式链路、LLM 修改器、引导确认、会话状态保存。
+- `frontend/src/modifyIntents.ts`：前端点击修改时生成不同方向的隐藏上下文。
+- `frontend/src/components/PlanCard.tsx`：时间轴卡片与节点修改入口。
+- `frontend/src/components/ChatInput.tsx`：输入框中的修改上下文块。
+- `frontend/src/components/StageProgress.tsx`：阶段处理中的 spinner。
 
-阶段四的核心原则是：
+## 11. 验证记录
+
+本轮完成了四类验证：
 
 ```text
-规则负责边界，LLM 负责规划。
+Python AST 检查：通过
+test_examples.py：13 个离线样例通过
+frontend npm run build：通过
+10 组多轮真实 LLM 自测：PASSED=10/10
 ```
 
-规则层只做三件事：
-
-- 压缩候选：把阶段三候选整理成 Planner 易读输入，避免上下文太长。
-- 设定红线：不能编造 POI、价格、路线、库存或预约结果；硬约束失败时不能强行推荐无关方案。
-- 轻量检查：字段齐全、`poiId` 来自 `mockSupply`、`routeRef` 来自 `routeCandidates`、预算和路线成本基本一致。
-
-LLM 负责四件事：
-
-- 在候选活动、餐厅和路线之间自主组合。
-- 根据时间窗口排出合理时间轴。
-- 解释预算、距离、排队、座位、余票等取舍。
-- 面对冲突需求时明确偏向，例如省钱优先、轻松优先或体验优先。
-
-## 8. 阶段四打磨记录
-
-真实 LLM 测试后暴露出五类问题：
-
-- API 连接偶发中断，例如 `WinError 10054`。
-- Planner 输出 JSON 偶发截断或非法。
-- “不想花钱/少花钱”偶尔被模型误抽成 `maxTotal: 0`。
-- “最好免费/优先免费”和“预算 0/只能免费”容易在工具层被混成同一种低成本偏好。
-- 跨城路线、预算和口头解释之间可能不一致。
-
-对应修复：
-
-- `extractor.py` 增加 LLM 调用重试，降低网络波动造成的测试中断。
-- `prompt.md` 与 `normalize_structured_demand` 增加“带孩子/带娃”人数稳定化：当模型已识别儿童但漏填成年人和总人数时，按中文强语义补为至少 1 名成年人同行，避免餐饮、路线和余票成本按 1 人误算。
-- `planner.py` 在 JSON 解析失败时允许有限重试，并保留离线确定性草案。
-- `prompt.md` 明确低成本语义：低成本是偏好，不等于预算 0；只有“预算 0 元/一分钱不能花/必须免费”才是严格 0。
-- `normalize_structured_demand` 做兜底归一：如果模型把低成本误抽成 0，但用户没有明确零预算，就改回 `null + flexible`。
-- `mock_api.py` 将预算语义拆成三档：
-  - `low_cost_preferred`：不想花钱、少花钱、预算越低越好，只做低成本加权。
-  - `free_preferred`：最好免费、优先免费、尽量免费，免费候选强加权，低消费可兜底。
-  - `free_required`：预算 0 元、零预算、一分钱都不能花、必须免费、只能免费，硬过滤所有收费候选。
-- `planner_prompt.md` 收紧事实边界，要求路线引用、金额、POI 都来自 Mock 供给。
-- `validate_timeline_plan` 强化校验：POI 引用合法、路线引用合法、预算可加总、路线成本一致、跨区域必须有真实路线。
-
-当前验证结果：
-
-- `test_examples.py`：8 个基准样例离线通过。
-- `py_compile`：核心脚本语法检查通过。
-- 阶段四 CLI 链路已支持 `input -> structuredDemand -> mockSupply -> timelinePlan`。
-- 真实 LLM 额外跑通 4 条预算语义用例：不想花钱、预算 0 只能免费、最好免费但可少花钱、预算越低越好。结果符合预期：低成本会保留低消费候选，免费硬约束无供给时输出 `failed`。
-
-## 9. 阶段五：Validator 与局部重排
-
-阶段五已经接入第一版 Validator 闭环。它的职责不是执行订单，而是把阶段四的推荐方案升级为“确认前可履约方案”。
-
-阶段五输入：
+最终自测目录：
 
 ```text
-structuredDemand + mockSupply + timelinePlan
+D:\产品\美团\周末闲时活动规划\Flowcity_interaction_eval_runs\20260605_005543
 ```
 
-阶段五输出：
+10 组内容覆盖：
 
-```text
-validationResult + replanResult
-```
+- 亲子早吃饭追问和少走路局部改。
+- 轻约会餐厅换成自然不尴尬。
+- 男生局室内活动和烟火气餐厅。
+- 咸阳跨城路线提前返程。
+- 低成本独处整体大改。
+- 深聊场景避开书店、路线少折腾。
+- casual unknown 转火锅局。
+- 长辈下雨少走路、早吃饭。
+- 亲子活动降噪和清淡餐厅。
+- 不可能时间窗下，只吃饭不活动的人话确认。
 
-`validationResult` 固定包含：
-
-- `status`：`pass | warning | failed`
-- `issues`：结构化失败或风险原因。
-- `checkedDimensions`：已经检查的维度。
-- `replanNeeded`：是否需要局部重排。
-- `suggestedActions`：建议替换活动、餐厅、路线或低成本候选。
-
-当前 Validator 覆盖：
-
-- 时间窗口：检查时间轴是否可解析、是否超出用户时间。
-- 营业时间：检查活动和餐厅是否在营业或可用时段内。
-- 预算：重新计算活动、餐饮和路线总价。
-- 人群适配：检查儿童年龄、亲子友好、低脂/清淡等约束。
-- 动态供给：检查余票、座位和排队时间。
-- 路线耗时：检查转场、跨城和少走路约束。
-
-Local Replanner 当前只做一次局部替换：
-
-- 活动失败时替换活动候选。
-- 餐厅失败时替换餐厅候选。
-- 路线失败时优先同商圈或更短路线。
-- 预算失败时优先低成本或免费候选。
-
-阶段五明确不做：
-
-- 不订票。
-- 不预约。
-- 不下单。
-- 不生成订单号。
-- 不接真实美团 API。
-
-## 10. 组合预算优化
-
-阶段五接入后暴露出一个关键边界问题：阶段三按单个活动或单个餐厅过滤预算，但真实方案预算应该按整套组合计算。
-
-例如：
-
-```text
-活动 294 元 + 餐饮 207 元 + 路线 75 元 = 576 元
-```
-
-如果用户总预算是 400 元，单看活动和单看餐厅都没超过 400 没有意义，因为整套方案已经超预算。
-
-因此阶段四 Planner 已强化组合选择逻辑：
-
-- 选择活动 + 餐厅 pair 时，直接计算 `活动费用 + 餐饮费用 + 路线费用`。
-- 严格预算下，优先只选择组合总价不超预算的方案。
-- 如果完全没有预算内组合，才选择超得最少的方案并交给阶段五解释。
-- 跨商圈但没有可用路线的组合，不再参与候选比较。
-
-这个调整后，亲子半日游样例会直接生成 324 元预算内方案，而不是先生成 576 元超预算方案再让 Validator 救火。
-
-当前验证结果：
-
-- `test_examples.py`：8 个基准样例离线通过。
-- `py_compile`：核心脚本语法检查通过。
-- `run_flow.py --example-id family_half_day --limit 3`：可输出预算内 `timelinePlan`、`validationResult` 和 `replanResult`。
-
-## 11. 阶段六：确认后 Mock 执行链路
-
-阶段六已经接入第一版 Mock Executor。它解决的问题不是“自动替用户下单”，而是把阶段五的确认前方案变成“待用户确认的执行草案”，并且只有在用户显式确认后才生成 Mock 执行结果。
-
-阶段六默认输出：
-
-```text
-executionDraft
-```
-
-只有命令行显式传入：
-
-```text
---confirm-execute
-```
-
-才会输出确认后的 Mock 执行结果：
-
-```text
-executionResult
-```
-
-`executionDraft` 固定包含：
-
-- `draftStatus`：`ready | warning | blocked`
-- `requiresUserConfirmation`：始终为 `true`
-- `pendingActions`：待用户确认的活动锁票、餐厅预约/取号、路线提醒等动作
-- `warningsCarriedForward`：阶段五遗留的 warning
-- `alternativeCandidates`：未选中但可替换的活动/餐厅候选，留给后续前端交互
-- `executionBoundary`：说明当前只做 Mock，不做真实交易
-- `dealPreview`：可选团购参考，只用于展示，不随确认自动购买或发券
-
-`executionResult` 只在确认后生成：
-
-- 活动生成 Mock 票码。
-- 餐厅生成 Mock 预约号或取号号。
-- 有可用团购时只展示 `dealPreview`，不自动生成团购券码。
-- 路线只生成提醒，不生成订单。
-
-阶段六边界：
+## 12. 仍然不做的事
 
 - 不接真实美团 API。
-- 不真实支付。
-- 不真实订票。
-- 不真实预约。
-- 不真实线上取号。
-- 不做前端点击换卡片，这部分留到阶段七。
-
-当前验证结果：
-
-- 默认运行 `run_flow.py` 只生成 `executionDraft`，`executionResult.executionStatus` 为 `not_requested`。
-- `--confirm-execute` 后才生成 Mock 票码、预约号、取号号或路线提醒码；团购仍保持预览状态。
-- 阶段五失败的方案会得到 `executionDraft.draftStatus = blocked`，不能被强行执行。
-- `test_examples.py` 已覆盖阶段六确认门槛和免费硬约束。
+- 不做真实预约、取号、订票、团购或支付。
+- 不把最后推荐理由交给 LLM 润色，避免额外 2 到 4 秒串行延迟。
+- 不把所有可能情况写死在后端 if 里；新增业务倾向优先改 taxonomy、数据标签和少量通用补丁。

@@ -26,6 +26,7 @@
 
 - `rawInput`
 - `scene`
+- `socialIntent`
 - `timeWindow`
 - `people`
 - `budget`
@@ -77,6 +78,37 @@
 `scene.confidence` 使用 0 到 1 的数字表示判断置信度。
 
 `scene.tags` 用中文标签记录更细的场景和偏好，例如：亲子、约会、citywalk、拍照、安静、低脂、少排队。
+
+### socialIntent
+
+必须输出 `socialIntent`，用于表达用户这次出行的隐性社交目的，而不是物理标签。
+
+字段要求：
+
+- `primary` 只能从 `light_date`、`deep_talk`、`group_bonding`、`tourist_sightseeing`、`family_care`、`casual_meetup`、`unknown` 中选择。
+- `subScenario` 必须从下列短菜单中选择一个；如果不确定，按 `primary` 选择最安全的默认场景：
+  - `light_date`: `first_meet` 初次见面/降低防备、`romantic_step` 暧昧升温/微醺走心、`interactive_date` 趣味互动/协作手作。
+  - `deep_talk`: `bestie_tea` 闺蜜/密友慢聊、`brother_vent` 兄弟树洞局、`business_casual` 商务轻谈。
+  - `group_bonding`: `active_carnival` 热血释放、`brain_battle` 烧脑协作、`night_feast` 烟火聚餐。
+  - `family_care`: `kid_energy_drain` 亲子放电、`senior_care` 长辈照顾、`family_reunion` 家庭团聚。
+  - `tourist_sightseeing`: `landmark_checkin` 地标打卡、`local_food_hunt` 本地寻味。
+  - `casual_meetup`: `casual`；`unknown`: `unknown`。
+- `preferredVibes` 写希望强化的氛围，例如轻约会、自然不尴尬、安静慢聊、兄弟局、高互动、游客地标、亲子照顾、烟火气。
+- `avoidVibes` 写应避免的体验，例如油腻快餐、尴尬正式、无法聊天、过度消耗体力、太吵、排队久。
+- `explicitPreferredVibes` 只写用户原话明确喜欢/要求的语义标签，例如“她特别爱大排档”应写“大排档/市井大排档/烟火气”。不要把默认场景偏好放进这里。
+- `explicitAvoidVibes` 只写用户原话明确避开的语义标签，例如“不要太吵”“不想快餐”“少走路”。
+- `evidence` 只写用户原话或强结构线索，不要编造。
+- 不需要输出完整画像库；后端会根据 `primary + subScenario` 本地补全默认偏好、避雷和权重。
+
+判断规则：
+
+- “暧昧对象”“喜欢的女生”“追求中”“不油腻”“不要太正式”等，优先判断为 `light_date`；不油腻在这里表示轻松自然、有氛围、不尴尬，不等于只能吃沙拉或面。
+- “坐下来聊一会”“聊天”“深聊”“安静聊”优先判断为 `deep_talk`；这类场景应偏向茶馆、咖啡、书吧、桌游茶歇、慢聊餐厅，避免电影院、KTV、运动馆等无法交流的节点。
+- “朋友”“同学”“多人聚会”“几个男生”等，优先判断为 `group_bonding`；可偏向高互动、桌游、台球、密室、烟火气餐饮，但只作为软偏好。
+- “从咸阳来西安”“进市区玩”“景点”“地标”“第一次来”等，优先判断为 `tourist_sightseeing`。
+- “带孩子”“带老人”“体力限制”“亲子”等，优先判断为 `family_care`。
+- 用户显式喜欢的内容优先级最高。例如“第一次约会但她特别爱市井大排档烤肉”，不要把“大排档/烟火气/烤肉”同时写进 `avoidVibes`；它们应进入 `explicitPreferredVibes`。
+- `primary` 为 `unknown` 或 `casual_meetup` 且用户没有显式偏好时，不要为了完整而脑补氛围标签。
 
 ### timeWindow
 

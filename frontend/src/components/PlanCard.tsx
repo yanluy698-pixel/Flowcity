@@ -1,9 +1,11 @@
-import type { TimelineItem } from "../types";
+import { buildMajorChangeDraft, buildNodeModifyDraft } from "../modifyIntents";
+import type { ModifyDraft, TimelineItem } from "../types";
 
 type Props = {
   payload: Record<string, any>;
   onConfirm: () => void;
   onRuntimeReplan: () => void;
+  onModifyPrompt: (draft: ModifyDraft) => void;
   totalDurationMs?: number;
 };
 
@@ -85,11 +87,15 @@ function shareText(payload: Record<string, any>, totalDurationMs?: number) {
   ].filter(Boolean).join("\n");
 }
 
-export function PlanCard({ payload, onConfirm, onRuntimeReplan, totalDurationMs }: Props) {
+export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, totalDurationMs }: Props) {
   const plan = finalPlan(payload);
   const draft = activeDraft(payload);
   const timeline = (plan.timeline ?? []) as TimelineItem[];
   const budget = plan.budgetEstimate ?? {};
+  const reasonBadges = Array.isArray(plan.reasonBadges) ? plan.reasonBadges.slice(0, 4) : [];
+  const recommendationReasons = Array.isArray(plan.recommendationReasons)
+    ? plan.recommendationReasons.slice(0, 3)
+    : [];
   const executionResult = payload.executionResult;
   const issues = runtimeIssues(payload);
   const canReplan = executionResult?.canRuntimeReplan && !runtimeReplan(payload);
@@ -98,6 +104,18 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, totalDurationMs 
   const confirmationCodes = executionResult?.confirmationCodes ?? [];
   const hasBlockingIssue = issues.some((issue: any) => issue.blocking);
   const needsUserReplanDecision = canReplan || ["blocked", "partial"].includes(executionResult?.executionStatus);
+  const pendingActions = Array.isArray(draft?.pendingActions) ? draft.pendingActions : [];
+  const planFailed = plan?.status === "failed";
+  const friendlyBlockedReason = planFailed
+    ? (Array.isArray(plan.recommendationReasons) && plan.recommendationReasons[0]) || plan.summary
+    : draft?.blockedReason;
+  const canConfirm =
+    !confirmed &&
+    !hasBlockingIssue &&
+    !needsUserReplanDecision &&
+    draft?.draftStatus !== "blocked" &&
+    !planFailed &&
+    pendingActions.length > 0;
 
   function copyShare() {
     navigator.clipboard?.writeText(shareText(payload, totalDurationMs));
@@ -114,12 +132,36 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, totalDurationMs 
         </p>
       </div>
 
+      {(reasonBadges.length > 0 || recommendationReasons.length > 0) && (
+        <div className="reason-panel">
+          {reasonBadges.length > 0 && (
+            <div className="reason-badges">
+              {reasonBadges.map((badge: string) => (
+                <span key={badge}>{userText(badge)}</span>
+              ))}
+            </div>
+          )}
+          {recommendationReasons.length > 0 && (
+            <ul>
+              {recommendationReasons.map((reason: string, index: number) => (
+                <li key={`${index}-${reason}`}>{userText(reason)}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <div className="timeline">
         {timeline.map((item, index) => (
           <div className="timeline-item" key={`${item.title}-${index}`}>
             <div className="time">{item.start ?? "--:--"}-{item.end ?? ""}</div>
             <div className="timeline-copy">
-              <strong>{item.title ?? item.type ?? "安排"}</strong>
+              <div className="timeline-heading">
+                <strong>{item.title ?? item.type ?? "安排"}</strong>
+                <button type="button" onClick={() => onModifyPrompt(buildNodeModifyDraft(item))}>
+                  修改
+                </button>
+              </div>
               <p>{userText(item.description ?? item.routeRef ?? "FlowCity 已加入这一步。")}</p>
             </div>
           </div>
@@ -142,6 +184,13 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, totalDurationMs 
           {(runtimeReplan(payload)?.replacementSummary?.changedBecause ?? [])
             .slice(0, 2)
             .map((text: string, index: number) => <p key={index}>{text}</p>)}
+        </div>
+      )}
+
+      {!confirmed && !canConfirm && !needsUserReplanDecision && (
+        <div className="runtime-box blocked">
+          <strong>当前不能下单</strong>
+          <p>{userText(friendlyBlockedReason ?? "还没有可执行的锁票、预约或取号草案。")}</p>
         </div>
       )}
 
@@ -168,7 +217,7 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, totalDurationMs 
             按最新状态重新规划
           </button>
         )}
-        {!confirmed && !hasBlockingIssue && !needsUserReplanDecision && draft?.draftStatus !== "blocked" && (
+        {canConfirm && (
           <button className="confirm-button" onClick={onConfirm}>
             {hasRuntimePlan ? "确认新版下单" : "确认下单"}
           </button>
@@ -176,6 +225,11 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, totalDurationMs 
         {confirmed && (
           <button className="confirm-button secondary" onClick={copyShare}>
             一键分享给朋友
+          </button>
+        )}
+        {!confirmed && !hasRuntimePlan && (
+          <button className="confirm-button secondary" onClick={() => onModifyPrompt(buildMajorChangeDraft(plan))}>
+            整体大改
           </button>
         )}
       </div>

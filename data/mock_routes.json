@@ -709,6 +709,28 @@
       "routeType": "origin_to_area",
       "estimatedCostPerPerson": 6,
       "mockDescription": "按跨城/高校进城公共交通真实感修正的 Mock 路线"
+    },
+    {
+      "fromAreaId": "area_xa_xingzheng",
+      "toAreaId": "area_xa_daminggong",
+      "transport": "public_transport",
+      "minutes": 10,
+      "distanceKm": 3.6,
+      "walkMinutesInsideArea": 6,
+      "routeType": "area_to_area",
+      "estimatedCostPerPerson": 2,
+      "mockDescription": "熙地港/行政中心到龙首原大明宫近邻补位路线"
+    },
+    {
+      "fromAreaId": "area_xa_daminggong",
+      "toAreaId": "area_xa_xingzheng",
+      "transport": "public_transport",
+      "minutes": 10,
+      "distanceKm": 3.6,
+      "walkMinutesInsideArea": 6,
+      "routeType": "area_to_area",
+      "estimatedCostPerPerson": 2,
+      "mockDescription": "龙首原大明宫到熙地港/行政中心近邻补位路线"
     }
   ]
 }

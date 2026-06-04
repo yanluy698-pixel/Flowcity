@@ -2,7 +2,7 @@ import { useState } from "react";
 import { confirmExecution, runFlowStream } from "./api/flowClient";
 import { ChatScreen } from "./components/ChatScreen";
 import { HomeScreen } from "./components/HomeScreen";
-import type { ChatTurn, FlowEvent, StageState } from "./types";
+import type { ChatTurn, FlowEvent, ModifyDraft, StageState } from "./types";
 
 const STAGE_LABELS: Record<string, string> = {
   extract: "理解需求",
@@ -18,7 +18,31 @@ const ORDERED_STAGES = Object.entries(STAGE_LABELS).map(([stage, label]) => ({
   status: "pending" as const
 }));
 
-const FOLLOW_UP_HINTS = ["换", "不要", "不想", "别去", "避开", "太远", "太贵", "不好", "质疑", "为什么", "重新", "想玩", "我要玩", "景点", "逛一下", "少走路"];
+const FOLLOW_UP_HINTS = [
+  "换",
+  "不要",
+  "不想",
+  "别去",
+  "避开",
+  "太远",
+  "太贵",
+  "不好",
+  "质疑",
+  "为什么",
+  "重新",
+  "想玩",
+  "我要玩",
+  "景点",
+  "逛一下",
+  "少走路",
+  "晚饭",
+  "晚餐",
+  "吃饭",
+  "早一点",
+  "早点",
+  "提前",
+  "先吃"
+];
 
 function createTurn(displayInput: string, effectiveInput: string): ChatTurn {
   return {
@@ -31,6 +55,10 @@ function createTurn(displayInput: string, effectiveInput: string): ChatTurn {
 }
 
 function updateTurnWithEvent(turn: ChatTurn, event: FlowEvent, eventTime: number): ChatTurn {
+  if (event.stage === "router") {
+    return turn;
+  }
+
   if (event.type === "stage_start" && event.stage) {
     return {
       ...turn,
@@ -105,14 +133,20 @@ function isFollowUp(text: string, turns: ChatTurn[]) {
 export default function App() {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [modifyDraft, setModifyDraft] = useState<ModifyDraft | undefined>();
   const [sessionId] = useState(() => `web_${Date.now()}_${Math.random().toString(16).slice(2)}`);
 
   async function handleSubmit(text: string) {
     if (!text.trim() || isRunning) return;
     const displayInput = text.trim();
+    const activeDraft = modifyDraft;
+    setModifyDraft(undefined);
     const lastTurn = turns[turns.length - 1];
-    const shouldOptimizePrevious = isFollowUp(displayInput, turns);
-    const effectiveInput = displayInput;
+    const hasModifyContext = Boolean(activeDraft?.systemPrompt);
+    const shouldOptimizePrevious = hasModifyContext || isFollowUp(displayInput, turns);
+    const effectiveInput = hasModifyContext
+      ? `${activeDraft!.systemPrompt}\n\n【用户补充】${displayInput}`
+      : displayInput;
     const turn = createTurn(displayInput, effectiveInput);
     setTurns((items) => [...items, turn]);
     setIsRunning(true);
@@ -221,12 +255,15 @@ export default function App() {
   return turns.length === 0 ? (
     <HomeScreen onSubmit={handleSubmit} disabled={isRunning} />
   ) : (
-    <ChatScreen
-      turns={turns}
-      onSubmit={handleSubmit}
-      onConfirm={handleConfirm}
-      onRuntimeReplan={handleRuntimeReplan}
-      disabled={isRunning}
+      <ChatScreen
+        turns={turns}
+        onSubmit={handleSubmit}
+        modifyDraft={modifyDraft}
+        onDraftPrompt={setModifyDraft}
+        onClearDraft={() => setModifyDraft(undefined)}
+        onConfirm={handleConfirm}
+        onRuntimeReplan={handleRuntimeReplan}
+        disabled={isRunning}
     />
   );
 }

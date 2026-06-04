@@ -297,11 +297,11 @@ def _validate_business_hours(
                 if start not in slot_minutes:
                     issues.append(
                         _issue(
-                            "RESTAURANT_SLOT_WARNING",
+                            "RESTAURANT_SLOT_MISMATCH",
                             "business_hours",
-                            "warning",
-                            "餐厅计划到店时间不在明确返回的预约时段内。",
-                            blocking=False,
+                            "error",
+                            "餐厅计划到店时间不在明确返回的预约时段内，不能生成预约草案。",
+                            blocking=True,
                             timeline_index=index,
                             poi_id=poi_id,
                             expected=slots,
@@ -587,6 +587,26 @@ def validate_plan(
     data = mock_api.load_mock_data()
     issues: list[dict[str, Any]] = []
 
+    if timeline_plan.get("status") == "failed":
+        issues.append(
+            _issue(
+                "TIMELINE_PLAN_FAILED",
+                "timeline",
+                "error",
+                "调度器没有形成可执行时间轴，不能进入下单确认。",
+                blocking=True,
+                expected="可执行时间轴",
+                actual=timeline_plan.get("summary") or "规划失败",
+            )
+        )
+        return {
+            "status": "failed",
+            "issues": issues,
+            "checkedDimensions": CHECKED_DIMENSIONS,
+            "replanNeeded": mock_supply.get("supplyStatus", {}).get("status") != "failed",
+            "suggestedActions": ["放宽时间窗口、预算或商圈要求后重新规划"],
+        }
+
     supply_status = mock_supply.get("supplyStatus", {})
     if supply_status.get("status") == "failed":
         issues.append(
@@ -625,7 +645,7 @@ def _suggested_actions(issues: list[dict[str, Any]]) -> list[str]:
     codes = {issue.get("code") for issue in issues}
     if {"TICKET_NOT_ENOUGH", "ACTIVITY_SLOT_MISMATCH", "PEOPLE_AGE_MISMATCH"} & codes:
         actions.append("替换活动候选")
-    if {"TABLE_NOT_AVAILABLE", "RESTAURANT_SLOT_WARNING", "CHILD_FRIENDLY_MISMATCH", "LOW_FAT_MISMATCH"} & codes:
+    if {"TABLE_NOT_AVAILABLE", "RESTAURANT_SLOT_MISMATCH", "CHILD_FRIENDLY_MISMATCH", "LOW_FAT_MISMATCH"} & codes:
         actions.append("替换餐厅候选")
     if {"ROUTE_DURATION_TOO_SHORT", "ROUTE_TOO_TIGHT", "WALK_TOO_MUCH", "TIME_WINDOW_OVERFLOW"} & codes:
         actions.append("优先同商圈组合或替换短路线")

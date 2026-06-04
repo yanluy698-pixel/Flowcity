@@ -278,11 +278,17 @@ def _candidate_by_id(mock_supply: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def _route_refs(mock_supply: dict[str, Any]) -> set[str]:
-    return {
+    refs = {
         _route_ref(route)
         for route in mock_supply.get("routeCandidates", [])
         if route.get("fromAreaId") and route.get("toAreaId")
     }
+    refs.update(
+        f"multi_origin->{area_id}"
+        for area_id, aggregate in (mock_supply.get("routeFairnessByArea") or {}).items()
+        if isinstance(aggregate, dict) and aggregate.get("isComplete")
+    )
+    return refs
 
 
 def _route_ref(route: dict[str, Any] | None) -> str | None:
@@ -385,7 +391,14 @@ def validate_timeline_plan(plan: dict[str, Any], mock_supply: dict[str, Any]) ->
         for item in plan.get("timeline", [])
         if isinstance(item, dict) and item.get("routeRef")
     ]
-    route_cost_sum = sum(float(routes[ref].get("estimatedCostTotal", 0)) for ref in used_route_refs if ref in routes)
+    route_fairness = mock_supply.get("routeFairnessByArea") or {}
+    route_cost_sum = 0.0
+    for ref in used_route_refs:
+        if ref in routes:
+            route_cost_sum += float(routes[ref].get("estimatedCostTotal", 0))
+        elif isinstance(ref, str) and ref.startswith("multi_origin->"):
+            area_id = ref.split("->", 1)[1]
+            route_cost_sum += float((route_fairness.get(area_id) or {}).get("estimatedCostTotal", 0))
     budget_route_cost = _number((plan.get("budgetEstimate") or {}).get("routeCost"))
     if budget_route_cost is not None and used_route_refs and abs(route_cost_sum - budget_route_cost) > 1:
         errors.append(

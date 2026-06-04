@@ -1555,6 +1555,326 @@
       "indoorOutdoor": "indoor",
       "baseRating": 4.3,
       "mockBasis": "补充行政中心全年室内低预算活动，适合雨天和朋友聊天。"
+    },
+    {
+      "id": "act_xa_064",
+      "name": "喜茶(小寨赛格店)",
+      "areaId": "area_xa_xiaozhai",
+      "category": "filler_cafe_break",
+      "tags": [
+        "具体店铺",
+        "休息等待",
+        "茶饮",
+        "咖啡",
+        "可坐下聊天",
+        "轻约会",
+        "室内",
+        "低预算",
+        "小寨"
+      ],
+      "vibeTags": [
+        "休息等待",
+        "自然不尴尬",
+        "安静慢聊"
+      ],
+      "behaviorTags": [
+        "休息等待",
+        "可坐下聊天"
+      ],
+      "audienceTags": [
+        "轻约会",
+        "朋友多人"
+      ],
+      "isFiller": true,
+      "openHours": {
+        "weekday": "10:00-22:30",
+        "weekend": "10:00-23:00"
+      },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 22,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "实体茶饮 POI：用于活动结束到晚餐前的低预算等位、茶歇和休息。"
+    },
+    {
+      "id": "act_xa_065",
+      "name": "茶话弄(钟楼开元店)",
+      "areaId": "area_xa_zhonglou",
+      "category": "filler_mall_break",
+      "tags": [
+        "具体店铺",
+        "休息等待",
+        "商场休息",
+        "茶饮",
+        "可坐下聊天",
+        "钟楼",
+        "室内",
+        "低预算"
+      ],
+      "vibeTags": [
+        "休息等待",
+        "游客地标",
+        "低压力"
+      ],
+      "behaviorTags": [
+        "休息等待",
+        "可坐下聊天"
+      ],
+      "audienceTags": [
+        "游客",
+        "朋友多人",
+        "轻约会"
+      ],
+      "isFiller": true,
+      "openHours": {
+        "weekday": "10:00-22:30",
+        "weekend": "10:00-23:00"
+      },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 18,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "实体茶饮 POI：钟楼商圈晚餐前可坐下休息或轻聊。"
+    },
+    {
+      "id": "act_xa_066",
+      "name": "星巴克(高新大都荟店)",
+      "areaId": "area_xa_gaoxin",
+      "category": "filler_cafe_break",
+      "tags": [
+        "具体店铺",
+        "休息等待",
+        "咖啡",
+        "可坐下聊天",
+        "安静",
+        "高新",
+        "室内",
+        "低预算"
+      ],
+      "vibeTags": [
+        "休息等待",
+        "安静慢聊",
+        "低压力"
+      ],
+      "behaviorTags": [
+        "休息等待",
+        "可坐下聊天"
+      ],
+      "audienceTags": [
+        "朋友多人",
+        "轻约会"
+      ],
+      "isFiller": true,
+      "openHours": {
+        "weekday": "10:00-22:30",
+        "weekend": "10:00-23:00"
+      },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 24,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "实体咖啡 POI：高新雨天或晚餐前的咖啡休息节点。"
+    },
+    {
+      "id": "act_xa_067",
+      "name": "西西弗书店(小寨赛格店)",
+      "areaId": "area_xa_xiaozhai",
+      "category": "filler_free_mall_break",
+      "tags": [
+        "具体店铺",
+        "休息等待",
+        "商场休息",
+        "免费",
+        "低预算",
+        "小寨",
+        "室内",
+        "可坐下聊天"
+      ],
+      "vibeTags": [
+        "休息等待",
+        "低压力",
+        "低预算"
+      ],
+      "behaviorTags": [
+        "休息等待",
+        "商场轻逛",
+        "可坐下聊天"
+      ],
+      "audienceTags": [
+        "大学生",
+        "朋友多人",
+        "轻约会"
+      ],
+      "isFiller": true,
+      "openHours": {
+        "weekday": "10:00-22:30",
+        "weekend": "10:00-23:00"
+      },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 12,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.0,
+      "mockBasis": "实体书店 POI：预算严格时用于电影后到晚餐前的商场休息和轻逛。"
+    },
+    {
+      "id": "act_xa_068",
+      "name": "奈雪的茶(曲江大悦城店)",
+      "areaId": "area_xa_qujiang",
+      "category": "filler_cafe_break",
+      "tags": ["具体店铺", "休息等待", "茶饮", "商场休息", "可坐下聊天", "曲江", "室内", "低预算"],
+      "vibeTags": ["休息等待", "自然不尴尬", "低压力"],
+      "behaviorTags": ["休息等待", "可坐下聊天", "商场轻逛"],
+      "audienceTags": ["轻约会", "朋友多人", "游客"],
+      "isFiller": true,
+      "openHours": { "weekday": "10:00-22:30", "weekend": "10:00-23:00" },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 20,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "实体茶饮 POI：曲江商圈晚餐前茶饮休息、商场轻逛和等位。"
+    },
+    {
+      "id": "act_xa_069",
+      "name": "大唐不夜城北广场休息台阶",
+      "areaId": "area_xa_qujiang",
+      "category": "filler_free_walk",
+      "tags": ["具体公共点位", "休息等待", "免费", "轻逛", "游客地标", "曲江", "低预算", "可拍照"],
+      "vibeTags": ["休息等待", "游客地标", "烟火气"],
+      "behaviorTags": ["休息等待", "附近轻逛", "拍照打卡"],
+      "audienceTags": ["游客", "朋友多人", "轻约会"],
+      "isFiller": true,
+      "openHours": { "weekday": "14:00-23:30", "weekend": "14:00-23:30" },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 0,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.1,
+      "mockBasis": "实体公共 POI：曲江晚餐前轻逛等位，不增加预算。"
+    },
+    {
+      "id": "act_xa_070",
+      "name": "奈雪的茶(大明宫万达店)",
+      "areaId": "area_xa_daminggong",
+      "category": "filler_mall_break",
+      "tags": ["休息等待", "茶饮", "商场休息", "大明宫", "室内", "低预算", "可坐下聊天", "具体店铺"],
+      "vibeTags": ["休息等待", "低压力", "安静慢聊"],
+      "behaviorTags": ["休息等待", "可坐下聊天", "商场轻逛"],
+      "audienceTags": ["朋友多人", "亲子", "轻约会"],
+      "isFiller": true,
+      "openHours": { "weekday": "10:00-22:00", "weekend": "10:00-22:30" },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 24,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "实体茶饮 POI：大明宫商圈晚餐前可坐下休息。"
+    },
+    {
+      "id": "act_xa_071",
+      "name": "西西弗书店(熙地港店)",
+      "areaId": "area_xa_xingzheng",
+      "category": "filler_bookstore_break",
+      "tags": ["休息等待", "书店", "熙地港", "行政中心", "室内", "低预算", "可坐下聊天", "具体店铺", "亲子"],
+      "vibeTags": ["休息等待", "文艺安静", "低压力"],
+      "behaviorTags": ["休息等待", "看书选书", "可坐下聊天"],
+      "audienceTags": ["大学生", "朋友多人", "亲子", "家庭"],
+      "isFiller": true,
+      "openHours": { "weekday": "10:00-22:00", "weekend": "10:00-22:30" },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 12,
+      "ageMin": 0,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "实体书店 POI：用于熙地港商圈吃饭前后低预算、低体力的具体补位。"
+    },
+    {
+      "id": "act_xa_072",
+      "name": "西西弗书店(钟楼开元店)",
+      "areaId": "area_xa_zhonglou",
+      "category": "filler_bookstore_break",
+      "tags": ["具体店铺", "休息等待", "书店", "可坐下聊天", "安静", "钟楼", "室内", "低预算"],
+      "vibeTags": ["休息等待", "文艺安静", "安静慢聊"],
+      "behaviorTags": ["休息等待", "可坐下聊天", "轻逛"],
+      "audienceTags": ["轻约会", "朋友多人", "游客"],
+      "isFiller": true,
+      "openHours": { "weekday": "10:00-22:00", "weekend": "10:00-22:30" },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 12,
+      "ageMin": 8,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "实体书店 POI：钟楼商圈适合晚餐前安静等位和慢聊。"
+    },
+    {
+      "id": "act_xa_073",
+      "name": "M Stand咖啡(高新大都荟店)",
+      "areaId": "area_xa_gaoxin",
+      "category": "filler_cafe_break",
+      "tags": ["休息等待", "咖啡", "高新", "室内", "低预算", "可坐下聊天", "具体店铺"],
+      "vibeTags": ["休息等待", "低压力", "安静慢聊"],
+      "behaviorTags": ["休息等待", "可坐下聊天"],
+      "audienceTags": ["朋友多人", "轻约会", "大学生"],
+      "isFiller": true,
+      "openHours": { "weekday": "10:00-22:30", "weekend": "10:00-23:00" },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 26,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "实体咖啡 POI：高新商圈预算严格时的坐下休息补位。"
+    },
+    {
+      "id": "act_xa_074",
+      "name": "TOP TOY潮玩集合店(熙地港店)",
+      "areaId": "area_xa_xingzheng",
+      "category": "toy_collectible_store",
+      "tags": ["熙地港", "具体店铺", "潮玩", "玩具", "亲子", "5岁儿童友好", "室内", "少走路", "低体力友好", "免费逛"],
+      "vibeTags": ["亲子照顾", "低压力", "不赶时间"],
+      "behaviorTags": ["看玩具", "可逛店铺", "亲子互动"],
+      "audienceTags": ["亲子", "家庭"],
+      "isFiller": false,
+      "openHours": { "weekday": "10:00-22:00", "weekend": "10:00-22:30" },
+      "suggestedDurationMinutes": 35,
+      "pricePerPerson": 0,
+      "ageMin": 0,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "具体可逛店铺 POI：把“熙地港转一圈”落成可执行的亲子看玩具节点，不强制消费。"
+    },
+    {
+      "id": "act_xa_075",
+      "name": "霸王茶姬(熙地港店)",
+      "areaId": "area_xa_xingzheng",
+      "category": "filler_tea_break",
+      "tags": ["熙地港", "具体店铺", "茶饮", "休息等待", "室内", "低预算", "可坐下聊天", "减脂友好"],
+      "vibeTags": ["休息等待", "低压力", "少折腾"],
+      "behaviorTags": ["休息等待", "可坐下聊天", "茶饮"],
+      "audienceTags": ["亲子", "家庭", "朋友多人"],
+      "isFiller": true,
+      "openHours": { "weekday": "10:00-22:00", "weekend": "10:00-22:30" },
+      "suggestedDurationMinutes": 35,
+      "pricePerPerson": 18,
+      "ageMin": 0,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "具体茶饮 POI：熙地港内吃饭前后的低体力休息补位，可选择低糖/无糖。"
     }
   ]
 }

@@ -67,6 +67,36 @@ function demandSummary(payload?: Record<string, unknown>) {
   return userText(`${people}，${date}${time ? ` ${time}` : ""}，${budget}，${location}${hard ? `。我会优先满足：${hard}` : ""}`);
 }
 
+function routerSummary(payload?: Record<string, unknown>) {
+  const result = payload?.routerResult as any;
+  if (!result) return "正在判断这是新规划、局部修改、解释方案还是确认执行。";
+  const flags = result.actionFlags ?? {};
+  const actions = [
+    flags.needNewActivity ? "换活动" : "",
+    flags.needNewRestaurant ? "换餐厅" : "",
+    flags.modifyBudget ? "压预算" : "",
+    flags.modifyDistance ? "少走路/更近" : "",
+    flags.needRouteRefresh ? "重算路线" : "",
+    flags.needExplanation ? "解释方案" : "",
+    flags.confirmExecution ? "确认执行" : ""
+  ].filter(Boolean);
+  const locks = result.locks ?? {};
+  const lockText = [
+    locks.activityPoiId ? "保留原活动 POI" : "",
+    locks.restaurantPoiId ? "保留原餐厅 POI" : ""
+  ].filter(Boolean).join("，");
+  const modeLabel: Record<string, string> = {
+    new_plan: "全量新规划",
+    refine: "局部微调",
+    explain: "解释方案",
+    confirm: "确认执行",
+    clarify: "追问确认"
+  };
+  return userText(
+    `识别为${modeLabel[result.mode] ?? result.mode}${actions.length ? `：${actions.join("、")}` : ""}${lockText ? `；${lockText}` : ""}。`
+  );
+}
+
 function supplySummary(payload?: Record<string, unknown>) {
   const supply = payload?.mockSupply as any;
   if (!supply) return "正在找活动、吃饭地点、路线、余票、座位和排队情况。";
@@ -129,6 +159,7 @@ function draftSummary(payload?: Record<string, unknown>) {
 }
 
 function stageDetail(stage: StageState) {
+  if (stage.stage === "router") return routerSummary(stage.payload);
   if (stage.stage === "extract") return demandSummary(stage.payload);
   if (stage.stage === "supply") return supplySummary(stage.payload);
   if (stage.stage === "plan") return planSummary(stage.payload);
@@ -138,7 +169,7 @@ function stageDetail(stage: StageState) {
 }
 
 function statusText(status: StageState["status"]) {
-  if (status === "active") return "运行中";
+  if (status === "active") return "正在处理";
   if (status === "done") return "完成";
   if (status === "error") return "出错";
   return "等待";
@@ -153,6 +184,7 @@ export function StageProgress({ stages, totalDurationMs }: Props) {
           <div className="stage-line">
             <strong>{index + 1}. {stage.label}</strong>
             <span>
+              {stage.status === "active" && <i className="stage-spinner" aria-hidden="true" />}
               {statusText(stage.status)}
               {stage.durationMs ? ` · 用时 ${seconds(stage.durationMs)}` : ""}
             </span>

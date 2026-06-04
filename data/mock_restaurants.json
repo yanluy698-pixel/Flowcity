@@ -715,8 +715,8 @@
       },
       "avgPricePerPerson": 31,
       "childFriendly": true,
-      "lowFatOptions": false,
-      "reservable": false,
+      "lowFatOptions": true,
+      "reservable": true,
       "baseRating": 4.0,
       "mockBasis": "补充钟楼坐下聊天餐厅。"
     },
@@ -784,7 +784,7 @@
       },
       "avgPricePerPerson": 35,
       "childFriendly": true,
-      "lowFatOptions": false,
+      "lowFatOptions": true,
       "reservable": false,
       "baseRating": 4.0,
       "mockBasis": "补充高新可聊天餐厅。"
@@ -1152,7 +1152,7 @@
       },
       "avgPricePerPerson": 32,
       "childFriendly": true,
-      "lowFatOptions": false,
+      "lowFatOptions": true,
       "reservable": false,
       "baseRating": 4.1,
       "mockBasis": "补充大明宫地铁口低预算面食。"
@@ -1202,6 +1202,81 @@
       "reservable": false,
       "baseRating": 4.2,
       "mockBasis": "补充行政中心熙地港简餐小桌。"
+    },
+    {
+      "id": "res_xa_053",
+      "name": "小寨巷里日料小馆",
+      "areaId": "area_xa_xiaozhai",
+      "cuisine": "japanese_bistro",
+      "tags": [
+        "日料",
+        "轻约会",
+        "清淡",
+        "可坐下聊天",
+        "不尴尬",
+        "可预约",
+        "小寨"
+      ],
+      "vibeTags": [
+        "轻约会",
+        "自然不尴尬",
+        "浪漫轻松"
+      ],
+      "behaviorTags": [
+        "可坐下聊天"
+      ],
+      "audienceTags": [
+        "轻约会"
+      ],
+      "isFiller": false,
+      "openHours": {
+        "weekday": "11:00-22:30",
+        "weekend": "11:00-23:00"
+      },
+      "avgPricePerPerson": 78,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.6,
+      "mockBasis": "补充小寨轻约会餐饮，避免把“不油腻”机械落成面馆或沙拉。"
+    },
+    {
+      "id": "res_xa_054",
+      "name": "钟楼月台Bistro轻餐",
+      "areaId": "area_xa_zhonglou",
+      "cuisine": "bistro_light_meal",
+      "tags": [
+        "Bistro",
+        "轻约会",
+        "清淡",
+        "可坐下聊天",
+        "安静",
+        "可预约",
+        "钟楼"
+      ],
+      "vibeTags": [
+        "轻约会",
+        "浪漫轻松",
+        "自然不尴尬"
+      ],
+      "behaviorTags": [
+        "可坐下聊天"
+      ],
+      "audienceTags": [
+        "轻约会",
+        "游客"
+      ],
+      "isFiller": false,
+      "openHours": {
+        "weekday": "11:00-22:30",
+        "weekend": "11:00-23:00"
+      },
+      "avgPricePerPerson": 82,
+      "childFriendly": false,
+      "lowFatOptions": true,
+      "reservable": true,
+      "baseRating": 4.6,
+      "mockBasis": "补充钟楼片区轻约会餐厅，替代快餐面馆类候选。"
     }
   ]
 }
