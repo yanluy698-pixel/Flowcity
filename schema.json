@@ -9,6 +9,7 @@
     "rawInput",
     "scene",
     "socialIntent",
+    "demandProfile",
     "timeWindow",
     "people",
     "budget",
@@ -150,6 +151,57 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "支撑该 socialIntent 的用户原话或结构化线索。"
+        }
+      }
+    },
+    "demandProfile": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "推荐系统唯一评分真相源。socialIntent 仅为兼容解释字段。",
+      "required": [
+        "schemaVersion",
+        "facts",
+        "hardConstraints",
+        "dimensions",
+        "destinationAnchors",
+        "sceneHypotheses",
+        "openHypotheses",
+        "requestedComponents",
+        "conflicts"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "demand-profile-v2"
+        },
+        "facts": {
+          "type": "object"
+        },
+        "hardConstraints": {
+          "type": "array"
+        },
+        "dimensions": {
+          "type": "array"
+        },
+        "destinationAnchors": {
+          "type": "array"
+        },
+        "sceneHypotheses": {
+          "type": "array"
+        },
+        "openHypotheses": {
+          "type": "array"
+        },
+        "requestedComponents": {
+          "type": "array",
+          "items": {
+            "enum": ["activity", "restaurant"]
+          }
+        },
+        "rejectedHypothesisIds": {
+          "type": "array"
+        },
+        "conflicts": {
+          "type": "array"
         }
       }
     },

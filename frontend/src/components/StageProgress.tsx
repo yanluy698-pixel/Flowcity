@@ -115,6 +115,20 @@ function supplySummary(payload?: Record<string, unknown>) {
   return userText(`可选活动：${activities || "暂无"}。可选吃饭地点：${restaurants || "暂无"}。可用路线 ${routeCount} 条。`);
 }
 
+function areaSummary(payload?: Record<string, unknown>) {
+  const result = payload?.areaRecallResult as any;
+  if (!result) return "正在先比较区域摘要，再决定展开哪些区域里的具体地点。";
+  const names = (result.selectedAreas ?? []).map((item: any) => item.name).filter(Boolean).slice(0, 5);
+  const protectedCount = result.protectedAreaIds?.length ?? 0;
+  const conflict = result.anchorConflicts?.[0];
+  if (conflict) {
+    return userText(`已保护点名目的地 ${conflict.areaName}，但发现时间风险：${conflict.reason}`);
+  }
+  return userText(
+    `评估 ${result.evaluatedAreaCount ?? 0} 个区域，展开 ${names.join("、") || "当前高潜力区域"}${protectedCount ? `；其中 ${protectedCount} 个为点名目的地区域` : ""}。`
+  );
+}
+
 function planSummary(payload?: Record<string, unknown>) {
   const plan = payload?.timelinePlan as any;
   if (!plan) return "正在组合活动、吃饭、路线和缓冲时间。";
@@ -161,6 +175,7 @@ function draftSummary(payload?: Record<string, unknown>) {
 function stageDetail(stage: StageState) {
   if (stage.stage === "router") return routerSummary(stage.payload);
   if (stage.stage === "extract") return demandSummary(stage.payload);
+  if (stage.stage === "area") return areaSummary(stage.payload);
   if (stage.stage === "supply") return supplySummary(stage.payload);
   if (stage.stage === "plan") return planSummary(stage.payload);
   if (stage.stage === "validate") return validationSummary(stage.payload);

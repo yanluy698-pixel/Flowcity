@@ -9,6 +9,13 @@ services:
       FLOWCITY_LLM_MODEL: ${FLOWCITY_LLM_MODEL:-deepseek-v4-flash}
       FLOWCITY_LLM_BASE_URL: ${FLOWCITY_LLM_BASE_URL:-https://api.deepseek.com}
       FLOWCITY_LLM_JSON_OUTPUT: ${FLOWCITY_LLM_JSON_OUTPUT:-true}
+      FLOWCITY_EMBEDDING_ENABLED: ${FLOWCITY_EMBEDDING_ENABLED:-false}
+      FLOWCITY_EMBEDDING_MODEL: ${FLOWCITY_EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}
+      FLOWCITY_EMBEDDING_CACHE_DIR: /models/fastembed
+      FLOWCITY_LEARNING_DB: /app-runtime/learning_events.sqlite3
+    volumes:
+      - flowcity_models:/models
+      - flowcity_runtime:/app-runtime
     ports:
       - "8000:8000"
 
@@ -20,3 +27,7 @@ services:
       - backend
     ports:
       - "5173:80"
+
+volumes:
+  flowcity_models:
+  flowcity_runtime:

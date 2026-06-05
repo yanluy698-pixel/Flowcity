@@ -12,6 +12,7 @@ export async function runFlowStream(
     sessionId?: string;
     interactionMode?: "auto" | "new_plan" | "refine";
     previousPlanId?: string;
+    hypothesisFeedback?: Record<string, unknown>;
   }
 ) {
   const response = await fetch(`${API_BASE}/api/flow/run-stream`, {
@@ -24,7 +25,8 @@ export async function runFlowStream(
       strictPlannerLlm: options?.strictPlannerLlm ?? false,
       sessionId: options?.sessionId,
       interactionMode: options?.interactionMode ?? "auto",
-      previousPlanId: options?.previousPlanId
+      previousPlanId: options?.previousPlanId,
+      hypothesisFeedback: options?.hypothesisFeedback
     })
   });
 
@@ -61,6 +63,8 @@ export async function confirmExecution(
     mockSupply?: Record<string, unknown>;
     plannerLlm?: boolean;
     replanOnRuntimeFailure?: boolean;
+    sessionId?: string;
+    planId?: string;
   }
 ) {
   const response = await fetch(`${API_BASE}/api/flow/execute`, {
@@ -72,7 +76,9 @@ export async function confirmExecution(
       timelinePlan: options?.timelinePlan,
       mockSupply: options?.mockSupply,
       plannerLlm: options?.plannerLlm ?? false,
-      replanOnRuntimeFailure: options?.replanOnRuntimeFailure ?? false
+      replanOnRuntimeFailure: options?.replanOnRuntimeFailure ?? false,
+      sessionId: options?.sessionId,
+      planId: options?.planId
     })
   });
   if (!response.ok) {

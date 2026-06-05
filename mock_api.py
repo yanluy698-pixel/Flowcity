@@ -16,7 +16,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+import area_retrieval
+import demand_profile
 import intent_taxonomy
+from poi_profiles import build_poi_profile
+from semantic_retrieval import RETRIEVER
 
 
 ROOT = Path(__file__).resolve().parent
@@ -134,14 +138,6 @@ POI_METADATA_RULES = [
         "behaviorTags": ("休息等待", "可坐下聊天"),
         "audienceTags": (),
     },
-]
-
-SOCIAL_HARD_FILTER_RULES = [
-    {
-        "primary": "deep_talk",
-        "blockedTags": ("看电影", "影院", "电影", "弱交流", "高噪高动"),
-        "reason": "用户核心诉求是坐下来聊天，过滤电影院/运动馆/KTV等弱交流活动",
-    }
 ]
 
 SCENIC_RECALL_PRIMARY = {"tourist_sightseeing"}
@@ -327,15 +323,9 @@ def _time_slot_matches(slot: dict[str, Any], demand: dict[str, Any]) -> bool:
 
 def _all_tags(demand: dict[str, Any]) -> list[str]:
     preferences = demand.get("preferences", {})
-    scene_tags = demand.get("scene", {}).get("tags", [])
-    social = demand.get("socialIntent", {}) if isinstance(demand.get("socialIntent"), dict) else {}
     values: list[str] = []
     for key in ("activityTypes", "foodTags", "experienceTags", "avoidTags"):
         values.extend(preferences.get(key, []))
-    values.extend(scene_tags)
-    values.append(social.get("primary"))
-    values.extend(social.get("preferredVibes", []))
-    values.extend(social.get("avoidVibes", []))
     return [str(value) for value in values if value]
 
 
@@ -520,12 +510,45 @@ def calculate_semantic_score(
     }
 
 
-def _social_hard_filter_reason(primary: str, poi_tags: list[str]) -> str | None:
-    tag_set = set(poi_tags)
-    for rule in SOCIAL_HARD_FILTER_RULES:
-        if rule["primary"] == primary and tag_set.intersection(rule["blockedTags"]):
-            return str(rule["reason"])
-    return None
+def calculate_dimension_match_score(
+    poi: dict[str, Any],
+    structured_demand: dict[str, Any],
+) -> dict[str, Any]:
+    """Score stable POI attributes against the canonical demand dimensions."""
+    profile = build_poi_profile(poi)
+    dimensions = demand_profile.dimension_map(structured_demand)
+    score = 0.0
+    reasons: list[str] = []
+    details: list[dict[str, Any]] = []
+    for key, item in dimensions.items():
+        poi_value = float(profile.get(key, 0.5))
+        target = float(item.get("target") or 0.5)
+        importance = float(item.get("importance") or 0.5)
+        confidence = float(item.get("confidence") or 0.5)
+        source = str(item.get("source") or "hypothesis")
+        source_weight = float(demand_profile.SOURCE_WEIGHTS.get(source, 0.25))
+        similarity = max(0.0, 1.0 - abs(poi_value - target))
+        contribution = similarity * importance * confidence * source_weight * 10.0
+        score += contribution
+        if contribution >= 2.0:
+            reasons.append(f"底层需求匹配：{item.get('label') or key}")
+        details.append(
+            {
+                "key": key,
+                "label": item.get("label") or key,
+                "target": target,
+                "poiValue": poi_value,
+                "similarity": round(similarity, 3),
+                "contribution": round(contribution, 3),
+                "source": source,
+            }
+        )
+    return {
+        "demandMatchScore": round(score, 3),
+        "demandMatchReasons": intent_taxonomy.unique(reasons)[:5],
+        "dimensionMatches": sorted(details, key=lambda item: -float(item["contribution"]))[:8],
+        "baseProfile": profile,
+    }
 
 
 def _has_any_text(demand: dict[str, Any], keywords: list[str]) -> bool:
@@ -552,10 +575,14 @@ def _raw_and_structured_text(demand: dict[str, Any]) -> str:
 
 
 def _wants_scenic_recall(social: dict[str, Any], demand: dict[str, Any]) -> bool:
-    primary = str(social.get("primary") or "")
-    if primary in SCENIC_RECALL_PRIMARY:
-        return True
-    text = _raw_and_structured_text(demand)
+    preferences = demand.get("preferences", {})
+    text = " ".join(
+        [
+            " ".join(str(item) for item in preferences.get("activityTypes", [])),
+            " ".join(str(item) for item in preferences.get("experienceTags", [])),
+            " ".join(str(item) for item in demand.get("constraints", {}).get("hard", [])),
+        ]
+    )
     return any(keyword in text for keyword in SCENIC_RECALL_KEYWORDS)
 
 
@@ -650,11 +677,9 @@ def _directed_activity_types(demand: dict[str, Any]) -> list[str]:
     preferences = demand.get("preferences", {})
     structured_values = [str(value) for value in preferences.get("activityTypes", [])]
     haystack = " ".join(structured_values)
-    social = demand.get("socialIntent", {}) if isinstance(demand.get("socialIntent"), dict) else {}
     avoid_values = [
         *[str(value) for value in preferences.get("avoidTags", [])],
         *[str(value) for value in demand.get("constraints", {}).get("hard", [])],
-        *[str(value) for value in social.get("avoidVibes", [])],
         str(demand.get("rawInput") or ""),
     ]
     avoid_haystack = " ".join(avoid_values)
@@ -810,6 +835,37 @@ def check_deals(poi_id: str, data: dict[str, Any] | None = None) -> list[dict[st
     return [deal for deal in data["deals"] if deal.get("poiId") == poi_id and deal.get("stockLeft", 0) > 0]
 
 
+def _business_metrics(
+    poi: dict[str, Any],
+    *,
+    estimated_cost: float,
+    deals: list[dict[str, Any]],
+    availability: dict[str, Any] | None,
+) -> dict[str, float]:
+    kind = _candidate_kind(poi)
+    commission_rate = float(poi.get("commissionRate") or (0.12 if kind == "restaurant" else 0.09))
+    if deals:
+        commission_rate += 0.02
+    rating = float(poi.get("baseRating") or 4.0)
+    conversion_probability = min(0.88, 0.28 + max(0.0, rating - 3.5) * 0.16 + (0.08 if deals else 0.0))
+    fulfillment_probability = 0.96 if availability else 0.82
+    refund_risk = float(poi.get("refundRisk") or (0.035 if kind == "restaurant" else 0.055))
+    expected_revenue = (
+        estimated_cost
+        * commission_rate
+        * conversion_probability
+        * fulfillment_probability
+        * (1.0 - refund_risk)
+    )
+    return {
+        "commissionRate": round(commission_rate, 4),
+        "conversionProbability": round(conversion_probability, 4),
+        "fulfillmentProbability": round(fulfillment_probability, 4),
+        "refundRisk": round(refund_risk, 4),
+        "expectedPlatformRevenue": round(expected_revenue, 3),
+    }
+
+
 def check_activity_availability(
     activity_id: str,
     date_text: str | None,
@@ -833,10 +889,16 @@ def check_restaurant_availability(
 
 
 def search_activities(
-    structured_demand: dict[str, Any], data: dict[str, Any] | None = None
+    structured_demand: dict[str, Any],
+    data: dict[str, Any] | None = None,
+    *,
+    allowed_area_ids: set[str] | None = None,
+    vector_scores: dict[str, float] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Return activity candidates, filtered-out records, and tool logs."""
     data = data or load_mock_data()
+    demand_profile.ensure_demand_profile(structured_demand)
+    vector_scores = vector_scores or {}
     areas = _area_by_id(data)
     demand_tags = _all_tags(structured_demand)
     social = _social_intent(structured_demand)
@@ -866,6 +928,8 @@ def search_activities(
     ]
 
     for activity in data["activities"]:
+        if allowed_area_ids and activity["areaId"] not in allowed_area_ids:
+            continue
         reasons: list[str] = []
         area = areas[activity["areaId"]]
         metadata = _enriched_poi_metadata(activity)
@@ -882,11 +946,6 @@ def search_activities(
 
         if requires_indoor and activity.get("indoorOutdoor") == "outdoor":
             filtered_out.append(_filtered(activity, "activity", "用户需要室内/雨天友好活动，过滤户外候选"))
-            continue
-
-        social_block_reason = _social_hard_filter_reason(social_primary, poi_tags)
-        if social_block_reason:
-            filtered_out.append(_filtered(activity, "activity", social_block_reason))
             continue
 
         if not metadata["isFiller"] and not _activity_matches_directed(activity, directed_types):
@@ -994,13 +1053,37 @@ def search_activities(
             constraint_fit_score += 7
             reasons.append("明确可逛景点/城市地标")
         semantic = calculate_semantic_score(activity, structured_demand, metadata)
-        semantic_score = float(semantic["semanticScoreDelta"])
+        dimension_match = calculate_dimension_match_score(activity, structured_demand)
+        explicit_preference_score = (
+            len(semantic["semanticReasonDetails"]["explicitPreference"]) * intent_taxonomy.EXPLICIT_PREFERENCE_BOOST
+            + len(
+                [
+                    reason
+                    for reason in semantic["semanticReasonDetails"]["profileWarnings"]
+                    if reason.startswith("用户明确避开")
+                ]
+            )
+            * intent_taxonomy.EXPLICIT_AVOID_PENALTY
+        )
+        vector_score = float(vector_scores.get(activity["id"], 0.0)) * 4.0
         route_hint_score = 0.0
-        score = round(base_quality_score + constraint_fit_score + semantic_score + route_hint_score, 3)
+        score = round(
+            base_quality_score
+            + constraint_fit_score
+            + float(semantic["semanticScoreDelta"])
+            + float(dimension_match["demandMatchScore"])
+            + explicit_preference_score
+            + vector_score
+            + route_hint_score,
+            3,
+        )
         feasibility_reasons = intent_taxonomy.unique(reasons)
-        reasons.extend(semantic["semanticReasons"])
+        reasons.extend(dimension_match["demandMatchReasons"])
+        if vector_score > 0:
+            reasons.append("开放需求向量召回")
         reasons.extend([f"命中标签：{tag}" for tag in matched_tags])
 
+        deals = check_deals(activity["id"], data)
         candidates.append(
             {
                 "poiId": activity["id"],
@@ -1019,6 +1102,9 @@ def search_activities(
                 "baseQualityScore": round(base_quality_score, 3),
                 "constraintFitScore": round(constraint_fit_score, 3),
                 "semanticScoreDelta": semantic["semanticScoreDelta"],
+                "demandMatchScore": dimension_match["demandMatchScore"],
+                "explicitPreferenceScore": round(explicit_preference_score, 3),
+                "vectorRecallScore": round(vector_score, 3),
                 "routeHintScore": route_hint_score,
                 "semanticReasons": semantic["semanticReasons"],
                 "reasonDetails": {
@@ -1027,10 +1113,25 @@ def search_activities(
                 },
                 "matchedSemanticTags": semantic["matchedSemanticTags"],
                 "penalizedSemanticTags": semantic["penalizedSemanticTags"],
+                "dimensionMatches": dimension_match["dimensionMatches"],
+                "baseProfile": dimension_match["baseProfile"],
+                "recallSources": intent_taxonomy.unique(
+                    [
+                        "structured_attributes",
+                        "quality_recall",
+                        *(["open_hypothesis_vector"] if vector_score > 0 else []),
+                    ]
+                ),
                 "matchedReasons": reasons,
                 "estimatedCost": estimated_cost,
                 "availability": availability,
-                "deals": check_deals(activity["id"], data),
+                "deals": deals,
+                "businessMetrics": _business_metrics(
+                    activity,
+                    estimated_cost=estimated_cost,
+                    deals=deals,
+                    availability=availability,
+                ),
                 "source": "mock_activities.json",
             }
         )
@@ -1050,10 +1151,16 @@ def search_activities(
 
 
 def search_restaurants(
-    structured_demand: dict[str, Any], data: dict[str, Any] | None = None
+    structured_demand: dict[str, Any],
+    data: dict[str, Any] | None = None,
+    *,
+    allowed_area_ids: set[str] | None = None,
+    vector_scores: dict[str, float] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Return restaurant candidates, filtered-out records, and tool logs."""
     data = data or load_mock_data()
+    demand_profile.ensure_demand_profile(structured_demand)
+    vector_scores = vector_scores or {}
     areas = _area_by_id(data)
     demand_tags = _all_tags(structured_demand)
     social = _social_intent(structured_demand)
@@ -1081,6 +1188,8 @@ def search_restaurants(
     ]
 
     for restaurant in data["restaurants"]:
+        if allowed_area_ids and restaurant["areaId"] not in allowed_area_ids:
+            continue
         reasons: list[str] = []
         area = areas[restaurant["areaId"]]
         metadata = _enriched_poi_metadata(restaurant)
@@ -1174,13 +1283,37 @@ def search_restaurants(
                 constraint_fit_score += 2
                 reasons.append("低预算标签")
         semantic = calculate_semantic_score(restaurant, structured_demand, metadata)
-        semantic_score = float(semantic["semanticScoreDelta"])
+        dimension_match = calculate_dimension_match_score(restaurant, structured_demand)
+        explicit_preference_score = (
+            len(semantic["semanticReasonDetails"]["explicitPreference"]) * intent_taxonomy.EXPLICIT_PREFERENCE_BOOST
+            + len(
+                [
+                    reason
+                    for reason in semantic["semanticReasonDetails"]["profileWarnings"]
+                    if reason.startswith("用户明确避开")
+                ]
+            )
+            * intent_taxonomy.EXPLICIT_AVOID_PENALTY
+        )
+        vector_score = float(vector_scores.get(restaurant["id"], 0.0)) * 4.0
         route_hint_score = 0.0
-        score = round(base_quality_score + constraint_fit_score + semantic_score + route_hint_score, 3)
+        score = round(
+            base_quality_score
+            + constraint_fit_score
+            + float(semantic["semanticScoreDelta"])
+            + float(dimension_match["demandMatchScore"])
+            + explicit_preference_score
+            + vector_score
+            + route_hint_score,
+            3,
+        )
         feasibility_reasons = intent_taxonomy.unique(reasons)
-        reasons.extend(semantic["semanticReasons"])
+        reasons.extend(dimension_match["demandMatchReasons"])
+        if vector_score > 0:
+            reasons.append("开放需求向量召回")
         reasons.extend([f"命中标签：{tag}" for tag in matched_tags])
 
+        deals = check_deals(restaurant["id"], data)
         candidates.append(
             {
                 "poiId": restaurant["id"],
@@ -1198,6 +1331,9 @@ def search_restaurants(
                 "baseQualityScore": round(base_quality_score, 3),
                 "constraintFitScore": round(constraint_fit_score, 3),
                 "semanticScoreDelta": semantic["semanticScoreDelta"],
+                "demandMatchScore": dimension_match["demandMatchScore"],
+                "explicitPreferenceScore": round(explicit_preference_score, 3),
+                "vectorRecallScore": round(vector_score, 3),
                 "routeHintScore": route_hint_score,
                 "semanticReasons": semantic["semanticReasons"],
                 "reasonDetails": {
@@ -1206,10 +1342,25 @@ def search_restaurants(
                 },
                 "matchedSemanticTags": semantic["matchedSemanticTags"],
                 "penalizedSemanticTags": semantic["penalizedSemanticTags"],
+                "dimensionMatches": dimension_match["dimensionMatches"],
+                "baseProfile": dimension_match["baseProfile"],
+                "recallSources": intent_taxonomy.unique(
+                    [
+                        "structured_attributes",
+                        "quality_recall",
+                        *(["open_hypothesis_vector"] if vector_score > 0 else []),
+                    ]
+                ),
                 "matchedReasons": reasons,
                 "estimatedCost": estimated_cost,
                 "availability": availability,
-                "deals": check_deals(restaurant["id"], data),
+                "deals": deals,
+                "businessMetrics": _business_metrics(
+                    restaurant,
+                    estimated_cost=estimated_cost,
+                    deals=deals,
+                    availability=availability,
+                ),
                 "source": "mock_restaurants.json",
             }
         )
@@ -1558,15 +1709,114 @@ def _build_supply_status(
     }
 
 
+def _candidate_search_text(candidate: dict[str, Any]) -> str:
+    """Return factual identity fields only; vibes cannot impersonate a named cuisine."""
+    values = [
+        candidate.get("name"),
+        candidate.get("category"),
+        candidate.get("cuisine"),
+    ]
+    return " ".join(str(value).lower() for value in values if value)
+
+
+def _explicit_preference_coverage(
+    structured_demand: dict[str, Any],
+    activity_candidates: list[dict[str, Any]],
+    restaurant_candidates: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Verify that ranked supply did not silently ignore an explicit request."""
+    requests = intent_taxonomy.explicit_preference_requests(str(structured_demand.get("rawInput") or ""))
+    required_areas = demand_profile.required_area_ids(structured_demand)
+    coverage: list[dict[str, Any]] = []
+    conflicts: list[dict[str, Any]] = []
+    candidates_by_kind = {
+        "activity": activity_candidates,
+        "restaurant": restaurant_candidates,
+    }
+    for request in requests:
+        all_candidates = candidates_by_kind.get(str(request["kind"]), [])
+        candidates = (
+            [candidate for candidate in all_candidates if str(candidate.get("areaId") or "") in required_areas]
+            if required_areas
+            else all_candidates
+        )
+        match_terms = [str(term).lower() for term in request.get("matchTerms", [])]
+        matched = [
+            candidate
+            for candidate in candidates
+            if any(term in _candidate_search_text(candidate) for term in match_terms)
+        ]
+        result = {
+            **request,
+            "matched": bool(matched),
+            "matchedCandidateIds": [candidate.get("poiId") for candidate in matched[:5]],
+            "matchedCandidateNames": [candidate.get("name") for candidate in matched[:5]],
+        }
+        coverage.append(result)
+        if matched:
+            continue
+        strength = str(request.get("strength") or "soft")
+        should_clarify = strength in {"hard", "strong_soft"}
+        scope = "required_destination_area" if required_areas else "selected_areas"
+        conflicts.append(
+            {
+                **result,
+                "scope": scope,
+                "shouldClarify": should_clarify,
+                "reason": (
+                    f"当前点名目的地区域内没有通过营业、预算、排队等硬约束的「{request['key']}」候选"
+                    if required_areas
+                    else f"当前入围区域内没有通过硬约束的「{request['key']}」候选"
+                ),
+                "suggestedActions": [
+                    f"保留当前区域，接受相近餐饮替代",
+                    f"保留「{request['key']}」，允许扩大到附近区域",
+                    "放宽排队、时间或预算限制后重试",
+                ],
+            }
+        )
+    return {
+        "requests": coverage,
+        "conflicts": conflicts,
+        "blockingConflicts": [item for item in conflicts if item.get("shouldClarify")],
+    }
+
+
 def search_supply(structured_demand: dict[str, Any]) -> dict[str, Any]:
     """Top-level stage-3 mock supply search entrypoint."""
     data = load_mock_data()
+    demand_profile.ensure_demand_profile(structured_demand)
     prefer_cross_city = _is_xianyang_to_xian(structured_demand)
+    area_recall_result = area_retrieval.recall_areas(structured_demand, data)
+    allowed_area_ids = set(area_recall_result["selectedAreaIds"])
+    vector_scores: dict[str, float] = {}
+    vector_recall_results: list[dict[str, Any]] = []
+    all_pois = [*data["activities"], *data["restaurants"]]
+    for hypothesis in structured_demand.get("demandProfile", {}).get("openHypotheses", []):
+        text = str(hypothesis.get("text") or "")
+        if not text:
+            continue
+        matches = RETRIEVER.search(text, all_pois, area_ids=allowed_area_ids)
+        for match in matches:
+            poi_id = str(match["poiId"])
+            vector_scores[poi_id] = max(vector_scores.get(poi_id, 0.0), float(match["similarity"]))
+            vector_recall_results.append(
+                {
+                    **match,
+                    "hypothesisId": hypothesis.get("hypothesisId"),
+                }
+            )
     activity_candidates, filtered_activities, activity_logs = search_activities(
-        structured_demand, data
+        structured_demand,
+        data,
+        allowed_area_ids=allowed_area_ids,
+        vector_scores=vector_scores,
     )
     restaurant_candidates, filtered_restaurants, restaurant_logs = search_restaurants(
-        structured_demand, data
+        structured_demand,
+        data,
+        allowed_area_ids=allowed_area_ids,
+        vector_scores=vector_scores,
     )
     area_ids = [
         item["areaId"] for item in [*activity_candidates[:10], *restaurant_candidates[:10]]
@@ -1582,17 +1832,43 @@ def search_supply(structured_demand: dict[str, Any]) -> dict[str, Any]:
     supply_status = _build_supply_status(
         structured_demand, activity_candidates, restaurant_candidates, route_candidates
     )
+    preference_coverage = _explicit_preference_coverage(
+        structured_demand,
+        activity_candidates,
+        restaurant_candidates,
+    )
 
     return {
         "city": DEFAULT_CITY,
+        "demandProfile": structured_demand.get("demandProfile", {}),
+        "areaRecallResult": area_recall_result,
+        "vectorRecallResult": {
+            "provider": RETRIEVER.provider,
+            "matches": vector_recall_results,
+        },
         "activityCandidates": activity_candidates,
         "restaurantCandidates": restaurant_candidates,
         "routeCandidates": route_candidates,
         "routeFairnessByArea": route_fairness_by_area,
         "supplyStatus": supply_status,
+        "explicitPreferenceCoverage": preference_coverage,
+        "preferenceConflicts": preference_coverage["conflicts"],
         "filteredOut": [*filtered_activities, *filtered_restaurants],
         "toolLogs": [
             {"tool": "load_mock_data", "action": "read_local_json", "dataDir": str(DATA_DIR)},
+            {
+                "tool": "recall_areas",
+                "action": "fixed_progressive_area_recall",
+                "evaluatedAreaCount": area_recall_result["evaluatedAreaCount"],
+                "selectedAreaIds": area_recall_result["selectedAreaIds"],
+                "protectedAreaIds": area_recall_result["protectedAreaIds"],
+            },
+            {
+                "tool": "semantic_retrieval",
+                "action": "open_hypothesis_vector_recall",
+                "provider": RETRIEVER.provider,
+                "outputCount": len(vector_recall_results),
+            },
             *activity_logs,
             *restaurant_logs,
             *route_logs,

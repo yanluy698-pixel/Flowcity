@@ -502,6 +502,67 @@ button {
   background: #fffaf1;
 }
 
+.profile-panel {
+  display: grid;
+  gap: 10px;
+  margin: 0 16px 14px;
+  padding: 12px;
+  border: 1px solid #ecdca7;
+  border-radius: 8px;
+  background: #fffdf5;
+}
+
+.profile-panel strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.profile-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.profile-tags span {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f4f1e8;
+  color: #514b3e;
+  font-size: 12px;
+}
+
+.profile-tags .anchor-tag {
+  background: #fff0a8;
+  color: #4e4000;
+}
+
+.hypothesis-list {
+  display: grid;
+  gap: 6px;
+}
+
+.hypothesis-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  background: #fff7d8;
+  font-size: 12px;
+}
+
+.hypothesis-item button {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: #e8dfc1;
+  color: #665b35;
+  cursor: pointer;
+}
+
 .reason-badges {
   display: flex;
   flex-wrap: wrap;

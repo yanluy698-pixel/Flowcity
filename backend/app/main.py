@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.flow import router as flow_router
+from app.routers.learning import router as learning_router
 
 
 def create_app() -> FastAPI:
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(flow_router, prefix="/api/flow", tags=["flow"])
+    app.include_router(learning_router, prefix="/api/learning", tags=["learning-admin"])
 
     @app.get("/health")
     def health() -> dict[str, str]:

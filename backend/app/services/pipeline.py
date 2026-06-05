@@ -19,6 +19,9 @@ if str(FLOWCITY_ROOT) not in sys.path:
 import executor  # noqa: E402
 import extractor  # noqa: E402
 import flow_tools  # noqa: E402
+import demand_profile  # noqa: E402
+import learning_events  # noqa: E402
+import area_retrieval  # noqa: E402
 import mock_api  # noqa: E402
 import planner  # noqa: E402
 import refinement  # noqa: E402
@@ -28,6 +31,99 @@ import validator  # noqa: E402
 
 SESSION_STORE: dict[str, dict[str, Any]] = {}
 STREAM_STAGE_PAUSE_SECONDS = 0.25
+
+
+def _record_learning_event(
+    event_type: str,
+    *,
+    session_id: str | None,
+    hypothesis_id: str | None = None,
+    cluster_key: str | None = None,
+    payload: dict[str, Any] | None = None,
+) -> None:
+    try:
+        learning_events.get_store().record(
+            event_type,
+            session_id=session_id,
+            hypothesis_id=hypothesis_id,
+            cluster_key=cluster_key,
+            payload=payload,
+        )
+    except Exception:
+        # Learning telemetry must never block the planning product path.
+        return
+
+
+def _record_profile_learning_events(session_id: str, structured_demand: dict[str, Any]) -> None:
+    for item in structured_demand.get("demandProfile", {}).get("openHypotheses", []):
+        hypothesis_id = item.get("hypothesisId")
+        cluster_key = item.get("key")
+        payload = {
+            "text": item.get("text"),
+            "confidence": item.get("confidence"),
+            "evidence": item.get("evidence", []),
+        }
+        _record_learning_event(
+            "hypothesis_created",
+            session_id=session_id,
+            hypothesis_id=hypothesis_id,
+            cluster_key=cluster_key,
+            payload=payload,
+        )
+        _record_learning_event(
+            "hypothesis_shown",
+            session_id=session_id,
+            hypothesis_id=hypothesis_id,
+            cluster_key=cluster_key,
+            payload={"text": item.get("text")},
+        )
+
+
+def _record_supply_learning_events(session_id: str, mock_supply: dict[str, Any]) -> None:
+    for item in mock_supply.get("vectorRecallResult", {}).get("matches", []):
+        _record_learning_event(
+            "poi_recalled_by_hypothesis",
+            session_id=session_id,
+            hypothesis_id=item.get("hypothesisId"),
+            payload={
+                "poiId": item.get("poiId"),
+                "areaId": item.get("areaId"),
+                "similarity": item.get("similarity"),
+                "provider": item.get("provider"),
+            },
+        )
+
+
+def _active_hypotheses(structured_demand: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not isinstance(structured_demand, dict):
+        return []
+    return [
+        deepcopy(item)
+        for item in structured_demand.get("demandProfile", {}).get("openHypotheses", [])
+        if isinstance(item, dict)
+        and item.get("hypothesisId")
+        and item.get("status") != "user_rejected"
+    ]
+
+
+def _record_outcome_for_active_hypotheses(
+    event_type: str,
+    *,
+    session_id: str | None,
+    structured_demand: dict[str, Any] | None,
+    payload: dict[str, Any] | None = None,
+) -> None:
+    for item in _active_hypotheses(structured_demand):
+        _record_learning_event(
+            event_type,
+            session_id=session_id,
+            hypothesis_id=item.get("hypothesisId"),
+            cluster_key=item.get("key"),
+            payload={
+                "hypothesisText": item.get("text"),
+                **(payload or {}),
+            },
+        )
 
 
 def _ndjson(event: dict[str, Any]) -> str:
@@ -358,6 +454,7 @@ def _save_session(
         "currentDemand": deepcopy(structured_demand),
         "currentSupply": deepcopy(mock_supply),
         "currentPlan": deepcopy(timeline_plan),
+        "activeHypotheses": _active_hypotheses(structured_demand),
         "lastInput": input_text,
         "userFeedbackHistory": history,
         "updatedAt": time.time(),
@@ -432,6 +529,9 @@ def _extract_or_refine_demand(
             "如果 targetKind=route，只能重点修改路线、交通方式、商圈布局和转场；不要无故换成语义高但更远的 POI。\n"
             "如果 targetKind=whole_plan，允许重排活动、餐厅和路线，但仍保留所有硬约束。\n"
             "如果用户表达会导致时间/预算/路线冲突，把风险写进 potentialConflicts，并在 constraints.soft 给出可执行取舍方向。\n"
+            "保留 previousDemand.demandProfile 中仍成立的事实、目的地锚点和已拒绝猜测；"
+            "仅为用户这次明确修改的底层维度更新 target/source/confidence/evidence。"
+            "不要把具体推荐 POI 的特点反写成用户需求，也不要因为上一版选中了某地点就推断用户喜欢它。\n"
             "不要输出解释，不要输出 POI 方案，只输出 JSON。\n"
             f"{json.dumps(context_payload, ensure_ascii=False, default=str)}"
         )
@@ -561,6 +661,29 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
 
         yield _event("stage_start", stage="extract", label="理解需求")
         structured_demand, refinement_intent = _extract_or_refine_demand(request, session_id, router_result)
+        if request.hypothesisFeedback:
+            demand_profile.apply_hypothesis_feedback(structured_demand, request.hypothesisFeedback)
+        demand_profile.ensure_demand_profile(structured_demand)
+        if refinement_intent.get("mode") == "refine":
+            _record_outcome_for_active_hypotheses(
+                "node_modified",
+                session_id=session_id,
+                structured_demand=structured_demand,
+                payload={
+                    "changedItems": refinement_intent.get("changedItems", []),
+                    "operations": refinement_intent.get("operations", []),
+                },
+            )
+        if request.hypothesisFeedback:
+            feedback = request.hypothesisFeedback
+            _record_learning_event(
+                str(feedback.get("action") or "hypothesis_feedback"),
+                session_id=session_id,
+                hypothesis_id=feedback.get("hypothesisId"),
+                cluster_key=feedback.get("clusterKey"),
+                payload=feedback,
+            )
+        _record_profile_learning_events(session_id, structured_demand)
         schema_demand = _schema_safe_demand(structured_demand)
         client_demand = _client_visible_demand(structured_demand)
         validation_errors = extractor.basic_validate(
@@ -580,8 +703,44 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
         )
         _pause_for_streaming()
 
-        yield _event("stage_start", stage="supply", label="查活动、餐厅和路线")
+        yield _event("stage_start", stage="area", label="比较可行区域与点名目的地")
+        area_recall_preview = area_retrieval.recall_areas(structured_demand, mock_api.load_mock_data())
+        yield _event(
+            "stage_done",
+            stage="area",
+            payload={"areaRecallResult": area_recall_preview},
+        )
+        _pause_for_streaming()
+        anchor_conflicts = area_recall_preview.get("anchorConflicts", [])
+        if anchor_conflicts:
+            conflict = anchor_conflicts[0]
+            yield _event(
+                "final",
+                payload={
+                    "input": request.input,
+                    "sessionId": session_id,
+                    "planId": plan_id,
+                    "routerResult": router_result,
+                    "structuredDemand": client_demand,
+                    "areaRecallResult": area_recall_preview,
+                    "awaitingUserChoice": True,
+                    "assistantMessage": {
+                        "mode": "clarification",
+                        "message": (
+                            f"我会保留你点名的「{conflict.get('areaName')}」，但当前条件下暂时排不成："
+                            f"{conflict.get('reason')}。你希望怎么取舍？"
+                        ),
+                        "quickReplies": conflict.get("suggestedActions", []),
+                        "source": "destination-anchor-feasibility",
+                        "riskLevel": "high",
+                    },
+                },
+            )
+            return
+
+        yield _event("stage_start", stage="supply", label="在入围区域中寻找地点")
         full_supply, tool_results = flow_tools.search_supply_with_tools(structured_demand)
+        _record_supply_learning_events(session_id, full_supply)
         mock_supply = _limit_supply(full_supply, request.limit)
         yield _event(
             "stage_done",
@@ -593,6 +752,42 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
             },
         )
         _pause_for_streaming()
+        preference_conflicts = full_supply.get("explicitPreferenceCoverage", {}).get("blockingConflicts", [])
+        if preference_conflicts:
+            conflict = preference_conflicts[0]
+            _save_session(
+                session_id,
+                plan_id=plan_id,
+                input_text=request.input,
+                structured_demand=structured_demand,
+                mock_supply=full_supply,
+                timeline_plan={},
+                refinement_intent=refinement_intent,
+            )
+            yield _event(
+                "final",
+                payload={
+                    "input": request.input,
+                    "sessionId": session_id,
+                    "planId": plan_id,
+                    "routerResult": router_result,
+                    "structuredDemand": client_demand,
+                    "mockSupply": full_supply,
+                    "awaitingUserChoice": True,
+                    "assistantMessage": {
+                        "mode": "clarification",
+                        "message": (
+                            f"我没有直接拿别的类型糊弄你：{conflict.get('reason')}。"
+                            "你更想保留地点，还是保留这次明确提出的偏好？"
+                        ),
+                        "quickReplies": conflict.get("suggestedActions", []),
+                        "source": "explicit-preference-coverage",
+                        "riskLevel": "high" if conflict.get("strength") == "hard" else "medium",
+                    },
+                    "preferenceConflict": conflict,
+                },
+            )
+            return
 
         yield _event("stage_start", stage="plan", label="组合时间轴")
         timeline_plan = planner.plan_timeline(
@@ -602,6 +797,14 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
             fallback_on_error=not request.strictPlannerLlm,
             limit=max(request.limit, 1),
         )
+        for item in timeline_plan.get("selectedItems", []):
+            for source in item.get("recallSources", []):
+                if source == "open_hypothesis_vector":
+                    _record_learning_event(
+                        "poi_selected_in_plan",
+                        session_id=session_id,
+                        payload={"poiId": item.get("poiId"), "kind": item.get("kind")},
+                    )
         yield _event(
             "stage_done",
             stage="plan",
@@ -676,7 +879,7 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
 
 
 def confirm_execution_from_draft(request: ExecuteRequest) -> dict[str, Any]:
-    return executor.confirm_execution(
+    result = executor.confirm_execution(
         request.executionDraft,
         structured_demand=request.structuredDemand,
         timeline_plan=request.timelinePlan,
@@ -684,3 +887,22 @@ def confirm_execution_from_draft(request: ExecuteRequest) -> dict[str, Any]:
         planner_llm=request.plannerLlm,
         replan_on_runtime_failure=request.replanOnRuntimeFailure,
     )
+    if result.get("executionStatus") == "confirmed":
+        _record_learning_event(
+            "plan_confirmed",
+            session_id=request.sessionId,
+            payload={"planId": request.planId},
+        )
+        session = SESSION_STORE.get(str(request.sessionId or ""))
+        structured_demand = (
+            session.get("currentDemand")
+            if isinstance(session, dict)
+            else request.structuredDemand
+        )
+        _record_outcome_for_active_hypotheses(
+            "plan_confirmed",
+            session_id=request.sessionId,
+            structured_demand=structured_demand,
+            payload={"planId": request.planId},
+        )
+    return result

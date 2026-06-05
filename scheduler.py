@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import demand_profile
+
 
 AREA_LABELS = {
     "area_xa_xiaozhai": "小寨商圈",
@@ -131,13 +133,9 @@ def _format_minutes(value: int | None, fallback: str) -> str:
 def _demand_text(demand: dict[str, Any]) -> str:
     preferences = demand.get("preferences", {})
     constraints = demand.get("constraints", {})
-    social = demand.get("socialIntent", {}) if isinstance(demand.get("socialIntent"), dict) else {}
     return " ".join(
         [
             str(demand.get("rawInput") or ""),
-            str(social.get("primary") or ""),
-            " ".join(str(item) for item in social.get("preferredVibes", [])),
-            " ".join(str(item) for item in social.get("avoidVibes", [])),
             " ".join(str(item) for item in preferences.get("activityTypes", [])),
             " ".join(str(item) for item in preferences.get("foodTags", [])),
             " ".join(str(item) for item in preferences.get("experienceTags", [])),
@@ -150,12 +148,10 @@ def _demand_text(demand: dict[str, Any]) -> str:
 
 def _positive_activity_text(demand: dict[str, Any]) -> str:
     preferences = demand.get("preferences", {}) if isinstance(demand.get("preferences"), dict) else {}
-    social = demand.get("socialIntent", {}) if isinstance(demand.get("socialIntent"), dict) else {}
     constraints = demand.get("constraints", {}) if isinstance(demand.get("constraints"), dict) else {}
     return " ".join(
         [
             str(demand.get("rawInput") or ""),
-            " ".join(str(item) for item in social.get("preferredVibes", [])),
             " ".join(str(item) for item in preferences.get("activityTypes", [])),
             " ".join(str(item) for item in preferences.get("experienceTags", [])),
             " ".join(str(item) for item in constraints.get("soft", [])),
@@ -220,6 +216,11 @@ def _requires_activity(demand: dict[str, Any]) -> bool:
     patch = plan_control.get("constraintsPatch", {}) if isinstance(plan_control.get("constraintsPatch"), dict) else {}
     if plan_control.get("skipActivity") or patch.get("skipActivity"):
         return False
+    requested_components = set(
+        demand.get("demandProfile", {}).get("requestedComponents", [])
+    )
+    if requested_components == {"activity"}:
+        return True
     if _wants_loose_mall_stroll(demand) and not any(keyword in text for keyword in ("必须玩", "一定要玩", "专门玩", "买票", "游乐场")):
         return bool(plan_control.get("requireActivity"))
     return bool(plan_control.get("requireActivity")) or any(
@@ -406,9 +407,10 @@ def _should_include_return_route(demand: dict[str, Any]) -> bool:
 
 
 def _target_area_ids(demand: dict[str, Any]) -> set[str]:
+    anchor_areas = demand_profile.protected_area_ids(demand)
     text = str(demand.get("location", {}).get("preferredArea") or "")
     if not text:
-        return set()
+        return anchor_areas
     aliases = {
         "area_xa_xiaozhai": ("小寨", "赛格"),
         "area_xa_qujiang": ("曲江", "大雁塔", "大唐不夜城", "大悦城", "芙蓉园"),
@@ -417,7 +419,7 @@ def _target_area_ids(demand: dict[str, Any]) -> set[str]:
         "area_xa_daminggong": ("大明宫", "龙首原"),
         "area_xa_xingzheng": ("行政中心", "熙地港"),
     }
-    return {area_id for area_id, words in aliases.items() if any(word in text for word in words)}
+    return anchor_areas | {area_id for area_id, words in aliases.items() if any(word in text for word in words)}
 
 
 def _nearby_target_area_ids(demand: dict[str, Any]) -> set[str]:
@@ -841,6 +843,14 @@ def _build_candidate_plan(
         return None, {"reason": "超过严格预算", "totalCost": total_cost, "budgetLimit": budget_limit}
     if _requires_activity(demand) and not activity:
         return None, {"reason": "用户明确想玩，但组合没有活动"}
+    selected_area_ids = {item.get("areaId") for item in (activity, restaurant) if item and item.get("areaId")}
+    required_anchor_areas = demand_profile.required_area_ids(demand)
+    if required_anchor_areas and not required_anchor_areas.issubset(selected_area_ids):
+        return None, {
+            "reason": "组合没有覆盖用户明确点名的目的地区域",
+            "requiredAnchorAreas": sorted(required_anchor_areas),
+            "selectedAreas": sorted(selected_area_ids),
+        }
 
     selected_items: list[dict[str, Any]] = []
     for route in (first_route, transfer_route, return_route):
@@ -854,9 +864,25 @@ def _build_candidate_plan(
                 }
             )
     if activity:
-        selected_items.append({"kind": "activity", "poiId": activity.get("poiId"), "name": activity.get("name"), "reason": _candidate_reason_summary(activity, fallback="通过时间、预算和供给约束。")})
+        selected_items.append(
+            {
+                "kind": "activity",
+                "poiId": activity.get("poiId"),
+                "name": activity.get("name"),
+                "reason": _candidate_reason_summary(activity, fallback="通过时间、预算和供给约束。"),
+                "recallSources": activity.get("recallSources", []),
+            }
+        )
     if restaurant:
-        selected_items.append({"kind": "restaurant", "poiId": restaurant.get("poiId"), "name": restaurant.get("name"), "reason": _candidate_reason_summary(restaurant, fallback="通过时间、预算和供给约束。")})
+        selected_items.append(
+            {
+                "kind": "restaurant",
+                "poiId": restaurant.get("poiId"),
+                "name": restaurant.get("name"),
+                "reason": _candidate_reason_summary(restaurant, fallback="通过时间、预算和供给约束。"),
+                "recallSources": restaurant.get("recallSources", []),
+            }
+        )
 
     summary_parts = []
     if first_route and first_route.get("isCrossCityInbound"):
@@ -910,8 +936,40 @@ def _build_candidate_plan(
         "tradeoffs": tradeoffs,
         "rawPlannerNotes": "Generated by constraint scheduler.",
     }
-    score = _score_plan(demand, activity, restaurant, first_route, transfer_route, total_cost, cursor)
-    return plan, {"score": score, "activity": activity.get("name") if activity else None, "restaurant": restaurant.get("name") if restaurant else None}
+    experience_score = _score_plan(demand, activity, restaurant, first_route, transfer_route, total_cost, cursor)
+    expected_platform_revenue = sum(
+        float((item or {}).get("businessMetrics", {}).get("expectedPlatformRevenue") or 0)
+        for item in (activity, restaurant)
+    )
+    budget_limit = _budget_limit(demand)
+    budget_utilization = total_cost / budget_limit if budget_limit and budget_limit > 0 else None
+    low_cost_intent = any(
+        keyword in _demand_text(demand)
+        for keyword in ("不想花钱", "少花钱", "低成本", "省钱", "便宜", "预算越低")
+    )
+    if low_cost_intent:
+        business_score = -total_cost / 20.0
+    else:
+        utilization_score = (
+            max(0.0, 1.0 - abs(0.92 - min(budget_utilization, 1.2))) * 10.0
+            if budget_utilization is not None
+            else 0.0
+        )
+        business_score = expected_platform_revenue * 0.7 + utilization_score * 0.3
+    plan["commercialEstimate"] = {
+        "expectedPlatformRevenue": round(expected_platform_revenue, 3),
+        "budgetUtilization": round(budget_utilization, 4) if budget_utilization is not None else None,
+        "qualityGateApplied": True,
+    }
+    return plan, {
+        "score": experience_score,
+        "experienceScore": experience_score,
+        "businessScore": round(business_score, 3),
+        "expectedPlatformRevenue": round(expected_platform_revenue, 3),
+        "budgetUtilization": round(budget_utilization, 4) if budget_utilization is not None else None,
+        "activity": activity.get("name") if activity else None,
+        "restaurant": restaurant.get("name") if restaurant else None,
+    }
 
 
 def _insert_filler_if_needed(
@@ -1026,13 +1084,15 @@ def _tradeoff_notes(demand: dict[str, Any]) -> list[str]:
         notes.append("用户同时表达低成本/不想花钱和不想太累/走不了太多路，调度器优先选择低预算、少转场的组合。")
     if _has_meal_constraint(demand):
         notes.append("有吃饭硬约束时，先给餐饮和座位留预算，再用剩余预算安排活动。")
-    social = demand.get("socialIntent", {}) if isinstance(demand.get("socialIntent"), dict) else {}
     per_person = demand.get("budget", {}).get("perPerson")
     if (
-        social.get("primary") in {"light_date", "deep_talk"}
-        and isinstance(per_person, (int, float))
+        isinstance(per_person, (int, float))
         and 120 <= per_person <= 150
         and demand.get("budget", {}).get("flexibility") == "strict"
+        and any(
+            item.get("key") in {"conversationFriendly", "privacy", "formality"}
+            for item in demand.get("demandProfile", {}).get("dimensions", [])
+        )
     ):
         notes.append("当前预算卡在轻约会/慢聊氛围餐厅的临界位；如人均上浮 30-50 元，可优先升级到更稳妥的日料、Bistro 或慢聊餐厅。")
     notes.append("优先保证硬约束，再在可行组合里选择更少转场、更低预算和更匹配偏好的方案。")
@@ -1084,7 +1144,8 @@ def _score_plan(
         score -= float(transfer_route.get("minutes", 0)) / 5
     budget_limit = _budget_limit(demand)
     if budget_limit is not None:
-        score += max(0, budget_limit - total_cost) / 20
+        utilization = total_cost / max(budget_limit, 1)
+        score += max(0.0, 1.0 - abs(0.92 - utilization)) * 8.0
     end_limit = _parse_minutes(demand.get("timeWindow", {}).get("endTime"))
     if cursor is not None and end_limit is not None:
         score += max(0, end_limit - cursor) / 60
@@ -1122,12 +1183,19 @@ def schedule_timeline(
             restaurants = locked
     require_activity = _requires_activity(structured_demand)
     meal_hard = _has_meal_constraint(structured_demand)
+    requested_components = set(
+        structured_demand.get("demandProfile", {}).get("requestedComponents", [])
+    )
     activity_options: list[dict[str, Any] | None] = activities if activities else [None]
     restaurant_options: list[dict[str, Any] | None] = restaurants if meal_hard else [None, *restaurants]
     if not restaurant_options:
         restaurant_options = [None]
     if (meal_hard or _wants_loose_mall_stroll(structured_demand)) and not require_activity:
         activity_options = [None, *activities]
+    if requested_components == {"restaurant"}:
+        activity_options = [None]
+    if requested_components == {"activity"}:
+        restaurant_options = [None]
     if require_activity:
         activity_options = activities
 
@@ -1160,8 +1228,24 @@ def schedule_timeline(
             "strategy": "top_k_constraint_search",
         }
 
-    feasible.sort(key=lambda item: item[0], reverse=True)
-    best_score, best_plan, best_meta = feasible[0]
+    best_experience_score = max(float(item[2].get("experienceScore") or item[0]) for item in feasible)
+    quality_threshold = max(
+        best_experience_score - 8.0,
+        min(75.0, best_experience_score),
+    )
+    quality_qualified = [
+        item
+        for item in feasible
+        if float(item[2].get("experienceScore") or item[0]) >= quality_threshold
+    ]
+    quality_qualified.sort(
+        key=lambda item: (
+            float(item[2].get("businessScore") or 0),
+            float(item[2].get("experienceScore") or item[0]),
+        ),
+        reverse=True,
+    )
+    best_score, best_plan, best_meta = quality_qualified[0]
     best_plan, filler = _insert_filler_if_needed(structured_demand, best_plan, fillers)
     if filler:
         best_meta["filler"] = filler.get("name")
@@ -1173,6 +1257,8 @@ def schedule_timeline(
         "strategy": "top_k_constraint_search_with_greedy_filler",
         "evaluatedCombinationCount": len(feasible) + len(rejected),
         "feasibleCombinationCount": len(feasible),
+        "qualityQualifiedCombinationCount": len(quality_qualified),
+        "qualityThreshold": round(quality_threshold, 3),
         "fillerInsertion": {"inserted": bool(filler), "poiId": filler.get("poiId") if filler else None},
         "locks": locks,
     }

@@ -2100,6 +2100,19 @@
         "18:30",
         "19:00"
       ]
+    },
+    {
+      "poiId": "res_xa_055",
+      "dateText": "周末",
+      "queueMinutes": 12,
+      "tableAvailable": true,
+      "availableSlots": [
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00",
+        "19:00"
+      ]
     }
   ]
 }

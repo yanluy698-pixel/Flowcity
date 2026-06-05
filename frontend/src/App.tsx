@@ -6,7 +6,8 @@ import type { ChatTurn, FlowEvent, ModifyDraft, StageState } from "./types";
 
 const STAGE_LABELS: Record<string, string> = {
   extract: "理解需求",
-  supply: "查活动、餐厅和路线",
+  area: "比较可行区域与点名目的地",
+  supply: "在入围区域中寻找地点",
   plan: "组合时间轴",
   validate: "校验预算、余票和路线风险",
   execute_draft: "生成执行草案"
@@ -136,7 +137,7 @@ export default function App() {
   const [modifyDraft, setModifyDraft] = useState<ModifyDraft | undefined>();
   const [sessionId] = useState(() => `web_${Date.now()}_${Math.random().toString(16).slice(2)}`);
 
-  async function handleSubmit(text: string) {
+  async function handleSubmit(text: string, hypothesisFeedback?: Record<string, unknown>) {
     if (!text.trim() || isRunning) return;
     const displayInput = text.trim();
     const activeDraft = modifyDraft;
@@ -166,7 +167,8 @@ export default function App() {
           limit: 8,
           sessionId,
           interactionMode: shouldOptimizePrevious ? "refine" : "auto",
-          previousPlanId: lastTurn?.finalPayload?.planId
+          previousPlanId: lastTurn?.finalPayload?.planId,
+          hypothesisFeedback
         }
       );
     } catch (error) {
@@ -182,6 +184,12 @@ export default function App() {
     }
   }
 
+  function handleHypothesisFeedback(turnId: string, feedback: Record<string, unknown>) {
+    const turn = turns.find((item) => item.id === turnId);
+    const text = String(feedback.text ?? "这个隐性需求猜测");
+    handleSubmit(`不要采用“${text}”这个需求猜测，保留其他安排重新规划。`, feedback);
+  }
+
   async function handleConfirm(turnId: string) {
     const turn = turns.find((item) => item.id === turnId);
     const runtimeReplan =
@@ -194,7 +202,9 @@ export default function App() {
         structuredDemand: turn?.finalPayload?.structuredDemand,
         timelinePlan: runtimeReplan?.replannedTimelinePlan ?? turn?.finalPayload?.timelinePlan,
         mockSupply: runtimeReplan?.runtimeMockSupply ?? turn?.finalPayload?.mockSupply,
-        plannerLlm: false
+        plannerLlm: false,
+        sessionId,
+        planId: turn?.finalPayload?.planId
       });
       setTurns((items) =>
         items.map((item) =>
@@ -225,7 +235,9 @@ export default function App() {
         timelinePlan: payload.timelinePlan,
         mockSupply: payload.mockSupply,
         plannerLlm: false,
-        replanOnRuntimeFailure: true
+        replanOnRuntimeFailure: true,
+        sessionId,
+        planId: payload.planId
       });
       setTurns((items) =>
         items.map((item) =>
@@ -263,6 +275,7 @@ export default function App() {
         onClearDraft={() => setModifyDraft(undefined)}
         onConfirm={handleConfirm}
         onRuntimeReplan={handleRuntimeReplan}
+        onHypothesisFeedback={handleHypothesisFeedback}
         disabled={isRunning}
     />
   );

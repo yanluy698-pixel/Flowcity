@@ -13,6 +13,7 @@ type Props = {
   onClearDraft: () => void;
   onConfirm: (turnId: string) => void;
   onRuntimeReplan: (turnId: string) => void;
+  onHypothesisFeedback: (turnId: string, feedback: Record<string, unknown>) => void;
   disabled?: boolean;
 };
 
@@ -24,6 +25,7 @@ export function ChatScreen({
   onClearDraft,
   onConfirm,
   onRuntimeReplan,
+  onHypothesisFeedback,
   disabled
 }: Props) {
   return (
@@ -77,6 +79,7 @@ export function ChatScreen({
                     onConfirm={() => onConfirm(turn.id)}
                     onRuntimeReplan={() => onRuntimeReplan(turn.id)}
                     onModifyPrompt={onDraftPrompt}
+                    onHypothesisFeedback={(feedback) => onHypothesisFeedback(turn.id, feedback)}
                     totalDurationMs={turn.totalDurationMs}
                   />
                 </div>

@@ -1277,6 +1277,42 @@
       "reservable": true,
       "baseRating": 4.6,
       "mockBasis": "补充钟楼片区轻约会餐厅，替代快餐面馆类候选。"
+    },
+    {
+      "id": "res_xa_055",
+      "name": "高新云炉鲜切火锅",
+      "areaId": "area_xa_gaoxin",
+      "cuisine": "hotpot",
+      "tags": [
+        "火锅",
+        "鲜切肉",
+        "正餐",
+        "朋友",
+        "可预约",
+        "少排队"
+      ],
+      "vibeTags": [
+        "烟火气",
+        "不拘束"
+      ],
+      "behaviorTags": [
+        "可坐下聊天",
+        "适合多人"
+      ],
+      "audienceTags": [
+        "朋友多人"
+      ],
+      "isFiller": false,
+      "openHours": {
+        "weekday": "11:00-23:00",
+        "weekend": "11:00-23:30"
+      },
+      "avgPricePerPerson": 96,
+      "childFriendly": true,
+      "lowFatOptions": false,
+      "reservable": true,
+      "baseRating": 4.6,
+      "mockBasis": "补充高新片区真实常见的火锅供给，用于验证显式餐饮偏好与点名区域可同时满足。"
     }
   ]
 }

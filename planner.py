@@ -415,18 +415,6 @@ def validate_timeline_plan(plan: dict[str, Any], mock_supply: dict[str, Any]) ->
         if not any(start != end for start, end in connected_pairs):
             errors.append("timelinePlan.routeRef: selected POIs span multiple areas but no cross-area route is selected")
 
-    plan_text = json.dumps(
-        {
-            "summary": plan.get("summary"),
-            "timeline": plan.get("timeline"),
-            "recommendationReasons": plan.get("recommendationReasons"),
-            "riskTips": plan.get("riskTips"),
-        },
-        ensure_ascii=False,
-    )
-    if len(unique_area_ids) > 1 and any(value in plan_text for value in ("同商圈", "同一商圈", "步行可达", "步行即可")):
-        errors.append("timelinePlan.text: selected POIs span multiple areas but text claims same-area walking convenience")
-
     return errors
 
 

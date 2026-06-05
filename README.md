@@ -8,7 +8,7 @@ FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型
 自然语言输入 -> LLM 需求抽取 -> 语义画像补全 -> 本地供给召回打分 -> Scheduler 组合时间轴 -> Validator 校验 -> 执行草案 -> 交互式修改
 ```
 
-当前进度：**语义画像桥 + Web Demo + 交互式局部修改链路已跑通**。
+当前进度：**语义画像桥 v5 + 固定渐进式区域召回 + 本地向量开放假设召回 + 受控自进化审核链路 + Web Demo 交互式修改已跑通**。
 
 ## 当前能力
 
@@ -24,6 +24,9 @@ FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型
 - 交互式修改：前端时间轴每个节点可点“修改”，输入框会带上对应的隐藏上下文提示词，后端按餐厅、活动、路线、过渡点、整体大改分别处理。
 - 人话确认：当用户追问“晚饭早一点”“早点回家”“只吃饭不安排活动”等可能冲突的需求时，系统会先给可执行选项，而不是直接报错。
 - Mock 执行：默认只生成执行草案；用户显式确认后才生成 Mock 票码、预约号、取号号或路线提醒。
+- 固定渐进式召回：所有请求都先粗排商圈/景点圈，点名目的地永远保留；探索区域才参与淘汰。
+- 显式偏好保真：用户明确改成火锅、烤肉、大排档时，系统要么命中真实品类，要么进入引导协商，不能拿相近氛围糊弄。
+- 受控自进化：长尾模糊需求作为开放假设进入向量召回，用户删除、修改、确认、下单形成匿名反馈；稳定后只生成待审提案，不会自动改正式画像库。
 
 ## 目录结构
 
@@ -32,6 +35,12 @@ Flowcity/
   backend/                 # FastAPI 流式接口
   frontend/                # Vite + React 移动端 Demo
   data/                    # 西安活动、餐厅、路线、动态状态、团购 Mock 数据
+  demand_profile.py        # 推荐评分唯一画像真相源：事实、硬约束、底层维度、目的地锚点、开放假设
+  area_retrieval.py        # 商圈/景点圈粗排，点名目的地保护，供给不足时渐进扩展
+  poi_profiles.py          # POI 基础画像，把活动/餐厅转成稳定数值属性
+  semantic_retrieval.py    # 本地 Embedding + 内存余弦召回
+  learning_events.py       # 匿名学习事件：展示、删除、修改、确认、选择
+  ontology_evolution.py    # 自进化判官：聚类、阻断、提案、审批
   intent_taxonomy.py       # 本地语义画像库、默认标签、权重和显式偏好策略
   extractor.py             # LLM 需求抽取和结构化归一
   mock_api.py              # Stage 3 供给过滤、矩阵打分、Top-K 海选
@@ -47,13 +56,14 @@ Flowcity/
   PROJECT.md               # 产品和架构说明
 ```
 
-自测产物不保存在项目目录内。本轮 10 组多轮 LLM 自测保存在：
+自测产物不保存在项目目录内。本轮 v5 真实 LLM 自测保存在：
 
 ```text
-D:\产品\美团\周末闲时活动规划\Flowcity_interaction_eval_runs\20260605_094648
+D:\产品\美团\周末闲时活动规划\Flowcity_v5_eval_runs\20260605_224256
+D:\产品\美团\周末闲时活动规划\Flowcity_v5_eval_runs\evolution_20260605_224253
 ```
 
-里面每个 case/turn 都包含 `events.json`、`events.ndjson`、`finalPayload.json`，以及可拆出的 `structuredDemand.json`、`mockSupply.json`、`timelinePlan.json`、`validationResult.json` 等链路文件。
+第一个目录是 10 组多轮产品链路，第二个目录是自进化专项验收报告。
 
 ## 环境变量
 
@@ -65,9 +75,16 @@ FLOWCITY_LLM_MODEL=deepseek-v4-flash
 FLOWCITY_LLM_BASE_URL=https://api.deepseek.com
 FLOWCITY_LLM_JSON_OUTPUT=true
 FLOWCITY_LLM_MAX_TOKENS=4096
+FLOWCITY_EMBEDDING_ENABLED=true
+FLOWCITY_EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5
+FLOWCITY_EMBEDDING_CACHE_DIR=
+FLOWCITY_LEARNING_DB=
+FLOWCITY_APPROVED_LEARNING_ENABLED=true
 ```
 
 `.env` 包含真实 Key，不能提交到 Git。
+
+DeepSeek Chat API 用于结构化理解。本地向量召回使用轻量中文 Embedding 模型 `BAAI/bge-small-zh-v1.5`。当前约 129 个 POI，启动时预计算向量，请求时只对开放假设生成向量并在内存里做余弦相似度，无需部署向量数据库。
 
 ## 本地运行
 
@@ -136,16 +153,43 @@ npm run build
 10 组多轮真实 LLM 自测，产物保存到项目外：
 
 ```powershell
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' "D:\产品\美团\周末闲时活动规划\Flowcity_interaction_eval_runs\run_eval_interaction_upgrade.py"
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' "D:\产品\美团\周末闲时活动规划\Flowcity_v5_eval_runs\run_eval_v5.py"
 ```
+
+受控自进化专项验收：
+
+```powershell
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' "D:\产品\美团\周末闲时活动规划\Flowcity_v5_eval_runs\run_evolution_acceptance.py"
+```
+
+学习提案审核 CLI：
+
+```powershell
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' ontology_evolution.py --list-proposals
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' ontology_evolution.py --approve proposal_xxx
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' ontology_evolution.py --reject proposal_xxx
+```
+
+供隐藏 Admin Review 页面使用的审核 API：
+
+```text
+GET  /api/learning/analysis
+GET  /api/learning/proposals
+POST /api/learning/proposals/{proposal_id}/review
+```
+
+这些接口不应该放进普通用户聊天页面，只给开发者或运营审核使用。
+
+已有的 `D:\产品\美团\周末闲时活动规划\MockAPI数据管理台` 可以作为通用 JSON 编辑壳子继续使用，它会动态读取当前 `data/*.json` 字段；但它不是 v5 自进化审核台。本轮不把它原样提交进主项目，避免旧字段理解误导画像链路。后续如要做运营台，建议复用它的三栏编辑器结构，再新增学习提案、标签作用域、画像权重和审批状态面板。
 
 ## 本轮验证结果
 
 - `test_examples.py`：13 个离线样例通过。
 - `frontend npm run build`：通过。
-- Python AST 检查：`pipeline.py/router.py/refinement.py/scheduler.py` 通过。
-- 10 组多轮真实 LLM 自测：`PASSED=10/10`。
-- 速度口径按赛题要求验证：方案生成/重排轮次不超过 30 秒，工具查询不超过 3 秒，每组完整多轮端到端流程不超过 2 分钟。
+- `test_architecture_v5.py`：v5 架构回归通过。
+- 10 组多轮真实 LLM 自测：`PASSED=10/10`，最大单轮 32.403 秒。
+- 自进化专项验收：通过。未审批前正向模式召回率 0%；审批后留出集规范化假设召回率 100%；负向和分歧模式误晋升均为 0%。
+- 速度口径按真实演示优先级验证：每组完整多轮端到端流程不超过 2 分钟；方案生成/重排目标仍尽量压在 30 秒内，但最近一次联网自测受模型响应波动影响有 1 个首轮生成达到 32.403 秒。
 
 本轮重点修复了两个真实自测暴露的问题：
 
@@ -153,6 +197,22 @@ npm run build
 - 用户后续明确说“只吃饭、不安排活动”时，会覆盖第一次输入里的活动需求，不再让旧画像污染新约束。
 - 宽泛同行信息不再自动升级成具体体验目的，例如“带孩子”不会被自动解释成“儿童放电/自然观察”。
 - taxonomy 外且没有显式证据的 LLM 标签不会进入最终画像；餐饮标签也不会跨域污染活动分数。
+- 显式餐饮偏好新增结果保真检查：有真实供给就优先命中；没有供给时向用户解释“保留地点还是保留偏好”，不静默替换。
+- 自进化采用“匿名反馈 -> 聚类统计 -> 待审提案 -> 人工批准 -> 参与新请求召回”的闭环，不自动污染正式 taxonomy。
+
+## 明天前端怎么继续
+
+普通用户主界面建议只做三件事：
+
+- 时间轴更清晰：活动、餐厅、路线分别成为可点击节点，节点旁边保留“修改”入口。
+- 输入框上下文块更细：点击修改后显示“正在修改：餐厅/活动/路线/整体方案”，用户可一键删除上下文块。
+- 冲突确认更像产品：当后端返回 `assistantMessage.quickReplies` 时，渲染为可点选项，而不是普通报错。
+
+自进化审核不要放在普通用户页面。未来可做一个隐藏 Admin Review 页面：
+
+- 展示候选画像提案、样本原话、匿名会话数、确认率、删除率、语义聚合度、留出集效果。
+- 操作只有批准、拒绝、继续观察。
+- 批准后只是让该开放假设作为“已审核学习模式”参与召回；是否升级为正式底层维度或 taxonomy 别名，仍应离线评估后人工合并。
 
 ## 设计边界
 

@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 import intent_taxonomy
+import demand_profile
 
 
 ROOT = Path(__file__).resolve().parent
@@ -558,6 +559,10 @@ def _preferences_from_raw(raw_input: str) -> dict[str, list[str]]:
         ("逛", activity_types, "citywalk"),
         ("citywalk", activity_types, "citywalk"),
         ("小吃", food_tags, "小吃"),
+        ("火锅", food_tags, "火锅"),
+        ("烤肉", food_tags, "烤肉"),
+        ("烧烤", food_tags, "烧烤"),
+        ("大排档", food_tags, "大排档"),
         ("晚饭", food_tags, "晚餐"),
         ("晚餐", food_tags, "晚餐"),
         ("吃饭", food_tags, "正餐"),
@@ -840,10 +845,12 @@ def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str 
     has_low_cost_intent = _has_low_cost_intent(raw_input)
     has_free_preference = _has_free_preference(raw_input)
     if not (has_low_cost_intent or has_free_preference) or _has_explicit_zero_budget(raw_input):
+        demand_profile.ensure_demand_profile(result)
         return result
 
     budget = result.get("budget")
     if not isinstance(budget, dict):
+        demand_profile.ensure_demand_profile(result)
         return result
 
     if budget.get("maxTotal") == 0:
@@ -881,6 +888,7 @@ def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str 
         if isinstance(soft, list) and "优先低成本/免费候选，但不等于严格预算 0" not in soft:
             soft.append("优先低成本/免费候选，但不等于严格预算 0")
 
+    demand_profile.ensure_demand_profile(result)
     return result
 
 

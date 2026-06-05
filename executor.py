@@ -592,6 +592,27 @@ def _apply_runtime_to_supply(
     return runtime_supply
 
 
+def _refresh_supply_for_runtime_replan(
+    structured_demand: dict[str, Any],
+    previous_supply: dict[str, Any],
+    runtime_status: dict[str, Any],
+) -> tuple[dict[str, Any], str]:
+    """Re-enter the normal recall pipeline before applying runtime failures.
+
+    Runtime replanning must not be trapped inside the old Top-K pool. A fresh
+    search keeps destination anchors, area recall, hard constraints, vectors,
+    and ranking behavior identical to an ordinary request.
+    """
+    try:
+        refreshed = mock_api.search_supply(deepcopy(structured_demand))
+        runtime_supply = _apply_runtime_to_supply(refreshed, runtime_status)
+        if runtime_supply.get("activityCandidates") or runtime_supply.get("restaurantCandidates"):
+            return runtime_supply, "fresh_fixed_pipeline_recall"
+    except Exception:
+        pass
+    return _apply_runtime_to_supply(previous_supply, runtime_status), "previous_pool_fallback"
+
+
 def _selected_item_names(plan: dict[str, Any]) -> dict[str, list[str]]:
     selected: dict[str, list[str]] = {"activity": [], "restaurant": [], "route": []}
     for item in plan.get("selectedItems", []):
@@ -633,7 +654,11 @@ def _runtime_replan(
     if not structured_demand or not timeline_plan or not mock_supply:
         return None
 
-    runtime_supply = _apply_runtime_to_supply(mock_supply, runtime_status)
+    runtime_supply, recall_strategy = _refresh_supply_for_runtime_replan(
+        structured_demand,
+        mock_supply,
+        runtime_status,
+    )
     replanned_timeline_plan = planner.plan_timeline(
         structured_demand,
         runtime_supply,
@@ -667,6 +692,7 @@ def _runtime_replan(
         "usedStage5Replan": used_stage5_replan,
         "replannedExecutionDraft": replanned_execution_draft,
         "runtimeSupply": runtime_supply,
+        "runtimeRecallStrategy": recall_strategy,
         "replacementSummary": _replacement_summary(timeline_plan, final_new_plan, runtime_issues),
     }
 

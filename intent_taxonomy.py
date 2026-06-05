@@ -298,6 +298,28 @@ ADDITIONAL_SEMANTIC_TAGS = {
     "自然观察",
 }
 
+EXPLICIT_PREFERENCE_REQUESTS = {
+    "火锅": {
+        "kind": "restaurant",
+        "keywords": ("火锅",),
+        "matchTerms": ("火锅", "hotpot", "student_hotpot"),
+    },
+    "烤肉": {
+        "kind": "restaurant",
+        "keywords": ("烤肉", "烧烤"),
+        "matchTerms": ("烤肉", "烧烤", "barbecue", "bbq"),
+    },
+    "大排档": {
+        "kind": "restaurant",
+        "keywords": ("大排档", "市井大排档", "接地气排档"),
+        "matchTerms": ("大排档", "市井大排档", "排档"),
+    },
+}
+
+HARD_PREFERENCE_MARKERS = ("必须", "只能", "就想", "只想", "别的不要", "非要", "一定要")
+STRONG_PREFERENCE_MARKERS = ("改成", "换成", "特别爱", "就吃", "想吃", "想要", "喜欢")
+OPTIONAL_PREFERENCE_MARKERS = ("也行", "可以", "都行", "随便", "最好有")
+
 OPERATIONAL_CONSTRAINT_HINTS = (
     "预算",
     "人均",
@@ -497,6 +519,34 @@ def extract_explicit_tags(raw_input: str) -> tuple[list[str], list[str]]:
             preferred.extend(["烤肉", "烧烤"])
 
     return expand_tag_aliases(unique(preferred)), expand_tag_aliases(unique(avoid))
+
+
+def explicit_preference_requests(raw_input: str) -> list[dict[str, Any]]:
+    """Extract product-level preference requests used to verify result fidelity."""
+    text = str(raw_input or "")
+    requests: list[dict[str, Any]] = []
+    for key, definition in EXPLICIT_PREFERENCE_REQUESTS.items():
+        evidence = [keyword for keyword in definition["keywords"] if keyword in text]
+        if not evidence:
+            continue
+        if any(marker in text for marker in HARD_PREFERENCE_MARKERS):
+            strength = "hard"
+        elif any(marker in text for marker in OPTIONAL_PREFERENCE_MARKERS):
+            strength = "optional"
+        elif any(marker in text for marker in STRONG_PREFERENCE_MARKERS):
+            strength = "strong_soft"
+        else:
+            strength = "soft"
+        requests.append(
+            {
+                "key": key,
+                "kind": definition["kind"],
+                "strength": strength,
+                "evidence": evidence,
+                "matchTerms": list(definition["matchTerms"]),
+            }
+        )
+    return requests
 
 
 def complete_social_intent(social: dict[str, Any], raw_input: str) -> dict[str, Any]:

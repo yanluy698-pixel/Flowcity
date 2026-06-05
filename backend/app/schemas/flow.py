@@ -14,6 +14,7 @@ class FlowRunRequest(BaseModel):
     sessionId: str | None = None
     interactionMode: Literal["auto", "new_plan", "refine"] = "auto"
     previousPlanId: str | None = None
+    hypothesisFeedback: dict[str, Any] | None = None
 
 
 class ExecuteRequest(BaseModel):
@@ -23,3 +24,5 @@ class ExecuteRequest(BaseModel):
     mockSupply: dict[str, Any] | None = None
     plannerLlm: bool = False
     replanOnRuntimeFailure: bool = False
+    sessionId: str | None = None
+    planId: str | None = None

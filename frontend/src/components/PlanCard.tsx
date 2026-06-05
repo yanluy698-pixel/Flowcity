@@ -6,6 +6,7 @@ type Props = {
   onConfirm: () => void;
   onRuntimeReplan: () => void;
   onModifyPrompt: (draft: ModifyDraft) => void;
+  onHypothesisFeedback: (feedback: Record<string, unknown>) => void;
   totalDurationMs?: number;
 };
 
@@ -87,7 +88,7 @@ function shareText(payload: Record<string, any>, totalDurationMs?: number) {
   ].filter(Boolean).join("\n");
 }
 
-export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, totalDurationMs }: Props) {
+export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, onHypothesisFeedback, totalDurationMs }: Props) {
   const plan = finalPlan(payload);
   const draft = activeDraft(payload);
   const timeline = (plan.timeline ?? []) as TimelineItem[];
@@ -106,6 +107,12 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
   const needsUserReplanDecision = canReplan || ["blocked", "partial"].includes(executionResult?.executionStatus);
   const pendingActions = Array.isArray(draft?.pendingActions) ? draft.pendingActions : [];
   const planFailed = plan?.status === "failed";
+  const demandProfile = payload.structuredDemand?.demandProfile ?? payload.mockSupply?.demandProfile ?? {};
+  const anchors = Array.isArray(demandProfile.destinationAnchors) ? demandProfile.destinationAnchors : [];
+  const openHypotheses = Array.isArray(demandProfile.openHypotheses) ? demandProfile.openHypotheses.slice(0, 3) : [];
+  const inferredDimensions = Array.isArray(demandProfile.dimensions)
+    ? demandProfile.dimensions.filter((item: any) => item.source !== "explicit").slice(0, 3)
+    : [];
   const friendlyBlockedReason = planFailed
     ? (Array.isArray(plan.recommendationReasons) && plan.recommendationReasons[0]) || plan.summary
     : draft?.blockedReason;
@@ -147,6 +154,55 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
                 <li key={`${index}-${reason}`}>{userText(reason)}</li>
               ))}
             </ul>
+          )}
+        </div>
+      )}
+
+      {(anchors.length > 0 || openHypotheses.length > 0 || inferredDimensions.length > 0) && (
+        <div className="profile-panel">
+          {anchors.length > 0 && (
+            <div>
+              <strong>必须围绕的地点</strong>
+              <div className="profile-tags">
+                {anchors.map((anchor: any) => (
+                  <span className="anchor-tag" key={anchor.anchorId}>{anchor.name}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {inferredDimensions.length > 0 && (
+            <div>
+              <strong>我理解你更在意</strong>
+              <div className="profile-tags">
+                {inferredDimensions.map((item: any) => (
+                  <span key={item.key}>{item.label}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {openHypotheses.length > 0 && (
+            <div>
+              <strong>可以纠正的需求猜测</strong>
+              <div className="hypothesis-list">
+                {openHypotheses.map((item: any) => (
+                  <div className="hypothesis-item" key={item.hypothesisId}>
+                    <span>{item.text}</span>
+                    <button
+                      type="button"
+                      aria-label={`删除需求猜测：${item.text}`}
+                      onClick={() => onHypothesisFeedback({
+                        action: "hypothesis_deleted",
+                        hypothesisId: item.hypothesisId,
+                        clusterKey: item.key,
+                        text: item.text
+                      })}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}

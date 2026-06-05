@@ -27,6 +27,7 @@
 - `rawInput`
 - `scene`
 - `socialIntent`
+- `demandProfile`
 - `timeWindow`
 - `people`
 - `budget`
@@ -81,7 +82,7 @@
 
 ### socialIntent
 
-必须输出 `socialIntent`，用于表达用户这次出行的隐性社交目的，而不是物理标签。
+必须输出 `socialIntent` 作为兼容字段，用于解释用户这次出行的隐性社交目的。它不直接参与最终推荐打分；真正的评分输入是 `demandProfile`。
 
 字段要求：
 
@@ -112,6 +113,106 @@
 - “带孩子”“带老人”“体力限制”“亲子”等，优先判断为 `family_care`。
 - 用户显式喜欢的内容优先级最高。例如“第一次约会但她特别爱市井大排档烤肉”，不要把“大排档/烟火气/烤肉”同时写进 `avoidVibes`；它们应进入 `explicitPreferredVibes`。
 - `primary` 为 `unknown` 或 `casual_meetup` 且用户没有显式偏好时，不要为了完整而脑补氛围标签。
+
+### demandProfile
+
+必须输出 `demandProfile`。这是后端推荐系统唯一的画像真相源，负责把用户语言拆成稳定的底层需求，而不是直接决定推荐哪个具体地点。
+
+结构：
+
+```json
+{
+  "schemaVersion": "demand-profile-v2",
+  "facts": {},
+  "hardConstraints": [],
+  "dimensions": [],
+  "destinationAnchors": [],
+  "sceneHypotheses": [],
+  "openHypotheses": [],
+  "requestedComponents": [],
+  "conflicts": []
+}
+```
+
+`dimensions` 只能使用以下稳定 key：
+
+- `physicalIntensity`：体力强度。
+- `activityIntensity`：活动活跃程度。
+- `interactionLevel`：互动程度。
+- `conversationFriendly`：聊天友好程度。
+- `noiseLevel`：噪音水平。
+- `formality`：正式程度。
+- `privacy`：私密程度。
+- `novelty`：新奇程度。
+- `restAvailability`：休息便利程度。
+- `safety`：安全程度。
+- `familyAccessibility`：家庭便利程度。
+- `weatherResilience`：天气适应能力。
+- `routeConvenience`：路线便利程度。
+- `pricePreference`：消费倾向。
+
+每个维度格式：
+
+```json
+{
+  "key": "conversationFriendly",
+  "target": 0.8,
+  "importance": 0.7,
+  "source": "explicit | llm_inference | hypothesis",
+  "confidence": 0.76,
+  "evidence": ["有好感的女生", "不想太正式"],
+  "scope": ["activity", "restaurant"]
+}
+```
+
+规则：
+
+- 用户明确说出的需求使用 `explicit`。
+- 能由同行人、关系和上下文合理推出的隐性需求使用 `llm_inference`，必须给证据并降低置信度。
+- 证据不足但值得尝试的猜测使用 `hypothesis`，权重最低。
+- 不要把“约会”“亲子”“朋友聚会”直接当作评分维度；应拆成互动、聊天、体力、噪音、安全等底层需求。
+- 不要根据某个候选 POI 反推用户需求。
+- 每个维度都必须有能在用户原话或明确同行事实中找到的证据。不能因为“只是吃饭、没有特别要求”就推断用户喜欢随意、不正式。
+- 预算上限属于硬约束；除非用户明确说省钱、便宜、低成本或免费，否则不要仅凭预算金额生成 `pricePreference`。
+
+`requestedComponents` 表示用户明确要求系统安排的主组件，只能使用 `activity`、`restaurant`：
+
+- 用户只说“去高新吃个饭”，输出 `["restaurant"]`，不要自动增加活动。
+- 用户只说“去大雁塔逛逛”，输出 `["activity"]`。
+- 用户明确说“玩完再吃饭”，输出 `["activity", "restaurant"]`。
+- 用户只是宽泛说“周末出去安排一下”，可以输出 `["activity", "restaurant"]`。
+
+`destinationAnchors` 用于用户点名地点：
+
+```json
+{
+  "name": "大雁塔",
+  "entityType": "landmark",
+  "resolvedAreaId": "area_xa_qujiang",
+  "commitment": "required | preferred | optional",
+  "evidence": "我想去西安大雁塔玩"
+}
+```
+
+- “想去/要去/必须去/专门去”使用 `required`。
+- “最好去/顺路去/有时间去”使用 `preferred`。
+- 系统自行猜测的地点只能使用 `optional`。
+- 点名地点不可行时也不能删除，后端会向用户说明冲突。
+
+`sceneHypotheses` 只用于解释和补充召回，不用于直接打分。
+
+当正式维度不能完整表达用户的长尾需求时，输出 `openHypotheses`：
+
+```json
+{
+  "text": "通过轻度共同任务减少聊天冷场",
+  "confidence": 0.72,
+  "evidence": ["有事情做", "不会冷场"],
+  "status": "runtime_open"
+}
+```
+
+开放假设会用于向量召回。不要把普通已知需求重复写成开放假设。
 
 ### timeWindow
 
