@@ -243,7 +243,12 @@ def _call_refinement_dialogue_llm(
         router_result=router_result,
     )
     try:
-        response_text = extractor.call_llm(prompt)
+        response_text = extractor.call_llm(
+            prompt,
+            max_tokens=800,
+            timeout_seconds=22,
+            retries=0,
+        )
         data = extractor.parse_json_object(response_text)
         message = str(data.get("message") or "").strip()
         quick_replies = data.get("quickReplies")
@@ -431,7 +436,12 @@ def _extract_or_refine_demand(
             f"{json.dumps(context_payload, ensure_ascii=False, default=str)}"
         )
         try:
-            response_text = extractor.call_llm(prompt)
+            response_text = extractor.call_llm(
+                prompt,
+                max_tokens=2200,
+                timeout_seconds=24,
+                retries=0,
+            )
             demand = extractor.parse_json_object(response_text)
             demand = extractor.normalize_structured_demand(demand, request.input)
         except Exception:

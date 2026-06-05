@@ -33,6 +33,11 @@ ENV_PATH = ROOT / ".env"
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-v4-flash"
 DEFAULT_LLM_RETRIES = 2
+PROMPT_EXAMPLE_IDS = (
+    "family_half_day",
+    "pursuing_date_low_budget",
+    "xianyang_to_xian_city_trip",
+)
 
 
 def load_dotenv(path: Path = ENV_PATH) -> None:
@@ -72,15 +77,40 @@ def normalize_chat_completions_url(base_url: str) -> str:
     return f"{url}/chat/completions"
 
 
+def _compact_prompt_schema(value: Any) -> Any:
+    """Keep validation structure while dropping verbose documentation fields."""
+    if isinstance(value, list):
+        return [_compact_prompt_schema(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    ignored = {"$schema", "$id", "title", "description"}
+    return {
+        key: _compact_prompt_schema(item)
+        for key, item in value.items()
+        if key not in ignored
+    }
+
+
+def _compact_prompt_examples(examples: dict[str, Any]) -> dict[str, Any]:
+    selected = [
+        item
+        for item in examples.get("examples", [])
+        if item.get("id") in PROMPT_EXAMPLE_IDS
+    ]
+    return {"examples": selected}
+
+
 def build_prompt(user_input: str) -> str:
-    # 把 prompt 模板、schema 规则、few-shot 示例拼在一起发给模型。
-    # schema.json 规定输出结构，examples.json 告诉模型正确样例长什么样。
+    # 默认只发送紧凑 schema 和代表性 few-shot，完整资料仍用于本地校验和可选调试。
     prompt_template = load_text(PROMPT_PATH)
     schema = load_json(SCHEMA_PATH)
     examples = load_json(EXAMPLES_PATH)
 
-    compact_schema = json.dumps(schema, ensure_ascii=False, indent=2)
-    compact_examples = json.dumps(examples, ensure_ascii=False, indent=2)
+    use_full_prompt = os.getenv("FLOWCITY_LLM_FULL_PROMPT", "false").lower() == "true"
+    prompt_schema = schema if use_full_prompt else _compact_prompt_schema(schema)
+    prompt_examples = examples if use_full_prompt else _compact_prompt_examples(examples)
+    compact_schema = json.dumps(prompt_schema, ensure_ascii=False, separators=(",", ":"))
+    compact_examples = json.dumps(prompt_examples, ensure_ascii=False, separators=(",", ":"))
 
     prompt = prompt_template.replace("{{USER_INPUT}}", user_input)
     return (
@@ -118,8 +148,15 @@ def get_config() -> dict[str, Any]:
     }
 
 
-def call_llm(prompt: str) -> str:
+def call_llm(
+    prompt: str,
+    *,
+    max_tokens: int | None = None,
+    timeout_seconds: float = 60,
+    retries: int | None = None,
+) -> str:
     config = get_config()
+    request_retries = config["retries"] if retries is None else max(0, retries)
     start_time = time.perf_counter()
     print(
         "[FlowCity][LLM] request start "
@@ -144,7 +181,7 @@ def call_llm(prompt: str) -> str:
             },
         ],
         "temperature": 0.1,
-        "max_tokens": config["max_tokens"],
+        "max_tokens": max_tokens or config["max_tokens"],
     }
 
     # DeepSeek JSON Output：要求模型返回合法 JSON 字符串，适合阶段二结构化抽取。
@@ -162,9 +199,9 @@ def call_llm(prompt: str) -> str:
     )
 
     last_error: Exception | None = None
-    for attempt in range(config["retries"] + 1):
+    for attempt in range(request_retries + 1):
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:
+            with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
                 data = json.loads(response.read().decode("utf-8"))
             break
         except urllib.error.HTTPError as exc:
@@ -176,7 +213,7 @@ def call_llm(prompt: str) -> str:
         except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
             last_error = exc
 
-        if attempt < config["retries"]:
+        if attempt < request_retries:
             time.sleep(1.5 * (attempt + 1))
     else:
         raise RuntimeError(f"LLM request failed after retries: {last_error}") from last_error

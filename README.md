@@ -46,7 +46,7 @@ Flowcity/
 自测产物不保存在项目目录内。本轮 10 组多轮 LLM 自测保存在：
 
 ```text
-D:\产品\美团\周末闲时活动规划\Flowcity_interaction_eval_runs\20260605_005543
+D:\产品\美团\周末闲时活动规划\Flowcity_interaction_eval_runs\20260605_094648
 ```
 
 里面每个 case/turn 都包含 `events.json`、`events.ndjson`、`finalPayload.json`，以及可拆出的 `structuredDemand.json`、`mockSupply.json`、`timelinePlan.json`、`validationResult.json` 等链路文件。
@@ -141,6 +141,7 @@ npm run build
 - `frontend npm run build`：通过。
 - Python AST 检查：`pipeline.py/router.py/refinement.py/scheduler.py` 通过。
 - 10 组多轮真实 LLM 自测：`PASSED=10/10`。
+- 速度口径按赛题要求验证：方案生成/重排轮次不超过 30 秒，工具查询不超过 3 秒，每组完整多轮端到端流程不超过 2 分钟。
 
 本轮重点修复了两个真实自测暴露的问题：
 

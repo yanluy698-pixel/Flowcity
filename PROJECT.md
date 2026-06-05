@@ -191,7 +191,7 @@ frontend npm run build：通过
 最终自测目录：
 
 ```text
-D:\产品\美团\周末闲时活动规划\Flowcity_interaction_eval_runs\20260605_005543
+D:\产品\美团\周末闲时活动规划\Flowcity_interaction_eval_runs\20260605_094648
 ```
 
 10 组内容覆盖：
@@ -206,6 +206,16 @@ D:\产品\美团\周末闲时活动规划\Flowcity_interaction_eval_runs\2026060
 - 长辈下雨少走路、早吃饭。
 - 亲子活动降噪和清淡餐厅。
 - 不可能时间窗下，只吃饭不活动的人话确认。
+
+速度验收使用赛题正式口径，而不是要求每一句聊天都在 30 秒内：
+
+```text
+方案生成/重排 <= 30 秒
+本地 Mock 工具响应 <= 3 秒
+每组完整多轮端到端流程 <= 2 分钟
+```
+
+为兼顾速度和抽取质量，默认首轮 Prompt 使用精简 Schema 和 3 个代表性 few-shot；完整 Schema、完整 examples 仍保留给本地校验，并可通过 `FLOWCITY_LLM_FULL_PROMPT=true` 恢复完整 Prompt 调试。
 
 ## 12. 仍然不做的事
 
