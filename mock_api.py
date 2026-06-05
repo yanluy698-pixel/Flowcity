@@ -432,6 +432,10 @@ def _candidate_semantic_tags(poi: dict[str, Any], metadata: dict[str, Any]) -> s
     return tags
 
 
+def _candidate_kind(poi: dict[str, Any]) -> str:
+    return "restaurant" if poi.get("cuisine") or "avgPricePerPerson" in poi else "activity"
+
+
 def calculate_semantic_score(
     poi: dict[str, Any],
     structured_demand: dict[str, Any],
@@ -465,6 +469,7 @@ def calculate_semantic_score(
         )
     )
     candidate_tags = _candidate_semantic_tags(poi, metadata)
+    candidate_kind = _candidate_kind(poi)
     score = 0.0
     reasons: list[str] = []
     explicit_reasons: list[str] = []
@@ -482,7 +487,7 @@ def calculate_semantic_score(
             profile_reasons.append(reason)
 
     for tag, weight in positive_weights.items():
-        if tag in candidate_tags:
+        if intent_taxonomy.tag_applies_to_kind(tag, candidate_kind) and tag in candidate_tags:
             score += weight
             matched.append(tag)
             if tag in explicit_preferred:
@@ -495,7 +500,7 @@ def calculate_semantic_score(
                 profile_reasons.append(reason)
 
     for tag, weight in negative_weights.items():
-        if tag in candidate_tags:
+        if intent_taxonomy.tag_applies_to_kind(tag, candidate_kind) and tag in candidate_tags:
             score += weight
             penalized.append(tag)
             reason = f"{'用户明确避开' if tag in explicit_avoid else '画像避雷参考'}：{tag}"

@@ -16,6 +16,7 @@ EXPLICIT_AVOID_PENALTY = -24.0
 UNKNOWN_PRIMARIES = {"unknown", "casual_meetup"}
 
 SUB_SCENARIOS = {
+    "general",
     "first_meet",
     "romantic_step",
     "interactive_date",
@@ -37,6 +38,13 @@ SUB_SCENARIOS = {
 
 
 INTENT_TAXONOMY: dict[str, dict[str, Any]] = {
+    "light_date.general": {
+        "preferred": ["自然不尴尬", "低压力", "轻约会"],
+        "avoid": ["尴尬正式"],
+        "weights": {"自然不尴尬": 7, "低压力": 6, "轻约会": 6},
+        "avoidWeights": {"尴尬正式": -8},
+        "limits": {"physicalIntensityMax": "level_medium", "noiseMax": "moderate"},
+    },
     "light_date.first_meet": {
         "preferred": ["自然不尴尬", "低压力", "得体有格调", "明亮宽敞", "轻约会"],
         "avoid": ["尴尬正式", "过度昏暗", "高噪高动", "快餐简餐"],
@@ -57,6 +65,13 @@ INTENT_TAXONOMY: dict[str, dict[str, Any]] = {
         "weights": {"高互动": 8, "新潮打卡": 5, "自然不尴尬": 7, "话题感": 6, "轻约会": 5},
         "avoidWeights": {"死板无聊": -7, "高难度挫败": -7, "无法交流": -10},
         "limits": {"physicalIntensityMax": "level_medium", "noiseMax": "moderate"},
+    },
+    "deep_talk.general": {
+        "preferred": ["可坐下聊天", "低压力"],
+        "avoid": ["无法聊天"],
+        "weights": {"可坐下聊天": 8, "低压力": 6},
+        "avoidWeights": {"无法聊天": -12},
+        "limits": {"physicalIntensityMax": "level_light", "noiseMax": "moderate"},
     },
     "deep_talk.bestie_tea": {
         "preferred": ["安静慢聊", "精致出片", "治愈放松", "低压力", "可坐下聊天"],
@@ -79,6 +94,13 @@ INTENT_TAXONOMY: dict[str, dict[str, Any]] = {
         "avoidWeights": {"儿童吵闹": -8, "网红排队": -8, "大声喧哗": -9, "高噪高动": -9},
         "limits": {"physicalIntensityMax": "level_zero", "noiseMax": "quiet"},
     },
+    "group_bonding.general": {
+        "preferred": ["适合多人", "不拘束"],
+        "avoid": [],
+        "weights": {"适合多人": 8, "不拘束": 6},
+        "avoidWeights": {},
+        "limits": {"physicalIntensityMax": "level_medium", "noiseMax": "moderate"},
+    },
     "group_bonding.active_carnival": {
         "preferred": ["高噪互动", "痛快释放", "兄弟局风气", "身体解压", "高互动"],
         "avoid": ["文艺安静", "过度斯文", "坐着发呆"],
@@ -99,6 +121,13 @@ INTENT_TAXONOMY: dict[str, dict[str, Any]] = {
         "weights": {"烟火气": 8, "兄弟局风气": 7, "高噪互动": 6, "性价比极高": 7, "适合多人": 7},
         "avoidWeights": {"安静高档": -7, "分量极少": -7, "催促限时": -6},
         "limits": {"physicalIntensityMax": "level_zero", "noiseMax": "noisy"},
+    },
+    "family_care.general": {
+        "preferred": ["老少咸宜", "安全性高"],
+        "avoid": ["危险器械"],
+        "weights": {"老少咸宜": 8, "安全性高": 8},
+        "avoidWeights": {"危险器械": -12},
+        "limits": {"physicalIntensityMax": "level_medium", "noiseMax": "moderate"},
     },
     "family_care.kid_care": {
         "preferred": ["亲子适龄", "亲子照顾", "安全性高"],
@@ -128,6 +157,13 @@ INTENT_TAXONOMY: dict[str, dict[str, Any]] = {
         "avoidWeights": {"逼仄局促": -8, "西餐分餐": -5, "重口刺激": -5},
         "limits": {"physicalIntensityMax": "level_light", "noiseMax": "moderate"},
     },
+    "tourist_sightseeing.general": {
+        "preferred": ["路线清晰", "城市可达"],
+        "avoid": ["通勤内耗太高"],
+        "weights": {"路线清晰": 7, "城市可达": 7},
+        "avoidWeights": {"通勤内耗太高": -8},
+        "limits": {"physicalIntensityMax": "level_medium", "noiseMax": "moderate"},
+    },
     "tourist_sightseeing.landmark_checkin": {
         "preferred": ["游客地标", "西安特色风貌", "精致出片", "文化底蕴", "城市记忆点"],
         "avoid": ["毫无特色", "钻写字楼网吧", "通勤内耗太高"],
@@ -146,11 +182,11 @@ INTENT_TAXONOMY: dict[str, dict[str, Any]] = {
 
 
 PRIMARY_DEFAULT_SUB_SCENARIO = {
-    "light_date": "first_meet",
-    "deep_talk": "bestie_tea",
-    "group_bonding": "brain_battle",
-    "tourist_sightseeing": "landmark_checkin",
-    "family_care": "kid_care",
+    "light_date": "general",
+    "deep_talk": "general",
+    "group_bonding": "general",
+    "tourist_sightseeing": "general",
+    "family_care": "general",
     "casual_meetup": "casual",
     "unknown": "unknown",
 }
@@ -191,26 +227,31 @@ SUB_SCENARIO_KEYWORD_RULES = {
         ("senior_care", ("老人", "爸妈", "父母", "长辈", "少走路", "走不动")),
         ("family_reunion", ("团聚", "全家", "一家人", "聚餐")),
         ("kid_energy_drain", ("放电", "释放精力", "消耗精力", "玩到累", "跑跳", "蹦床")),
-        ("kid_care", ()),
+        ("kid_care", ("孩子", "带娃", "亲子", "小孩", "宝宝")),
+        ("general", ()),
     ],
     "deep_talk": [
         ("business_casual", ("商务", "客户", "谈事", "灵感", "工作")),
         ("brother_vent", ("兄弟", "哥们", "死党")),
-        ("bestie_tea", ()),
+        ("bestie_tea", ("闺蜜", "密友", "姐妹", "喝茶")),
+        ("general", ()),
     ],
     "light_date": [
         ("romantic_step", ("微醺", "升温", "私密", "浪漫")),
         ("interactive_date", ("手作", "互动", "桌游", "一起玩")),
-        ("first_meet", ()),
+        ("first_meet", ("第一次", "初次", "刚认识", "第一次见")),
+        ("general", ()),
     ],
     "tourist_sightseeing": [
-        ("local_food_hunt", ("吃", "小吃", "老街", "本地", "地道", "泡馍", "凉皮")),
-        ("landmark_checkin", ()),
+        ("local_food_hunt", ("小吃", "老街", "本地寻味", "地道风味", "泡馍", "凉皮")),
+        ("landmark_checkin", ("地标", "打卡", "第一次来", "景点")),
+        ("general", ()),
     ],
     "group_bonding": [
         ("active_carnival", ("释放", "运动", "流汗", "发泄", "蹦床", "攀岩")),
-        ("night_feast", ("烧烤", "火锅", "喝酒", "大排档", "夜宵")),
-        ("brain_battle", ()),
+        ("night_feast", ("喝酒", "大排档", "夜宵", "烟火聚餐")),
+        ("brain_battle", ("桌游", "密室", "烧脑", "解谜", "协作")),
+        ("general", ()),
     ],
 }
 
@@ -238,6 +279,55 @@ TAG_ALIASES = {
     "减脂": ["清淡健康"],
 }
 
+TAG_SCOPES = {
+    "清淡健康": {"restaurant"},
+    "重口刺激": {"restaurant"},
+    "快餐简餐": {"restaurant"},
+    "大排档": {"restaurant"},
+    "市井大排档": {"restaurant"},
+    "烤肉": {"restaurant"},
+    "烧烤": {"restaurant"},
+    "火锅": {"restaurant"},
+    "自然观察": {"activity"},
+    "释放精力": {"activity"},
+    "危险器械": {"activity"},
+    "儿童不适龄": {"activity"},
+}
+
+ADDITIONAL_SEMANTIC_TAGS = {
+    "自然观察",
+}
+
+OPERATIONAL_CONSTRAINT_HINTS = (
+    "预算",
+    "人均",
+    "价格",
+    "便宜",
+    "成本",
+    "花钱",
+    "太远",
+    "附近",
+    "距离",
+    "路程",
+    "同商圈",
+    "步行",
+    "地铁",
+    "打车",
+    "开车",
+    "排队",
+    "等位",
+    "预约",
+    "有座",
+    "时间",
+    "分钟",
+    "小时",
+    "营业",
+    "余票",
+    "门票",
+    "返程",
+    "回家",
+)
+
 
 def unique(values: list[str]) -> list[str]:
     result: list[str] = []
@@ -254,6 +344,40 @@ def expand_tag_aliases(values: list[str]) -> list[str]:
         expanded.append(text)
         expanded.extend(TAG_ALIASES.get(text, []))
     return unique(expanded)
+
+
+def tag_applies_to_kind(tag: str, kind: str) -> bool:
+    scopes = TAG_SCOPES.get(tag)
+    return not scopes or kind in scopes
+
+
+def known_semantic_tags() -> set[str]:
+    tags = set(ADDITIONAL_SEMANTIC_TAGS)
+    tags.update(TAG_ALIASES)
+    tags.update(TAG_SCOPES)
+    for aliases in TAG_ALIASES.values():
+        tags.update(aliases)
+    for profile in INTENT_TAXONOMY.values():
+        tags.update(profile.get("preferred", []))
+        tags.update(profile.get("avoid", []))
+        tags.update(profile.get("weights", {}))
+        tags.update(profile.get("avoidWeights", {}))
+    for audience_tags in INTENT_AUDIENCE_TAGS.values():
+        tags.update(audience_tags)
+    return tags
+
+
+def semantic_only(values: list[str]) -> list[str]:
+    registry = known_semantic_tags()
+    return unique(
+        [
+            tag
+            for tag in values
+            if tag
+            and tag in registry
+            and not any(hint in tag for hint in OPERATIONAL_CONSTRAINT_HINTS)
+        ]
+    )
 
 
 def taxonomy_key(primary: str, sub_scenario: str | None) -> str | None:
@@ -281,6 +405,19 @@ def sub_scenario_keywords(primary: str, sub_scenario: str) -> tuple[str, ...]:
         if candidate == sub_scenario:
             return keywords
     return ()
+
+
+def allowed_sub_scenarios(primary: str) -> set[str]:
+    configured = {candidate for candidate, _ in SUB_SCENARIO_KEYWORD_RULES.get(primary, [])}
+    return configured or {default_sub_scenario(primary)}
+
+
+def evidenced_sub_scenario(primary: str, text: str) -> tuple[str, list[str]]:
+    for candidate, keywords in SUB_SCENARIO_KEYWORD_RULES.get(primary, []):
+        evidence = [keyword for keyword in keywords if keyword in text]
+        if evidence:
+            return candidate, evidence
+    return default_sub_scenario(primary), []
 
 
 def infer_primary_and_sub_scenario(
@@ -367,22 +504,32 @@ def complete_social_intent(social: dict[str, Any], raw_input: str) -> dict[str, 
     if primary not in PRIMARY_DEFAULT_SUB_SCENARIO:
         primary = "unknown"
 
-    sub_scenario = str(social.get("subScenario") or social.get("sub_scenario") or default_sub_scenario(primary))
-    if sub_scenario not in SUB_SCENARIOS:
+    requested_sub_scenario = str(
+        social.get("subScenario") or social.get("sub_scenario") or default_sub_scenario(primary)
+    )
+    if requested_sub_scenario not in allowed_sub_scenarios(primary):
+        requested_sub_scenario = default_sub_scenario(primary)
+    requested_keywords = sub_scenario_keywords(primary, requested_sub_scenario)
+    requested_evidence = [keyword for keyword in requested_keywords if keyword in raw_input]
+    inferred_sub_scenario, inferred_evidence = evidenced_sub_scenario(primary, raw_input)
+    if requested_evidence:
+        sub_scenario = requested_sub_scenario
+        sub_scenario_evidence = requested_evidence
+    elif inferred_evidence:
+        sub_scenario = inferred_sub_scenario
+        sub_scenario_evidence = inferred_evidence
+    else:
         sub_scenario = default_sub_scenario(primary)
-    scenario_keywords = sub_scenario_keywords(primary, sub_scenario)
-    sub_scenario_evidence = [keyword for keyword in scenario_keywords if keyword in raw_input]
-    if scenario_keywords and not sub_scenario_evidence:
-        sub_scenario = default_sub_scenario(primary)
+        sub_scenario_evidence = []
 
     raw_explicit_preferred, raw_explicit_avoid = extract_explicit_tags(raw_input)
-    explicit_preferred = unique(
+    explicit_preferred = semantic_only(
         [
             *[str(item) for item in social.get("explicitPreferredVibes", []) if item],
             *raw_explicit_preferred,
         ]
     )
-    explicit_avoid = unique(
+    explicit_avoid = semantic_only(
         [
             *[str(item) for item in social.get("explicitAvoidVibes", []) if item],
             *raw_explicit_avoid,
@@ -396,8 +543,10 @@ def complete_social_intent(social: dict[str, Any], raw_input: str) -> dict[str, 
 
     existing_preferred = [str(item) for item in social.get("preferredVibes", []) if item]
     existing_avoid = [str(item) for item in social.get("avoidVibes", []) if item]
-    preferred = unique([*default_preferred, *existing_preferred, *explicit_preferred])
-    avoid = unique([*default_avoid, *existing_avoid, *explicit_avoid])
+    trusted_profile_preferred = [tag for tag in existing_preferred if tag in default_preferred]
+    trusted_profile_avoid = [tag for tag in existing_avoid if tag in default_avoid]
+    preferred = unique([*default_preferred, *trusted_profile_preferred, *explicit_preferred])
+    avoid = unique([*default_avoid, *trusted_profile_avoid, *explicit_avoid])
 
     explicit_preferred_set = set(expand_tag_aliases(explicit_preferred))
     explicit_avoid_set = set(expand_tag_aliases(explicit_avoid))

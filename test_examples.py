@@ -93,6 +93,34 @@ def check_semantic_bridge_behavior() -> list[str]:
     if "释放精力" in neutral_social.get("preferredVibes", []):
         errors.append("semantic_bridge: neutral child context must not infer energy-drain preference")
 
+    hallucinated_profile = extractor.normalize_structured_demand(
+        {
+            **neutral_family,
+            "socialIntent": {
+                **neutral_social,
+                "preferredVibes": [*neutral_social.get("preferredVibes", []), "自然观察"],
+                "explicitPreferredVibes": [],
+            },
+        },
+        "周六下午带5岁孩子出去，别太远，预算400。",
+    )
+    if "自然观察" in hallucinated_profile.get("socialIntent", {}).get("preferredVibes", []):
+        errors.append("semantic_bridge: ungrounded LLM profile tag must not enter the scoring profile")
+
+    explicit_nature = extractor.normalize_structured_demand(
+        {
+            **neutral_family,
+            "socialIntent": {
+                **neutral_social,
+                "preferredVibes": [],
+                "explicitPreferredVibes": ["自然观察"],
+            },
+        },
+        "周六下午带5岁孩子出去，想体验自然观察。",
+    )
+    if "自然观察" not in explicit_nature.get("socialIntent", {}).get("preferredVibes", []):
+        errors.append("semantic_bridge: explicit taxonomy-external preference should remain usable")
+
     energy_family = _base_semantic_test_demand("周六下午带5岁孩子出去放放电，别太远，预算400。")
     energy_social = energy_family.get("socialIntent", {})
     if energy_social.get("subScenario") != "kid_energy_drain":
@@ -113,7 +141,7 @@ def check_semantic_bridge_behavior() -> list[str]:
         },
         "周六和对象吃个饭。",
     )
-    if unsupported_romantic.get("socialIntent", {}).get("subScenario") != "first_meet":
+    if unsupported_romantic.get("socialIntent", {}).get("subScenario") != "general":
         errors.append("semantic_bridge: unsupported specific sub-scenario should fall back to safe default")
 
     explicit = _base_semantic_test_demand("第一次和有好感的女生约会，她特别爱市井大排档烤肉。")
@@ -162,6 +190,95 @@ def check_semantic_bridge_behavior() -> list[str]:
             errors.append("semantic_bridge: recommended activity type must not be presented as explicit user preference")
         if "清淡健康" in explicit_reasons:
             errors.append("semantic_bridge: diet preference must not leak into unrelated activity through broad aliases")
+
+    scoped_activity = {
+        "id": "scope-test-activity",
+        "name": "清淡健康主题活动",
+        "category": "activity",
+        "tags": ["清淡健康"],
+    }
+    scoped_restaurant = {
+        "id": "scope-test-restaurant",
+        "name": "清淡健康餐厅",
+        "category": "restaurant",
+        "cuisine": "轻食",
+        "avgPricePerPerson": 80,
+        "tags": ["清淡健康"],
+    }
+    diet_demand = _base_semantic_test_demand("老婆最近减脂，想吃清淡健康一点。")
+    activity_semantic = mock_api.calculate_semantic_score(scoped_activity, diet_demand)
+    restaurant_semantic = mock_api.calculate_semantic_score(scoped_restaurant, diet_demand)
+    if "清淡健康" in activity_semantic.get("matchedSemanticTags", []):
+        errors.append("semantic_bridge: restaurant-only tag must not score an activity")
+    if "清淡健康" not in restaurant_semantic.get("matchedSemanticTags", []):
+        errors.append("semantic_bridge: restaurant-only tag should still score a restaurant")
+
+    generic_cases = [
+        ("周六和对象吃个饭。", "general"),
+        ("周六和朋友聚一下。", "general"),
+        ("周六找个地方聊聊天。", "general"),
+        ("周六和两个朋友想吃点火锅也行。", "general"),
+    ]
+    for text, expected_sub_scenario in generic_cases:
+        actual = _base_semantic_test_demand(text).get("socialIntent", {}).get("subScenario")
+        if actual != expected_sub_scenario:
+            errors.append(f"semantic_bridge: generic scene should stay general, got {actual} for {text}")
+
+    senior_from_general = extractor.normalize_structured_demand(
+        {
+            **_base_semantic_test_demand("周末下雨带父母找个不累的地方，少走路少排队。"),
+            "socialIntent": {
+                "primary": "family_care",
+                "subScenario": "general",
+                "preferredVibes": [],
+                "avoidVibes": [],
+                "evidence": ["父母", "少走路"],
+            },
+        },
+        "周末下雨带父母找个不累的地方，少走路少排队。",
+    )
+    if senior_from_general.get("socialIntent", {}).get("subScenario") != "senior_care":
+        errors.append("semantic_bridge: explicit sub-scenario evidence should promote an overly general LLM result")
+
+    incompatible_pair = extractor.normalize_structured_demand(
+        {
+            **_base_semantic_test_demand("周六下午两人去高新吃个饭。"),
+            "socialIntent": {
+                "primary": "casual_meetup",
+                "subScenario": "unknown",
+                "preferredVibes": [],
+                "avoidVibes": [],
+                "evidence": [],
+            },
+        },
+        "周六下午两人去高新吃个饭。",
+    )
+    if incompatible_pair.get("socialIntent", {}).get("subScenario") != "casual":
+        errors.append("semantic_bridge: incompatible primary/subScenario pair should use the primary default")
+
+    physical_constraint_leak = extractor.normalize_structured_demand(
+        {
+            **neutral_family,
+            "socialIntent": {
+                **neutral_social,
+                "explicitPreferredVibes": ["老婆减脂，需要清淡低脂", "清淡健康"],
+                "explicitAvoidVibes": ["别太远", "预算400", "不要太吵"],
+            },
+        },
+        "周六带孩子出去，别太远，总预算400，不要太吵。",
+    )
+    leaked_avoids = set(physical_constraint_leak.get("socialIntent", {}).get("explicitAvoidVibes", []))
+    if {"别太远", "预算400"} & leaked_avoids:
+        errors.append("semantic_bridge: route/budget constraints must not enter the semantic vibe matrix")
+    if "高噪高动" not in leaked_avoids:
+        errors.append("semantic_bridge: genuine semantic avoid should remain after operational constraint filtering")
+    leaked_preferences = set(
+        physical_constraint_leak.get("socialIntent", {}).get("explicitPreferredVibes", [])
+    )
+    if "老婆减脂，需要清淡低脂" in leaked_preferences:
+        errors.append("semantic_bridge: free-form sentences must not enter the stable semantic tag matrix")
+    if "清淡健康" not in leaked_preferences:
+        errors.append("semantic_bridge: canonical semantic tags should remain after registry filtering")
 
     return errors
 

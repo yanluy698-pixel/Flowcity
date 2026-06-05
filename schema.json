@@ -81,6 +81,7 @@
         "subScenario": {
           "type": "string",
           "enum": [
+            "general",
             "first_meet",
             "romantic_step",
             "interactive_date",
