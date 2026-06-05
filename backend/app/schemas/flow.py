@@ -18,7 +18,7 @@ class FlowRunRequest(BaseModel):
 
 
 class ExecuteRequest(BaseModel):
-    executionDraft: dict[str, Any]
+    executionDraft: dict[str, Any] | None = None
     structuredDemand: dict[str, Any] | None = None
     timelinePlan: dict[str, Any] | None = None
     mockSupply: dict[str, Any] | None = None

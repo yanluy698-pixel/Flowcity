@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { confirmExecution, runFlowStream } from "./api/flowClient";
+import { AdminConsole } from "./components/AdminConsole";
 import { ChatScreen } from "./components/ChatScreen";
 import { HomeScreen } from "./components/HomeScreen";
 import type { ChatTurn, FlowEvent, ModifyDraft, StageState } from "./types";
@@ -131,11 +132,49 @@ function isFollowUp(text: string, turns: ChatTurn[]) {
   return turns.length > 0 && FOLLOW_UP_HINTS.some((hint) => text.includes(hint));
 }
 
+const SESSION_STORAGE_KEY = "flowcity.sessionId";
+
+function newWebSessionId() {
+  return `web_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function loadWebSessionId() {
+  try {
+    const existing = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    if (existing) return existing;
+    const next = newWebSessionId();
+    window.localStorage.setItem(SESSION_STORAGE_KEY, next);
+    return next;
+  } catch {
+    return newWebSessionId();
+  }
+}
+
 export default function App() {
+  const [hash, setHash] = useState(() => window.location.hash);
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [modifyDraft, setModifyDraft] = useState<ModifyDraft | undefined>();
-  const [sessionId] = useState(() => `web_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+  const [sessionId, setSessionId] = useState(loadWebSessionId);
+
+  useEffect(() => {
+    const onHashChange = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  function handleNewSession() {
+    if (isRunning) return;
+    const next = newWebSessionId();
+    try {
+      window.localStorage.setItem(SESSION_STORAGE_KEY, next);
+    } catch {
+      // localStorage only helps page refresh continuity; the app can run without it.
+    }
+    setSessionId(next);
+    setTurns([]);
+    setModifyDraft(undefined);
+  }
 
   async function handleSubmit(text: string, hypothesisFeedback?: Record<string, unknown>) {
     if (!text.trim() || isRunning) return;
@@ -198,10 +237,7 @@ export default function App() {
     const draft = runtimeReplan?.replannedExecutionDraft ?? turn?.finalPayload?.executionDraft;
     if (!draft) return;
     try {
-      const executionResult = await confirmExecution(draft, {
-        structuredDemand: turn?.finalPayload?.structuredDemand,
-        timelinePlan: runtimeReplan?.replannedTimelinePlan ?? turn?.finalPayload?.timelinePlan,
-        mockSupply: runtimeReplan?.runtimeMockSupply ?? turn?.finalPayload?.mockSupply,
+      const executionResult = await confirmExecution({
         plannerLlm: false,
         sessionId,
         planId: turn?.finalPayload?.planId
@@ -230,10 +266,7 @@ export default function App() {
     const draft = payload?.executionDraft;
     if (!payload || !draft) return;
     try {
-      const executionResult = await confirmExecution(draft, {
-        structuredDemand: payload.structuredDemand,
-        timelinePlan: payload.timelinePlan,
-        mockSupply: payload.mockSupply,
+      const executionResult = await confirmExecution({
         plannerLlm: false,
         replanOnRuntimeFailure: true,
         sessionId,
@@ -264,12 +297,17 @@ export default function App() {
     }
   }
 
+  if (hash === "#admin") {
+    return <AdminConsole />;
+  }
+
   return turns.length === 0 ? (
-    <HomeScreen onSubmit={handleSubmit} disabled={isRunning} />
+    <HomeScreen onSubmit={handleSubmit} onNewSession={handleNewSession} disabled={isRunning} />
   ) : (
       <ChatScreen
         turns={turns}
         onSubmit={handleSubmit}
+        onNewSession={handleNewSession}
         modifyDraft={modifyDraft}
         onDraftPrompt={setModifyDraft}
         onClearDraft={() => setModifyDraft(undefined)}

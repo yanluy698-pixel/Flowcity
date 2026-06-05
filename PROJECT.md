@@ -143,6 +143,18 @@ candidateScore = baseQualityScore + semanticScoreDelta + constraintFitScore + ro
 - 单节点修改：活动、餐厅、路线、过渡点分别有不同隐藏提示词。
 - 整体大改：允许释放活动/餐厅/路线锁，重排整套方案。
 
+如果用户没有点击卡片，而是直接在聊天框里说“这个吃的地方不太行”“换个更适合聊天的”“路线太折腾”，系统会先调用轻量 LLM Router 判断 `targetKind`：
+
+```text
+restaurant -> 释放餐厅锁，保留活动
+activity   -> 释放活动锁，保留餐厅
+route      -> 优先刷新路线/商圈布局
+whole_plan -> 活动、餐厅、路线都可重排
+unclear    -> 进入引导确认
+```
+
+关键词规则只作为 LLM Router 不可用或低置信度时的兜底，不再作为自由追问的主要理解方式。
+
 用户点击卡片上的“修改”后，输入框上方会出现浅黄色修改上下文块。它不是直接替用户说话，而是把后端需要的结构化上下文一起发给 LLM：
 
 ```text
@@ -207,6 +219,9 @@ budgetFlex=strict/flexible
 - `frontend/src/components/PlanCard.tsx`：时间轴卡片与节点修改入口。
 - `frontend/src/components/ChatInput.tsx`：输入框中的修改上下文块。
 - `frontend/src/components/StageProgress.tsx`：阶段处理中的 spinner。
+- `backend/app/routers/admin.py`：受 Token 保护的 POI/Mock 数据管理接口。
+- `backend/app/services/admin_auth.py`：后台接口统一管理员鉴权。
+- `frontend/src/components/AdminConsole.tsx`：POI 供给与自进化审核台。
 
 ## 11. 验证记录
 
@@ -351,18 +366,60 @@ LLM 可以做隐性推理，但必须标注来源：
 - 它能增删 POI，但不会校验画像矩阵、区域召回、显式偏好保真和学习提案。
 - 它没有展示 `openHypotheses`、聚类质量、确认率、删除率、批准/拒绝状态。
 
-所以本轮提交不把旧管理台原封不动塞进主项目。主项目提交的是：
+所以本轮不把旧管理台原封不动塞进主项目，而是在主项目里新增一个受保护的轻量后台入口：
 
 ```text
+http://localhost:5173/#admin
+
+GET    /api/admin/datasets
+POST   /api/admin/datasets/{slug}/{collection_key}
+PUT    /api/admin/datasets/{slug}/{collection_key}/{record_index}
+DELETE /api/admin/datasets/{slug}/{collection_key}/{record_index}
 GET  /api/learning/analysis
 GET  /api/learning/proposals
 POST /api/learning/proposals/{proposal_id}/review
 ```
 
-明天如果继续做运营/开发者审核台，最合理的方式是复用旧管理台的“三栏编辑器壳子”，新增 v5 专用面板：
+当前后台已经能做两件事：
+
+- 编辑 FlowCity 当前 `data/*.json` 供给数据，采用 JSON 编辑器，避免老字段表单误导新 Schema。
+- 审核自进化学习提案，展示样本、确认率、删除率、语义凝聚度，并支持批准/拒绝。
+
+后续如果继续增强运营/开发者审核台，最合理的方式是复用旧管理台的“三栏编辑器交互”，再补 v5 专用能力：
 
 - POI 字段校验与画像预览。
 - 学习提案列表。
 - 样本证据、正负反馈、聚类指标。
 - 批准、拒绝、继续观察。
 - 批准后只进入已审核学习模式，不自动改正式 taxonomy。
+
+## 17. 会话与模拟执行边界
+
+当前项目不做注册、登录和用户中心，只做轻量会话隔离：
+
+```text
+浏览器 localStorage 保存随机 sessionId
+-> 同一浏览器刷新可继续
+-> 点击“新规划”生成新 sessionId 并清空聊天
+-> 后端 SESSION_STORE 保存当前 plan/demand/supply/executionDraft
+-> 超过 TTL 或容量上限自动清理
+```
+
+默认配置：
+
+```text
+FLOWCITY_SESSION_TTL_SECONDS=7200
+FLOWCITY_SESSION_MAX_COUNT=500
+```
+
+确认执行也改成可信 Mock 边界：
+
+```text
+前端只传 sessionId + planId
+后端校验 planId 是否等于当前会话保存的 currentPlanId
+后端使用保存的 executionDraft 执行 Mock 确认
+```
+
+这仍然不是接入真实美团交易。前端文案统一为“模拟执行”，避免把 Mock 票码、Mock 预约号说成真实下单。
+
+后台接口默认关闭。只有配置 `FLOWCITY_ADMIN_TOKEN` 才挂载 `/api/admin/*` 和 `/api/learning/*`，并且每次请求必须带 `X-FlowCity-Admin-Token`。普通用户聊天页不会看到后台入口，也不会携带管理员 Token。

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 import uuid
@@ -31,6 +32,8 @@ import validator  # noqa: E402
 
 SESSION_STORE: dict[str, dict[str, Any]] = {}
 STREAM_STAGE_PAUSE_SECONDS = 0.25
+SESSION_TTL_SECONDS = int(os.getenv("FLOWCITY_SESSION_TTL_SECONDS", "7200"))
+SESSION_MAX_COUNT = int(os.getenv("FLOWCITY_SESSION_MAX_COUNT", "500"))
 
 
 def _record_learning_event(
@@ -124,6 +127,69 @@ def _record_outcome_for_active_hypotheses(
                 **(payload or {}),
             },
         )
+
+
+def _cleanup_sessions(now: float | None = None) -> None:
+    now = now or time.time()
+    expired = [
+        session_id
+        for session_id, session in SESSION_STORE.items()
+        if now - float(session.get("updatedAt") or 0) > SESSION_TTL_SECONDS
+    ]
+    for session_id in expired:
+        SESSION_STORE.pop(session_id, None)
+    if len(SESSION_STORE) <= SESSION_MAX_COUNT:
+        return
+    overflow = len(SESSION_STORE) - SESSION_MAX_COUNT
+    oldest = sorted(
+        SESSION_STORE.items(),
+        key=lambda item: float(item[1].get("updatedAt") or 0),
+    )[:overflow]
+    for session_id, _ in oldest:
+        SESSION_STORE.pop(session_id, None)
+
+
+def _get_session(session_id: str | None, *, touch: bool = False) -> dict[str, Any] | None:
+    _cleanup_sessions()
+    if not session_id:
+        return None
+    session = SESSION_STORE.get(str(session_id))
+    if session and touch:
+        session["updatedAt"] = time.time()
+    return session
+
+
+def _session_plan_payload(
+    session_id: str | None,
+    plan_id: str | None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    session = _get_session(session_id, touch=True)
+    if not session:
+        return None, {
+            "executionStatus": "blocked",
+            "actions": [],
+            "confirmationCodes": [],
+            "executionSummary": "当前会话已过期或不存在，无法确认模拟执行。",
+            "userNotice": "请重新生成方案后再确认。",
+        }
+    current_plan_id = str(session.get("currentPlanId") or "")
+    if plan_id and str(plan_id) != current_plan_id:
+        return None, {
+            "executionStatus": "blocked",
+            "actions": [],
+            "confirmationCodes": [],
+            "executionSummary": "当前确认的方案不是后端保存的最新方案。",
+            "userNotice": "请刷新到最新方案后再确认模拟执行。",
+        }
+    if not session.get("currentExecutionDraft"):
+        return None, {
+            "executionStatus": "blocked",
+            "actions": [],
+            "confirmationCodes": [],
+            "executionSummary": "后端没有保存可确认的执行草案。",
+            "userNotice": "请重新生成方案后再确认。",
+        }
+    return session, None
 
 
 def _ndjson(event: dict[str, Any]) -> str:
@@ -367,6 +433,233 @@ def _call_refinement_dialogue_llm(
         return _fallback_refinement_message(request_input, router_result)
 
 
+def _router_flags_for_target(target_kind: str, operation: str | None = None) -> dict[str, bool]:
+    flags = {key: False for key in router.ACTION_FLAG_KEYS}
+    target = str(target_kind or "unclear")
+    op = str(operation or "")
+    if target == "restaurant":
+        flags["needNewRestaurant"] = True
+        flags["needReschedule"] = True
+    elif target in {"activity", "filler"}:
+        flags["needNewActivity"] = True
+        flags["needReschedule"] = True
+    elif target == "route":
+        flags["needRouteRefresh"] = True
+        flags["modifyDistance"] = True
+        flags["needReschedule"] = True
+    elif target == "budget":
+        flags["modifyBudget"] = True
+        flags["needReschedule"] = True
+    elif target == "time":
+        flags["needReschedule"] = True
+    elif target == "whole_plan" or op in {"major_replan", "replan_all"}:
+        flags["needNewActivity"] = True
+        flags["needNewRestaurant"] = True
+        flags["needRouteRefresh"] = True
+        flags["needReschedule"] = True
+    return flags
+
+
+def _locks_for_router_flags(
+    current_plan: dict[str, Any] | None,
+    flags: dict[str, bool],
+    preserve: list[str] | None = None,
+) -> dict[str, Any]:
+    locks: dict[str, Any] = {"timeFlexMinutes": 30}
+    preserve_set = {str(item) for item in (preserve or [])}
+    if not flags.get("needNewActivity") or "activity" in preserve_set:
+        activity_id = _selected_poi_id(current_plan, "activity")
+        if activity_id:
+            locks["activityPoiId"] = activity_id
+    if not flags.get("needNewRestaurant") or "restaurant" in preserve_set:
+        restaurant_id = _selected_poi_id(current_plan, "restaurant")
+        if restaurant_id:
+            locks["restaurantPoiId"] = restaurant_id
+    return locks
+
+
+def _build_interaction_router_prompt(
+    *,
+    user_input: str,
+    current_demand: dict[str, Any],
+    current_plan: dict[str, Any] | None,
+    local_router_result: dict[str, Any],
+) -> str:
+    payload = {
+        "userFollowup": user_input,
+        "currentDemandBrief": {
+            "rawInput": current_demand.get("rawInput"),
+            "timeWindow": current_demand.get("timeWindow", {}),
+            "budget": current_demand.get("budget", {}),
+            "location": current_demand.get("location", {}),
+            "companions": current_demand.get("companions", {}),
+            "demandProfile": current_demand.get("demandProfile", {}),
+        },
+        "currentTimeline": _timeline_digest(current_plan),
+        "localFallbackGuess": local_router_result,
+    }
+    return (
+        "你是 FlowCity 的二次修改意图路由器。用户已经拿到上一版本地生活行程，"
+        "现在用一句自然语言追问或修改。\n"
+        "你的任务不是重新规划，也不是推荐 POI；只判断这句话要修改哪个部分，并输出后端可执行路由字段。\n"
+        "必须优先理解语义，不要依赖关键词。例如“这个吃的地方不太行”“想换个更适合聊天的”“别让孩子饿太久”都可能是餐饮节点修改。\n"
+        "只输出 JSON，不要 Markdown。Schema：\n"
+        "{\n"
+        '  "mode": "refine|new_plan|explain|confirm",\n'
+        '  "targetKind": "restaurant|activity|route|filler|budget|time|whole_plan|unclear",\n'
+        '  "operation": "replace|adjust|remove|preserve|major_replan|explain|confirm|clarify",\n'
+        '  "confidence": 0.0,\n'
+        '  "evidence": ["用户原话中支持判断的短片段"],\n'
+        '  "preserve": ["activity|restaurant|route|budget|timeWindow|destinationAnchors"],\n'
+        '  "constraintsPatch": {"skipActivity": false, "mealTiming": "earlier|keep|null", "budgetPreference": "lower|higher|strict|null", "foodPreference": "短标签或null", "distancePreference": "nearer|same_area|null", "preferredArea": "地点或null"},\n'
+        '  "needsClarification": false,\n'
+        '  "clarificationQuestion": "如果必须追问，给一句有引导性的问题，否则空字符串"\n'
+        "}\n"
+        "判断规则：\n"
+        "- 修改吃饭、正餐、口味、排队、预约、餐厅氛围 -> targetKind=restaurant。\n"
+        "- 修改玩什么、活动强度、室内外、孩子放电、景点/电影/手作 -> targetKind=activity。\n"
+        "- 修改远近、少走路、交通方式、同商圈、转场 -> targetKind=route。\n"
+        "- 只吃饭/不安排活动 -> targetKind=activity, operation=remove, constraintsPatch.skipActivity=true，同时 preserve restaurant。\n"
+        "- 用户明显说整体不满意、换个思路、全部重来 -> targetKind=whole_plan。\n"
+        "- 只是问为什么/解释 -> mode=explain。明确确认/下单 -> mode=confirm。\n"
+        "- 如果不确定，不要硬猜；targetKind=unclear, needsClarification=true。\n"
+        "当前上下文：\n"
+        f"{json.dumps(payload, ensure_ascii=False, default=str)}"
+    )
+
+
+def _merge_router_patches(local_patch: dict[str, Any], llm_patch: dict[str, Any]) -> dict[str, Any]:
+    patch = deepcopy(local_patch) if isinstance(local_patch, dict) else {}
+    if not isinstance(llm_patch, dict):
+        return patch
+    for key, value in llm_patch.items():
+        if value is None or value == "" or value == []:
+            continue
+        patch[key] = value
+    return patch
+
+
+def _router_result_from_llm(
+    *,
+    llm_data: dict[str, Any],
+    local_router_result: dict[str, Any],
+    current_plan: dict[str, Any] | None,
+    raw_input: str,
+) -> dict[str, Any]:
+    mode = str(llm_data.get("mode") or "refine")
+    if mode not in {"refine", "new_plan", "explain", "confirm"}:
+        mode = "refine"
+    target_kind = str(llm_data.get("targetKind") or "unclear")
+    operation = str(llm_data.get("operation") or "")
+    confidence = max(0.0, min(1.0, float(llm_data.get("confidence") or 0.0)))
+    evidence = [str(item) for item in llm_data.get("evidence", []) if item][:5] if isinstance(llm_data.get("evidence"), list) else []
+    preserve = [str(item) for item in llm_data.get("preserve", []) if item] if isinstance(llm_data.get("preserve"), list) else []
+
+    flags = _router_flags_for_target(target_kind, operation)
+    if mode == "explain":
+        flags["needExplanation"] = True
+    elif mode == "confirm":
+        flags["confirmExecution"] = True
+    elif target_kind == "unclear" and not llm_data.get("needsClarification"):
+        mode = str(local_router_result.get("mode") or "new_plan")
+        flags = deepcopy(local_router_result.get("actionFlags", {}))
+
+    patch = _merge_router_patches(
+        local_router_result.get("constraintsPatch", {}),
+        llm_data.get("constraintsPatch", {}),
+    )
+    if operation == "remove" and target_kind in {"activity", "filler"}:
+        patch["skipActivity"] = True
+    result = {
+        "mode": mode,
+        "actionFlags": flags,
+        "locks": _locks_for_router_flags(current_plan, flags, preserve),
+        "constraintsPatch": patch,
+        "fallbackMode": "none",
+        "clarificationQuestion": str(llm_data.get("clarificationQuestion") or ""),
+        "rawInput": raw_input,
+        "targetKind": target_kind,
+        "operation": operation,
+        "llmRouter": {
+            "source": "llm_interaction_router",
+            "confidence": confidence,
+            "evidence": evidence,
+            "needsClarification": bool(llm_data.get("needsClarification")),
+        },
+    }
+    if result["mode"] == "refine":
+        if not any(flags.values()):
+            return local_router_result
+        if flags.get("needNewActivity"):
+            result["locks"].pop("activityPoiId", None)
+        if flags.get("needNewRestaurant"):
+            result["locks"].pop("restaurantPoiId", None)
+    return result
+
+
+def _should_call_interaction_router_llm(
+    request: FlowRunRequest,
+    local_router_result: dict[str, Any],
+    session: dict[str, Any] | None,
+) -> bool:
+    if not session:
+        return False
+    if request.interactionMode == "new_plan":
+        return False
+    raw = str(request.input or "")
+    if "【节点修改上下文】" in raw or "【整体大改上下文】" in raw:
+        return False
+    if (session or {}).get("pendingRefinement"):
+        return False
+    if local_router_result.get("mode") in {"confirm", "explain"}:
+        return False
+    if request.interactionMode == "refine":
+        return True
+    return refinement.is_likely_refinement(raw, True) or local_router_result.get("mode") == "refine"
+
+
+def _maybe_route_followup_with_llm(
+    request: FlowRunRequest,
+    session: dict[str, Any] | None,
+    local_router_result: dict[str, Any],
+) -> dict[str, Any]:
+    if not _should_call_interaction_router_llm(request, local_router_result, session):
+        return local_router_result
+    prompt = _build_interaction_router_prompt(
+        user_input=request.input,
+        current_demand=session.get("currentDemand", {}) if isinstance(session, dict) else {},
+        current_plan=session.get("currentPlan") if isinstance(session, dict) else None,
+        local_router_result=local_router_result,
+    )
+    try:
+        response_text = extractor.call_llm(
+            prompt,
+            max_tokens=900,
+            timeout_seconds=14,
+            retries=0,
+        )
+        llm_data = extractor.parse_json_object(response_text)
+        confidence = float(llm_data.get("confidence") or 0.0)
+        if confidence < 0.45 and local_router_result.get("mode") == "refine":
+            local_router_result["llmRouter"] = {
+                "source": "local_fallback_low_confidence",
+                "confidence": confidence,
+            }
+            return local_router_result
+        return _router_result_from_llm(
+            llm_data=llm_data,
+            local_router_result=local_router_result,
+            current_plan=session.get("currentPlan") if isinstance(session, dict) else None,
+            raw_input=request.input,
+        )
+    except Exception as exc:
+        local_router_result["llmRouter"] = {
+            "source": "local_fallback_error",
+            "error": str(exc)[:160],
+        }
+        return local_router_result
+
+
 def _should_start_refinement_dialogue(request: FlowRunRequest, router_result: dict[str, Any], session: dict[str, Any] | None) -> bool:
     if not session or router_result.get("mode") != "refine":
         return False
@@ -376,6 +669,8 @@ def _should_start_refinement_dialogue(request: FlowRunRequest, router_result: di
     text = str(request.input or "")
     if "【整体大改上下文】" in text:
         return False
+    if router_result.get("llmRouter", {}).get("needsClarification"):
+        return True
     if "【节点修改上下文】" in text and not any(word in text for word in ("早一点", "晚一点", "早点", "提前", "赶", "到家", "来得及")):
         return False
     current_plan = session.get("currentPlan") if isinstance(session, dict) else None
@@ -411,6 +706,7 @@ def _start_refinement_dialogue(
     pending_intent["locks"] = router_result.get("locks", {})
     pending_intent["actionFlags"] = router_result.get("actionFlags", {})
     pending_intent["awaitingUserConfirmation"] = True
+    session["updatedAt"] = time.time()
     SESSION_STORE.setdefault(session_id, session)["pendingRefinement"] = {
         "demand": deepcopy(pending_demand),
         "intent": deepcopy(pending_intent),
@@ -441,8 +737,10 @@ def _save_session(
     structured_demand: dict[str, Any],
     mock_supply: dict[str, Any],
     timeline_plan: dict[str, Any],
+    execution_draft: dict[str, Any],
     refinement_intent: dict[str, Any],
 ) -> None:
+    _cleanup_sessions()
     previous = SESSION_STORE.get(session_id, {})
     history = list(previous.get("userFeedbackHistory", []))
     if refinement_intent.get("mode") == "refine":
@@ -454,6 +752,7 @@ def _save_session(
         "currentDemand": deepcopy(structured_demand),
         "currentSupply": deepcopy(mock_supply),
         "currentPlan": deepcopy(timeline_plan),
+        "currentExecutionDraft": deepcopy(execution_draft),
         "activeHypotheses": _active_hypotheses(structured_demand),
         "lastInput": input_text,
         "userFeedbackHistory": history,
@@ -466,7 +765,7 @@ def _extract_or_refine_demand(
     session_id: str,
     router_result: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    session = SESSION_STORE.get(session_id)
+    session = _get_session(session_id, touch=True)
     if router_result.get("mode") in {"explain", "confirm"} and session:
         demand = deepcopy(session["currentDemand"])
         demand.setdefault("planControl", {})["routerResult"] = router_result
@@ -634,16 +933,17 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
     refinement_intent: dict[str, Any] = {}
 
     try:
-        session = SESSION_STORE.get(session_id)
+        session = _get_session(session_id, touch=True)
         router_result = router.route_interaction(
             request.input,
             has_session=bool(session),
             session=session,
         )
+        router_result = _maybe_route_followup_with_llm(request, session, router_result)
 
         if _should_start_refinement_dialogue(request, router_result, session):
             assistant_message = _start_refinement_dialogue(session_id, request, router_result, session)
-            pending = (SESSION_STORE.get(session_id) or {}).get("pendingRefinement") or {}
+            pending = (_get_session(session_id, touch=True) or {}).get("pendingRefinement") or {}
             pending_demand = pending.get("demand") if isinstance(pending, dict) else None
             yield _event(
                 "final",
@@ -762,6 +1062,7 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
                 structured_demand=structured_demand,
                 mock_supply=full_supply,
                 timeline_plan={},
+                execution_draft={},
                 refinement_intent=refinement_intent,
             )
             yield _event(
@@ -840,6 +1141,7 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
             structured_demand=structured_demand,
             mock_supply=full_supply,
             timeline_plan=timeline_plan,
+            execution_draft=stage6["executionDraft"],
             refinement_intent=refinement_intent,
         )
         yield _event(
@@ -879,30 +1181,56 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
 
 
 def confirm_execution_from_draft(request: ExecuteRequest) -> dict[str, Any]:
+    has_trusted_plan_ref = bool(request.sessionId or request.planId)
+    session, blocked = _session_plan_payload(request.sessionId, request.planId) if has_trusted_plan_ref else (None, None)
+    if blocked:
+        return blocked
+    if session:
+        execution_draft = deepcopy(session["currentExecutionDraft"])
+        structured_demand = deepcopy(session.get("currentDemand"))
+        timeline_plan = deepcopy(session.get("currentPlan"))
+        mock_supply = deepcopy(session.get("currentSupply"))
+    else:
+        if not request.executionDraft:
+            return {
+                "executionStatus": "blocked",
+                "actions": [],
+                "confirmationCodes": [],
+                "executionSummary": "缺少后端方案引用或执行草案，无法确认模拟执行。",
+                "userNotice": "请先生成方案，再确认模拟执行。",
+            }
+        execution_draft = request.executionDraft or {}
+        structured_demand = request.structuredDemand
+        timeline_plan = request.timelinePlan
+        mock_supply = request.mockSupply
+
     result = executor.confirm_execution(
-        request.executionDraft,
-        structured_demand=request.structuredDemand,
-        timeline_plan=request.timelinePlan,
-        mock_supply=request.mockSupply,
+        execution_draft,
+        structured_demand=structured_demand,
+        timeline_plan=timeline_plan,
+        mock_supply=mock_supply,
         planner_llm=request.plannerLlm,
         replan_on_runtime_failure=request.replanOnRuntimeFailure,
     )
+    if session and result.get("runtimeReplanResult", {}).get("status") == "ready":
+        runtime_result = result["runtimeReplanResult"]
+        session["currentPlan"] = deepcopy(runtime_result.get("replannedTimelinePlan") or session.get("currentPlan"))
+        session["currentSupply"] = deepcopy(runtime_result.get("runtimeSupply") or session.get("currentSupply"))
+        session["currentExecutionDraft"] = deepcopy(
+            runtime_result.get("replannedExecutionDraft") or session.get("currentExecutionDraft")
+        )
+        session["updatedAt"] = time.time()
     if result.get("executionStatus") == "confirmed":
         _record_learning_event(
             "plan_confirmed",
             session_id=request.sessionId,
             payload={"planId": request.planId},
         )
-        session = SESSION_STORE.get(str(request.sessionId or ""))
-        structured_demand = (
-            session.get("currentDemand")
-            if isinstance(session, dict)
-            else request.structuredDemand
-        )
+        current_demand = session.get("currentDemand") if isinstance(session, dict) else structured_demand
         _record_outcome_for_active_hypotheses(
             "plan_confirmed",
             session_id=request.sessionId,
-            structured_demand=structured_demand,
+            structured_demand=current_demand,
             payload={"planId": request.planId},
         )
     return result

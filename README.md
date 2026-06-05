@@ -22,11 +22,12 @@ FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型
 - 显式偏好优先：用户明确喜欢的标签会击穿默认避雷；用户明确避开的标签会击穿默认偏好。
 - Unknown 降级：`unknown/casual_meetup` 且无显式偏好时不补默认画像，让语义分为 0，候选回到评分、预算、商圈、排队、座位和路线等基础分。
 - 交互式修改：前端时间轴每个节点可点“修改”，输入框会带上对应的隐藏上下文提示词，后端按餐厅、活动、路线、过渡点、整体大改分别处理。
+- 自由追问路由：用户不点击卡片、只说“这个吃的地方不太行”这类自然追问时，会先由轻量 LLM Router 判断修改餐厅、活动、路线还是整体方案；本地关键词规则只作为失败兜底。
 - 人话确认：当用户追问“晚饭早一点”“早点回家”“只吃饭不安排活动”等可能冲突的需求时，系统会先给可执行选项，而不是直接报错。
 - Mock 执行：默认只生成执行草案；用户显式确认后才生成 Mock 票码、预约号、取号号或路线提醒。
 - 固定渐进式召回：所有请求都先粗排商圈/景点圈，点名目的地永远保留；探索区域才参与淘汰。
 - 显式偏好保真：用户明确改成火锅、烤肉、大排档时，系统要么命中真实品类，要么进入引导协商，不能拿相近氛围糊弄。
-- 受控自进化：长尾模糊需求作为开放假设进入向量召回，用户删除、修改、确认、下单形成匿名反馈；稳定后只生成待审提案，不会自动改正式画像库。
+- 受控自进化：长尾模糊需求作为开放假设进入向量召回，用户删除、修改、确认、模拟执行形成匿名反馈；稳定后只生成待审提案，不会自动改正式画像库。
 
 ## 目录结构
 
@@ -51,6 +52,9 @@ Flowcity/
   refinement.py            # 会话内二次修改补丁
   run_flow.py              # 命令行完整链路
   test_examples.py         # 离线回归测试
+  backend/app/routers/admin.py       # 受 Token 保护的 POI 数据管理 API
+  backend/app/services/admin_auth.py # 后台接口统一鉴权
+  frontend/src/components/AdminConsole.tsx # POI 与自进化审核台
   schema.json              # 结构化需求 Schema
   prompt.md                # 需求抽取 Prompt
   PROJECT.md               # 产品和架构说明
@@ -80,6 +84,10 @@ FLOWCITY_EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5
 FLOWCITY_EMBEDDING_CACHE_DIR=
 FLOWCITY_LEARNING_DB=
 FLOWCITY_APPROVED_LEARNING_ENABLED=true
+FLOWCITY_ADMIN_TOKEN=
+FLOWCITY_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+FLOWCITY_SESSION_TTL_SECONDS=7200
+FLOWCITY_SESSION_MAX_COUNT=500
 ```
 
 `.env` 包含真实 Key，不能提交到 Git。
@@ -170,9 +178,13 @@ npm run build
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' ontology_evolution.py --reject proposal_xxx
 ```
 
-供隐藏 Admin Review 页面使用的审核 API：
+供后台页面使用的管理 API：
 
 ```text
+GET    /api/admin/datasets
+POST   /api/admin/datasets/{slug}/{collection_key}
+PUT    /api/admin/datasets/{slug}/{collection_key}/{record_index}
+DELETE /api/admin/datasets/{slug}/{collection_key}/{record_index}
 GET  /api/learning/analysis
 GET  /api/learning/proposals
 POST /api/learning/proposals/{proposal_id}/review
@@ -180,7 +192,26 @@ POST /api/learning/proposals/{proposal_id}/review
 
 这些接口不应该放进普通用户聊天页面，只给开发者或运营审核使用。
 
-已有的 `D:\产品\美团\周末闲时活动规划\MockAPI数据管理台` 可以作为通用 JSON 编辑壳子继续使用，它会动态读取当前 `data/*.json` 字段；但它不是 v5 自进化审核台。本轮不把它原样提交进主项目，避免旧字段理解误导画像链路。后续如要做运营台，建议复用它的三栏编辑器结构，再新增学习提案、标签作用域、画像权重和审批状态面板。
+`/api/admin/*` 和 `/api/learning/*` 默认不挂载。只有配置 `FLOWCITY_ADMIN_TOKEN` 后才启用，并且请求必须携带：
+
+```text
+X-FlowCity-Admin-Token: 你的后台token
+```
+
+前端已有轻量后台页面：
+
+```text
+http://localhost:5173/#admin
+```
+
+这个页面可以查看和编辑当前 `data/*.json` 里的 POI/商圈/路线/动态状态/团购数据，也可以查看自进化聚类、批准或拒绝学习提案。已有的 `D:\产品\美团\周末闲时活动规划\MockAPI数据管理台` 仍可作为旧版通用 JSON 编辑壳子参考，但不再是主项目的管理入口。
+
+多轮对话使用轻量会话隔离，不需要注册登录：
+
+- 前端把随机 `sessionId` 存在本浏览器 `localStorage`，刷新同一页面可继续。
+- 点击“新规划”会生成新的 `sessionId` 并清空聊天。
+- 后端 `SESSION_STORE` 有 TTL 和容量上限，默认 2 小时、最多 500 个会话。
+- 确认模拟执行时，前端只传 `sessionId + planId`；后端从会话里取保存的执行草案，避免信任前端回传的完整方案。
 
 ## 本轮验证结果
 

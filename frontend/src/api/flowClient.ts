@@ -55,26 +55,16 @@ export async function runFlowStream(
   }
 }
 
-export async function confirmExecution(
-  executionDraft: Record<string, unknown>,
-  options?: {
-    structuredDemand?: Record<string, unknown>;
-    timelinePlan?: Record<string, unknown>;
-    mockSupply?: Record<string, unknown>;
-    plannerLlm?: boolean;
-    replanOnRuntimeFailure?: boolean;
-    sessionId?: string;
-    planId?: string;
-  }
-) {
+export async function confirmExecution(options?: {
+  plannerLlm?: boolean;
+  replanOnRuntimeFailure?: boolean;
+  sessionId?: string;
+  planId?: string;
+}) {
   const response = await fetch(`${API_BASE}/api/flow/execute`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      executionDraft,
-      structuredDemand: options?.structuredDemand,
-      timelinePlan: options?.timelinePlan,
-      mockSupply: options?.mockSupply,
       plannerLlm: options?.plannerLlm ?? false,
       replanOnRuntimeFailure: options?.replanOnRuntimeFailure ?? false,
       sessionId: options?.sessionId,
@@ -85,4 +75,91 @@ export async function confirmExecution(
     throw new Error(`确认执行失败：${response.status}`);
   }
   return response.json();
+}
+
+function adminHeaders(token: string) {
+  return {
+    "Content-Type": "application/json",
+    "X-FlowCity-Admin-Token": token
+  };
+}
+
+async function adminJson(path: string, token: string, options?: RequestInit) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      ...adminHeaders(token),
+      ...(options?.headers ?? {})
+    }
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(String(payload.detail ?? payload.error ?? `请求失败：${response.status}`));
+  }
+  return payload;
+}
+
+export async function fetchAdminDatasets(token: string) {
+  return adminJson("/api/admin/datasets", token);
+}
+
+export async function saveAdminRecord(
+  token: string,
+  slug: string,
+  collectionKey: string,
+  recordIndex: number,
+  record: Record<string, unknown>
+) {
+  return adminJson(
+    `/api/admin/datasets/${encodeURIComponent(slug)}/${encodeURIComponent(collectionKey)}/${recordIndex}`,
+    token,
+    {
+      method: "PUT",
+      body: JSON.stringify({ record })
+    }
+  );
+}
+
+export async function createAdminRecord(
+  token: string,
+  slug: string,
+  collectionKey: string,
+  record: Record<string, unknown>
+) {
+  return adminJson(`/api/admin/datasets/${encodeURIComponent(slug)}/${encodeURIComponent(collectionKey)}`, token, {
+    method: "POST",
+    body: JSON.stringify({ record })
+  });
+}
+
+export async function deleteAdminRecord(
+  token: string,
+  slug: string,
+  collectionKey: string,
+  recordIndex: number
+) {
+  return adminJson(
+    `/api/admin/datasets/${encodeURIComponent(slug)}/${encodeURIComponent(collectionKey)}/${recordIndex}`,
+    token,
+    { method: "DELETE" }
+  );
+}
+
+export async function fetchLearningAnalysis(token: string) {
+  return adminJson("/api/learning/analysis", token);
+}
+
+export async function fetchLearningProposals(token: string) {
+  return adminJson("/api/learning/proposals", token);
+}
+
+export async function reviewLearningProposal(
+  token: string,
+  proposalId: string,
+  status: "approved" | "rejected" | "pending_review"
+) {
+  return adminJson(`/api/learning/proposals/${encodeURIComponent(proposalId)}/review`, token, {
+    method: "POST",
+    body: JSON.stringify({ status })
+  });
 }

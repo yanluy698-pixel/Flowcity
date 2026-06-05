@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 import tempfile
+import os
+import sys
+import time
 from pathlib import Path
+
+BACKEND_ROOT = Path(__file__).resolve().parent / "backend"
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
 
 import area_retrieval
 import demand_profile
@@ -13,6 +20,8 @@ import mock_api
 import ontology_evolution
 import executor
 import planner
+from app.services import pipeline
+import app.main
 from poi_profiles import build_poi_profile
 
 
@@ -109,6 +118,115 @@ def run() -> list[str]:
         errors.append("base profile: conversation-friendly cafe should score above lively barbecue")
     if lively["noiseLevel"] <= quiet["noiseLevel"]:
         errors.append("base profile: barbecue should carry higher factual noise than quiet cafe")
+
+    current_plan = {
+        "selectedItems": [
+            {"kind": "activity", "poiId": "act_keep", "name": "原活动"},
+            {"kind": "restaurant", "poiId": "res_old", "name": "原餐厅"},
+        ]
+    }
+    local_router_result = {
+        "mode": "new_plan",
+        "actionFlags": {key: False for key in pipeline.router.ACTION_FLAG_KEYS},
+        "locks": {"timeFlexMinutes": 30},
+        "constraintsPatch": {},
+        "fallbackMode": "none",
+        "clarificationQuestion": None,
+        "rawInput": "这个吃的地方不太行",
+    }
+    routed_restaurant = pipeline._router_result_from_llm(
+        llm_data={
+            "mode": "refine",
+            "targetKind": "restaurant",
+            "operation": "replace",
+            "confidence": 0.91,
+            "evidence": ["吃的地方不太行"],
+            "preserve": ["activity"],
+            "constraintsPatch": {"foodPreference": "更适合聊天"},
+        },
+        local_router_result=local_router_result,
+        current_plan=current_plan,
+        raw_input="这个吃的地方不太行",
+    )
+    if not routed_restaurant["actionFlags"]["needNewRestaurant"]:
+        errors.append("LLM router: freeform meal complaint should release restaurant search")
+    if routed_restaurant["actionFlags"]["needNewActivity"]:
+        errors.append("LLM router: restaurant-only follow-up must not release the activity")
+    if routed_restaurant["locks"].get("activityPoiId") != "act_keep":
+        errors.append("LLM router: restaurant-only follow-up should lock the existing activity")
+    if routed_restaurant["locks"].get("restaurantPoiId"):
+        errors.append("LLM router: restaurant replacement should not keep the old restaurant lock")
+
+    routed_whole = pipeline._router_result_from_llm(
+        llm_data={
+            "mode": "refine",
+            "targetKind": "whole_plan",
+            "operation": "major_replan",
+            "confidence": 0.88,
+            "evidence": ["整体换个思路"],
+            "preserve": ["budget", "timeWindow"],
+            "constraintsPatch": {},
+        },
+        local_router_result=local_router_result,
+        current_plan=current_plan,
+        raw_input="整体换个思路重新来",
+    )
+    if not (
+        routed_whole["actionFlags"]["needNewActivity"]
+        and routed_whole["actionFlags"]["needNewRestaurant"]
+        and routed_whole["actionFlags"]["needRouteRefresh"]
+    ):
+        errors.append("LLM router: whole-plan change should release activity, restaurant and route")
+    if routed_whole["locks"].get("activityPoiId") or routed_whole["locks"].get("restaurantPoiId"):
+        errors.append("LLM router: whole-plan change should not keep old POI locks")
+
+    previous_admin_token = os.environ.pop("FLOWCITY_ADMIN_TOKEN", None)
+    try:
+        admin_disabled_routes = [route.path for route in app.main.create_app().routes]
+        if any(path.startswith("/api/learning") for path in admin_disabled_routes):
+            errors.append("learning admin: routes must stay disabled unless FLOWCITY_ADMIN_TOKEN is configured")
+        if any(path.startswith("/api/admin") for path in admin_disabled_routes):
+            errors.append("admin console: data routes must stay disabled unless FLOWCITY_ADMIN_TOKEN is configured")
+        os.environ["FLOWCITY_ADMIN_TOKEN"] = "architecture-test-token"
+        admin_enabled_routes = [route.path for route in app.main.create_app().routes]
+        if "/api/admin/datasets" not in admin_enabled_routes:
+            errors.append("admin console: dataset route should mount when FLOWCITY_ADMIN_TOKEN is configured")
+        if "/api/learning/analysis" not in admin_enabled_routes:
+            errors.append("learning admin: analysis route should mount when FLOWCITY_ADMIN_TOKEN is configured")
+    finally:
+        if previous_admin_token is not None:
+            os.environ["FLOWCITY_ADMIN_TOKEN"] = previous_admin_token
+        else:
+            os.environ.pop("FLOWCITY_ADMIN_TOKEN", None)
+
+    session_id = "test_session_security"
+    plan_id = "plan_security"
+    pipeline.SESSION_STORE.pop(session_id, None)
+    pipeline._save_session(
+        session_id,
+        plan_id=plan_id,
+        input_text="测试",
+        structured_demand={"rawInput": "测试", "demandProfile": {"openHypotheses": []}},
+        mock_supply={},
+        timeline_plan={"status": "ok", "selectedItems": []},
+        execution_draft={"draftStatus": "ready", "pendingActions": []},
+        refinement_intent={},
+    )
+    wrong_plan = pipeline.confirm_execution_from_draft(
+        pipeline.ExecuteRequest(sessionId=session_id, planId="wrong_plan")
+    )
+    if wrong_plan.get("executionStatus") != "blocked":
+        errors.append("session execution: wrong planId must be blocked")
+    right_plan = pipeline.confirm_execution_from_draft(
+        pipeline.ExecuteRequest(sessionId=session_id, planId=plan_id)
+    )
+    if right_plan.get("executionStatus") != "confirmed":
+        errors.append("session execution: current session plan should confirm from backend draft")
+    pipeline.SESSION_STORE["expired_session"] = {"updatedAt": time.time() - pipeline.SESSION_TTL_SECONDS - 1}
+    pipeline._cleanup_sessions()
+    if "expired_session" in pipeline.SESSION_STORE:
+        errors.append("session store: expired sessions must be cleaned")
+    pipeline.SESSION_STORE.pop(session_id, None)
 
     runtime_supply, runtime_strategy = executor._refresh_supply_for_runtime_replan(
         open_demand,

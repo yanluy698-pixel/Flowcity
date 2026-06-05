@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.flow import router as flow_router
-from app.routers.learning import router as learning_router
+
+
+def _cors_origins() -> list[str]:
+    raw = os.getenv("FLOWCITY_CORS_ORIGINS")
+    if raw:
+        return [item.strip() for item in raw.split(",") if item.strip()]
+    return ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 
 def create_app() -> FastAPI:
@@ -15,13 +23,18 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=_cors_origins(),
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
     app.include_router(flow_router, prefix="/api/flow", tags=["flow"])
-    app.include_router(learning_router, prefix="/api/learning", tags=["learning-admin"])
+    if os.getenv("FLOWCITY_ADMIN_TOKEN"):
+        from app.routers.admin import router as admin_router
+        from app.routers.learning import router as learning_router
+
+        app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+        app.include_router(learning_router, prefix="/api/learning", tags=["learning-admin"])
 
     @app.get("/health")
     def health() -> dict[str, str]:

@@ -1,4 +1,9 @@
-export function Header() {
+type Props = {
+  onNewSession?: () => void;
+  disabled?: boolean;
+};
+
+export function Header({ onNewSession, disabled }: Props) {
   return (
     <header className="app-header">
       <div className="status-bar">
@@ -13,6 +18,11 @@ export function Header() {
         </div>
         <div className="nav-actions">
           <span>周末闲时规划</span>
+          {onNewSession && (
+            <button type="button" className="new-session-button" onClick={onNewSession} disabled={disabled}>
+              新规划
+            </button>
+          )}
         </div>
       </div>
     </header>

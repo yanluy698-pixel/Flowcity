@@ -245,7 +245,7 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
 
       {!confirmed && !canConfirm && !needsUserReplanDecision && (
         <div className="runtime-box blocked">
-          <strong>当前不能下单</strong>
+          <strong>当前不能模拟执行</strong>
           <p>{userText(friendlyBlockedReason ?? "还没有可执行的锁票、预约或取号草案。")}</p>
         </div>
       )}
@@ -275,7 +275,7 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
         )}
         {canConfirm && (
           <button className="confirm-button" onClick={onConfirm}>
-            {hasRuntimePlan ? "确认新版下单" : "确认下单"}
+            {hasRuntimePlan ? "确认新版模拟执行" : "确认模拟执行"}
           </button>
         )}
         {confirmed && (

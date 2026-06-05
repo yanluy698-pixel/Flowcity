@@ -8,6 +8,7 @@ import type { ChatTurn, ModifyDraft } from "../types";
 type Props = {
   turns: ChatTurn[];
   onSubmit: (text: string) => void;
+  onNewSession?: () => void;
   modifyDraft?: ModifyDraft;
   onDraftPrompt: (draft: ModifyDraft) => void;
   onClearDraft: () => void;
@@ -20,6 +21,7 @@ type Props = {
 export function ChatScreen({
   turns,
   onSubmit,
+  onNewSession,
   modifyDraft,
   onDraftPrompt,
   onClearDraft,
@@ -31,7 +33,7 @@ export function ChatScreen({
   return (
     <main className="page">
       <section className="phone-shell">
-        <Header />
+        <Header onNewSession={onNewSession} disabled={disabled} />
         <div className="chat-scroll">
           {turns.map((turn) => (
             <section className="turn" key={turn.id}>
