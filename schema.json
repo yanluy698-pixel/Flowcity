@@ -90,6 +90,7 @@
             "active_carnival",
             "brain_battle",
             "night_feast",
+            "kid_care",
             "kid_energy_drain",
             "senior_care",
             "family_reunion",
@@ -99,6 +100,16 @@
             "unknown"
           ],
           "description": "一级意图下的细分场景，由 LLM 选择或后端按 primary 兜底。"
+        },
+        "subScenarioEvidence": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "支撑细分场景的用户原话证据；安全默认场景可为空。"
+        },
+        "subScenarioSource": {
+          "type": "string",
+          "enum": ["explicit_evidence", "safe_default"],
+          "description": "细分场景来自用户明确证据，还是后端安全默认。"
         },
         "avoidVibes": {
           "type": "array",

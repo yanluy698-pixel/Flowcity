@@ -86,6 +86,36 @@ def _base_semantic_test_demand(raw_input: str) -> dict[str, Any]:
 def check_semantic_bridge_behavior() -> list[str]:
     errors: list[str] = []
 
+    neutral_family = _base_semantic_test_demand("周六下午带5岁孩子出去，别太远，预算400。")
+    neutral_social = neutral_family.get("socialIntent", {})
+    if neutral_social.get("subScenario") != "kid_care":
+        errors.append(f"semantic_bridge: neutral child context should use kid_care, got {neutral_social.get('subScenario')}")
+    if "释放精力" in neutral_social.get("preferredVibes", []):
+        errors.append("semantic_bridge: neutral child context must not infer energy-drain preference")
+
+    energy_family = _base_semantic_test_demand("周六下午带5岁孩子出去放放电，别太远，预算400。")
+    energy_social = energy_family.get("socialIntent", {})
+    if energy_social.get("subScenario") != "kid_energy_drain":
+        errors.append(f"semantic_bridge: explicit 放电 should use kid_energy_drain, got {energy_social.get('subScenario')}")
+    if not energy_social.get("subScenarioEvidence"):
+        errors.append("semantic_bridge: evidence-gated sub-scenario should expose evidence")
+
+    unsupported_romantic = extractor.normalize_structured_demand(
+        {
+            **_base_semantic_test_demand("周六和对象吃个饭。"),
+            "socialIntent": {
+                "primary": "light_date",
+                "subScenario": "romantic_step",
+                "preferredVibes": [],
+                "avoidVibes": [],
+                "evidence": ["对象"],
+            },
+        },
+        "周六和对象吃个饭。",
+    )
+    if unsupported_romantic.get("socialIntent", {}).get("subScenario") != "first_meet":
+        errors.append("semantic_bridge: unsupported specific sub-scenario should fall back to safe default")
+
     explicit = _base_semantic_test_demand("第一次和有好感的女生约会，她特别爱市井大排档烤肉。")
     social = explicit.get("socialIntent", {})
     preferred = set(social.get("preferredVibes", []))
@@ -123,6 +153,15 @@ def check_semantic_bridge_behavior() -> list[str]:
     soft_supply = mock_api.search_supply(soft_hotpot)
     if len(soft_supply.get("restaurantCandidates", [])) <= 1:
         errors.append("semantic_bridge: soft hotpot preference should not clear other feasible restaurants")
+
+    neutral_supply = mock_api.search_supply(neutral_family)
+    for candidate in neutral_supply.get("activityCandidates", [])[:5]:
+        details = candidate.get("reasonDetails", {})
+        explicit_reasons = " ".join(details.get("explicitPreference", []))
+        if "自然观察" in explicit_reasons:
+            errors.append("semantic_bridge: recommended activity type must not be presented as explicit user preference")
+        if "清淡健康" in explicit_reasons:
+            errors.append("semantic_bridge: diet preference must not leak into unrelated activity through broad aliases")
 
     return errors
 

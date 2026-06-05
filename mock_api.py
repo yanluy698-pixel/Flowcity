@@ -444,14 +444,32 @@ def calculate_semantic_score(
         return {
             "semanticScoreDelta": 0.0,
             "semanticReasons": [],
+            "semanticReasonDetails": {
+                "explicitPreference": [],
+                "profileAssist": [],
+                "profileWarnings": [],
+            },
             "matchedSemanticTags": [],
             "penalizedSemanticTags": [],
         }
 
     positive_weights, negative_weights = intent_taxonomy.semantic_weights(social)
+    explicit_preferred = set(
+        intent_taxonomy.expand_tag_aliases(
+            [str(item) for item in social.get("explicitPreferredVibes", []) if item]
+        )
+    )
+    explicit_avoid = set(
+        intent_taxonomy.expand_tag_aliases(
+            [str(item) for item in social.get("explicitAvoidVibes", []) if item]
+        )
+    )
     candidate_tags = _candidate_semantic_tags(poi, metadata)
     score = 0.0
     reasons: list[str] = []
+    explicit_reasons: list[str] = []
+    profile_reasons: list[str] = []
+    profile_warnings: list[str] = []
     matched: list[str] = []
     penalized: list[str] = []
 
@@ -459,26 +477,39 @@ def calculate_semantic_score(
         if audience_tag in candidate_tags:
             score += 5
             matched.append(audience_tag)
-            reasons.append(f"适合{audience_tag}")
+            reason = f"画像辅助：适合{audience_tag}"
+            reasons.append(reason)
+            profile_reasons.append(reason)
 
     for tag, weight in positive_weights.items():
         if tag in candidate_tags:
             score += weight
             matched.append(tag)
-            if weight >= intent_taxonomy.EXPLICIT_PREFERENCE_BOOST:
-                reasons.append(f"命中你明确提到的{tag}")
+            if tag in explicit_preferred:
+                reason = f"用户明确偏好：{tag}"
+                reasons.append(reason)
+                explicit_reasons.append(reason)
             else:
-                reasons.append(f"氛围契合：{tag}")
+                reason = f"画像辅助：{tag}"
+                reasons.append(reason)
+                profile_reasons.append(reason)
 
     for tag, weight in negative_weights.items():
         if tag in candidate_tags:
             score += weight
             penalized.append(tag)
-            reasons.append(f"避开项提醒：{tag}")
+            reason = f"{'用户明确避开' if tag in explicit_avoid else '画像避雷参考'}：{tag}"
+            reasons.append(reason)
+            profile_warnings.append(reason)
 
     return {
         "semanticScoreDelta": round(score, 3),
         "semanticReasons": intent_taxonomy.unique(reasons)[:6],
+        "semanticReasonDetails": {
+            "explicitPreference": intent_taxonomy.unique(explicit_reasons),
+            "profileAssist": intent_taxonomy.unique(profile_reasons),
+            "profileWarnings": intent_taxonomy.unique(profile_warnings),
+        },
         "matchedSemanticTags": intent_taxonomy.unique(matched),
         "penalizedSemanticTags": intent_taxonomy.unique(penalized),
     }
@@ -961,6 +992,7 @@ def search_activities(
         semantic_score = float(semantic["semanticScoreDelta"])
         route_hint_score = 0.0
         score = round(base_quality_score + constraint_fit_score + semantic_score + route_hint_score, 3)
+        feasibility_reasons = intent_taxonomy.unique(reasons)
         reasons.extend(semantic["semanticReasons"])
         reasons.extend([f"命中标签：{tag}" for tag in matched_tags])
 
@@ -984,6 +1016,10 @@ def search_activities(
                 "semanticScoreDelta": semantic["semanticScoreDelta"],
                 "routeHintScore": route_hint_score,
                 "semanticReasons": semantic["semanticReasons"],
+                "reasonDetails": {
+                    "feasibility": feasibility_reasons,
+                    **semantic["semanticReasonDetails"],
+                },
                 "matchedSemanticTags": semantic["matchedSemanticTags"],
                 "penalizedSemanticTags": semantic["penalizedSemanticTags"],
                 "matchedReasons": reasons,
@@ -1136,6 +1172,7 @@ def search_restaurants(
         semantic_score = float(semantic["semanticScoreDelta"])
         route_hint_score = 0.0
         score = round(base_quality_score + constraint_fit_score + semantic_score + route_hint_score, 3)
+        feasibility_reasons = intent_taxonomy.unique(reasons)
         reasons.extend(semantic["semanticReasons"])
         reasons.extend([f"命中标签：{tag}" for tag in matched_tags])
 
@@ -1158,6 +1195,10 @@ def search_restaurants(
                 "semanticScoreDelta": semantic["semanticScoreDelta"],
                 "routeHintScore": route_hint_score,
                 "semanticReasons": semantic["semanticReasons"],
+                "reasonDetails": {
+                    "feasibility": feasibility_reasons,
+                    **semantic["semanticReasonDetails"],
+                },
                 "matchedSemanticTags": semantic["matchedSemanticTags"],
                 "penalizedSemanticTags": semantic["penalizedSemanticTags"],
                 "matchedReasons": reasons,

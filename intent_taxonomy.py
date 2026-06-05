@@ -25,6 +25,7 @@ SUB_SCENARIOS = {
     "active_carnival",
     "brain_battle",
     "night_feast",
+    "kid_care",
     "kid_energy_drain",
     "senior_care",
     "family_reunion",
@@ -99,10 +100,17 @@ INTENT_TAXONOMY: dict[str, dict[str, Any]] = {
         "avoidWeights": {"安静高档": -7, "分量极少": -7, "催促限时": -6},
         "limits": {"physicalIntensityMax": "level_zero", "noiseMax": "noisy"},
     },
+    "family_care.kid_care": {
+        "preferred": ["亲子适龄", "亲子照顾", "安全性高"],
+        "avoid": ["儿童不适龄", "危险器械"],
+        "weights": {"亲子适龄": 10, "亲子照顾": 8, "安全性高": 8},
+        "avoidWeights": {"儿童不适龄": -14, "危险器械": -12},
+        "limits": {"physicalIntensityMax": "level_medium", "noiseMax": "moderate"},
+    },
     "family_care.kid_energy_drain": {
-        "preferred": ["亲子适龄", "亲子照顾", "轻松愉快", "安全性高", "宽敞无障"],
+        "preferred": ["亲子适龄", "亲子照顾", "释放精力", "安全性高", "宽敞无障"],
         "avoid": ["深度静音", "危险器械", "拥挤暴晒", "无处落座", "高噪高动"],
-        "weights": {"亲子适龄": 10, "亲子照顾": 9, "轻松愉快": 6, "安全性高": 8, "宽敞无障": 6},
+        "weights": {"亲子适龄": 10, "亲子照顾": 9, "释放精力": 8, "安全性高": 8, "宽敞无障": 6},
         "avoidWeights": {"深度静音": -6, "危险器械": -12, "拥挤暴晒": -10, "无处落座": -8, "高噪高动": -5},
         "limits": {"physicalIntensityMax": "level_medium", "noiseMax": "moderate"},
     },
@@ -142,7 +150,7 @@ PRIMARY_DEFAULT_SUB_SCENARIO = {
     "deep_talk": "bestie_tea",
     "group_bonding": "brain_battle",
     "tourist_sightseeing": "landmark_checkin",
-    "family_care": "kid_energy_drain",
+    "family_care": "kid_care",
     "casual_meetup": "casual",
     "unknown": "unknown",
 }
@@ -182,7 +190,8 @@ SUB_SCENARIO_KEYWORD_RULES = {
     "family_care": [
         ("senior_care", ("老人", "爸妈", "父母", "长辈", "少走路", "走不动")),
         ("family_reunion", ("团聚", "全家", "一家人", "聚餐")),
-        ("kid_energy_drain", ()),
+        ("kid_energy_drain", ("放电", "释放精力", "消耗精力", "玩到累", "跑跳", "蹦床")),
+        ("kid_care", ()),
     ],
     "deep_talk": [
         ("business_casual", ("商务", "客户", "谈事", "灵感", "工作")),
@@ -213,7 +222,6 @@ EVIDENCE_KEYWORDS = {
     "group_bonding": ("朋友", "同学", "兄弟", "男生", "多人", "聚会", "桌游", "台球", "密室"),
 }
 
-
 TAG_ALIASES = {
     "大排档": ["大排档", "市井大排档", "烟火气", "烧烤"],
     "市井大排档": ["市井大排档", "大排档", "烟火气", "烧烤"],
@@ -226,8 +234,8 @@ TAG_ALIASES = {
     "少走路": ["低体力友好", "少折腾"],
     "不累": ["低体力友好", "少折腾"],
     "软和": ["服务温和", "低体力友好"],
-    "清淡": ["清淡健康", "低压力"],
-    "减脂": ["清淡健康", "低压力"],
+    "清淡": ["清淡健康"],
+    "减脂": ["清淡健康"],
 }
 
 
@@ -266,6 +274,13 @@ def default_sub_scenario(primary: str) -> str:
 
 def _has_keyword(text: str, keywords: tuple[str, ...]) -> bool:
     return any(keyword in text for keyword in keywords)
+
+
+def sub_scenario_keywords(primary: str, sub_scenario: str) -> tuple[str, ...]:
+    for candidate, keywords in SUB_SCENARIO_KEYWORD_RULES.get(primary, []):
+        if candidate == sub_scenario:
+            return keywords
+    return ()
 
 
 def infer_primary_and_sub_scenario(
@@ -355,6 +370,10 @@ def complete_social_intent(social: dict[str, Any], raw_input: str) -> dict[str, 
     sub_scenario = str(social.get("subScenario") or social.get("sub_scenario") or default_sub_scenario(primary))
     if sub_scenario not in SUB_SCENARIOS:
         sub_scenario = default_sub_scenario(primary)
+    scenario_keywords = sub_scenario_keywords(primary, sub_scenario)
+    sub_scenario_evidence = [keyword for keyword in scenario_keywords if keyword in raw_input]
+    if scenario_keywords and not sub_scenario_evidence:
+        sub_scenario = default_sub_scenario(primary)
 
     raw_explicit_preferred, raw_explicit_avoid = extract_explicit_tags(raw_input)
     explicit_preferred = unique(
@@ -389,6 +408,8 @@ def complete_social_intent(social: dict[str, Any], raw_input: str) -> dict[str, 
         **social,
         "primary": primary,
         "subScenario": sub_scenario,
+        "subScenarioEvidence": sub_scenario_evidence,
+        "subScenarioSource": "explicit_evidence" if sub_scenario_evidence else "safe_default",
         "preferredVibes": preferred,
         "avoidVibes": avoid,
         "explicitPreferredVibes": explicit_preferred,

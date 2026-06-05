@@ -90,7 +90,7 @@
   - `light_date`: `first_meet` 初次见面/降低防备、`romantic_step` 暧昧升温/微醺走心、`interactive_date` 趣味互动/协作手作。
   - `deep_talk`: `bestie_tea` 闺蜜/密友慢聊、`brother_vent` 兄弟树洞局、`business_casual` 商务轻谈。
   - `group_bonding`: `active_carnival` 热血释放、`brain_battle` 烧脑协作、`night_feast` 烟火聚餐。
-  - `family_care`: `kid_energy_drain` 亲子放电、`senior_care` 长辈照顾、`family_reunion` 家庭团聚。
+  - `family_care`: `kid_care` 中性亲子照顾、`kid_energy_drain` 亲子放电、`senior_care` 长辈照顾、`family_reunion` 家庭团聚。
   - `tourist_sightseeing`: `landmark_checkin` 地标打卡、`local_food_hunt` 本地寻味。
   - `casual_meetup`: `casual`；`unknown`: `unknown`。
 - `preferredVibes` 写希望强化的氛围，例如轻约会、自然不尴尬、安静慢聊、兄弟局、高互动、游客地标、亲子照顾、烟火气。
@@ -99,6 +99,7 @@
 - `explicitAvoidVibes` 只写用户原话明确避开的语义标签，例如“不要太吵”“不想快餐”“少走路”。
 - `evidence` 只写用户原话或强结构线索，不要编造。
 - 不需要输出完整画像库；后端会根据 `primary + subScenario` 本地补全默认偏好、避雷和权重。
+- 仅出现“带孩子/亲子”时必须选择 `kid_care`；只有用户明确说“放电/释放精力/跑跳”等，才可以选择 `kid_energy_drain`。
 
 判断规则：
 

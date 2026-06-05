@@ -533,9 +533,33 @@ def _align_restaurant_start(
     return aligned, None
 
 
+def _reason_values(candidate: dict[str, Any], key: str) -> list[str]:
+    details = candidate.get("reasonDetails", {}) if isinstance(candidate.get("reasonDetails"), dict) else {}
+    values = details.get(key, [])
+    return [str(item) for item in values if item] if isinstance(values, list) else []
+
+
+def _strip_reason_prefix(value: str) -> str:
+    return value.split("：", 1)[1] if "：" in value else value
+
+
+def _candidate_reason_summary(candidate: dict[str, Any], *, fallback: str) -> str:
+    parts: list[str] = []
+    feasibility = _reason_values(candidate, "feasibility")
+    explicit = _reason_values(candidate, "explicitPreference")
+    profile = _reason_values(candidate, "profileAssist")
+    if feasibility:
+        parts.append("可执行依据：" + "、".join(feasibility[:3]))
+    if explicit:
+        parts.append("用户明确偏好：" + "、".join(_strip_reason_prefix(item) for item in explicit[:2]))
+    if profile:
+        parts.append("画像辅助参考：" + "、".join(_strip_reason_prefix(item) for item in profile[:2]))
+    return "；".join(parts) or fallback
+
+
 def _restaurant_description(restaurant: dict[str, Any]) -> str:
     availability = restaurant.get("availability", {})
-    description = "；".join(restaurant.get("matchedReasons", [])[:4]) or "作为本次吃饭和坐下休息安排。"
+    description = _candidate_reason_summary(restaurant, fallback="作为本次吃饭和坐下休息安排。")
     if availability:
         description += (
             f" 座位状态：{'有座' if availability.get('tableAvailable') else '未知'}，"
@@ -556,12 +580,10 @@ def _reason_badges(
     total_cost: float,
 ) -> list[str]:
     badges: list[str] = []
-    semantic_tags = []
-    for item in (activity, restaurant):
-        if item:
-            semantic_tags.extend(item.get("matchedSemanticTags", [])[:3])
-    if semantic_tags:
-        badges.append("氛围匹配")
+    if any(_reason_values(item, "explicitPreference") for item in (activity, restaurant) if item):
+        badges.append("命中明确偏好")
+    if any(_reason_values(item, "profileAssist") for item in (activity, restaurant) if item):
+        badges.append("画像辅助参考")
     budget_limit = _budget_limit(demand)
     if budget_limit is not None and total_cost <= budget_limit:
         badges.append("预算合适")
@@ -704,7 +726,7 @@ def _build_candidate_plan(
                 "start": _format_minutes(cursor, "待定"),
             }
         availability = activity.get("availability", {})
-        description = "；".join(activity.get("matchedReasons", [])[:4]) or "作为本次明确活动安排。"
+        description = _candidate_reason_summary(activity, fallback="作为本次明确活动安排。")
         if availability:
             description += (
                 f" 余票 {availability.get('bestTicketLeft')}，"
@@ -832,9 +854,9 @@ def _build_candidate_plan(
                 }
             )
     if activity:
-        selected_items.append({"kind": "activity", "poiId": activity.get("poiId"), "name": activity.get("name"), "reason": "匹配活动偏好并通过时间预算约束。"})
+        selected_items.append({"kind": "activity", "poiId": activity.get("poiId"), "name": activity.get("name"), "reason": _candidate_reason_summary(activity, fallback="通过时间、预算和供给约束。")})
     if restaurant:
-        selected_items.append({"kind": "restaurant", "poiId": restaurant.get("poiId"), "name": restaurant.get("name"), "reason": "匹配餐饮偏好并通过时间预算约束。"})
+        selected_items.append({"kind": "restaurant", "poiId": restaurant.get("poiId"), "name": restaurant.get("name"), "reason": _candidate_reason_summary(restaurant, fallback="通过时间、预算和供给约束。")})
 
     summary_parts = []
     if first_route and first_route.get("isCrossCityInbound"):
@@ -872,8 +894,8 @@ def _build_candidate_plan(
         },
         "recommendationReasons": [
             reason for reason in [
-                f"活动选择 {activity.get('name')}：{'；'.join(activity.get('matchedReasons', [])[:3])}" if activity else None,
-                f"吃饭选择 {restaurant.get('name')}：{'；'.join(restaurant.get('matchedReasons', [])[:3])}" if restaurant else None,
+                f"活动选择 {activity.get('name')}：{_candidate_reason_summary(activity, fallback='通过时间、预算和供给约束。')}" if activity else None,
+                f"吃饭选择 {restaurant.get('name')}：{_candidate_reason_summary(restaurant, fallback='通过时间、预算和供给约束。')}" if restaurant else None,
                 (
                     f"公平集合选择 {first_route.get('areaName')}：覆盖 {first_route.get('originCount')} 个出发点，"
                     f"最大通勤 {int(first_route.get('maxMinutes') or 0)} 分钟，方差 {first_route.get('variance')}，避免只照顾某一个人。"
