@@ -43,7 +43,8 @@ def governance_fields(poi: dict[str, Any], *, source_type: str) -> dict[str, Any
             f"cuisine:{poi.get('cuisine')}" if poi.get("cuisine") else None,
             f"area:{poi.get('areaId')}" if poi.get("areaId") else None,
             f"space:{poi.get('indoorOutdoor')}" if poi.get("indoorOutdoor") else None,
-            "open_access_subarea" if poi.get("poiLevel") == "sub_area" else None,
+            "open_access" if poi.get("accessType") == "open_access" or poi.get("poiLevel") == "sub_area" else None,
+            "ticketed_reservation" if poi.get("requiresTicket") or poi.get("requiresReservation") else None,
             _price_tag(price),
         ]
     )
@@ -53,7 +54,9 @@ def governance_fields(poi: dict[str, Any], *, source_type: str) -> dict[str, Any
             "has_age_range" if poi.get("ageMin") is not None or poi.get("ageMax") is not None else None,
             "reservable" if poi.get("reservable") else None,
             "child_friendly" if poi.get("childFriendly") else None,
-            "open_access_no_inventory" if poi.get("poiLevel") == "sub_area" else None,
+            "open_access_no_inventory" if poi.get("accessType") == "open_access" or poi.get("poiLevel") == "sub_area" else None,
+            "requires_reservation" if poi.get("requiresReservation") else None,
+            "requires_ticket" if poi.get("requiresTicket") else None,
         ]
     )
     return {

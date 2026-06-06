@@ -9,6 +9,7 @@ state.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -22,6 +23,19 @@ ACTION_FLAG_KEYS = (
     "needExplanation",
     "confirmExecution",
 )
+
+AREA_ALIASES = {
+    "大雁塔": "曲江",
+    "大唐不夜城": "曲江",
+    "曲江大悦城": "曲江",
+    "回民街": "钟楼",
+    "鼓楼": "钟楼",
+    "赛格": "小寨",
+    "MOMOPARK": "小寨",
+    "大兴善寺": "小寨",
+    "熙地港": "行政中心",
+    "龙首原": "大明宫",
+}
 
 
 def _empty_flags() -> dict[str, bool]:
@@ -76,16 +90,44 @@ def _locks_from_text(text: str, current_plan: dict[str, Any] | None) -> dict[str
     return locks
 
 
+def _budget_constraints_from_text(text: str) -> dict[str, Any]:
+    patch: dict[str, Any] = {}
+    normalized = str(text or "").replace("块", "元")
+    per_person_match = (
+        re.search(r"人均\s*(?:大概|差不多|约|控制在|到|就)?\s*(\d{1,4})", normalized)
+        or re.search(r"(?:每人|一个人)\s*(?:大概|差不多|约|控制在|到|就)?\s*(\d{1,4})", normalized)
+    )
+    if per_person_match:
+        patch["budgetPerPerson"] = int(per_person_match.group(1))
+        patch["budgetPreference"] = "lower"
+        patch["budgetFlex"] = "strict"
+    total_match = re.search(r"(?:总预算|预算总共|一共|总共)\s*(?:大概|差不多|约|控制在|到|就)?\s*(\d{1,5})", normalized)
+    if total_match:
+        patch["budgetMaxTotal"] = int(total_match.group(1))
+        patch["budgetPreference"] = "lower"
+        patch["budgetFlex"] = "strict"
+    if _has_any(normalized, ("便宜", "太贵", "预算低", "压预算", "省钱", "少花钱")):
+        patch["budgetPreference"] = "lower"
+        patch.setdefault("budgetFlex", "low_cost")
+    return patch
+
+
 def _constraints_patch(text: str) -> dict[str, Any]:
     patch: dict[str, Any] = {}
     if _has_any(text, ("只吃饭", "只安排吃饭", "不安排活动", "不要活动", "不玩了", "不安排项目")):
         patch["skipActivity"] = True
-    if _has_any(text, ("便宜", "太贵", "预算低", "压预算", "省钱")):
-        patch["budgetPreference"] = "lower"
+    patch.update(_budget_constraints_from_text(text))
     if _has_any(text, ("清淡", "少油", "低脂", "不油腻")):
         patch["foodPreference"] = "清淡不油腻"
     if _has_any(text, ("近一点", "别太远", "不想走那么远", "少走路", "附近")):
         patch["distancePreference"] = "nearer"
+    if _has_any(text, ("不想打车", "不要打车", "别打车", "不打车")):
+        patch["transportPreference"] = "public_transport_or_walk"
+        patch.setdefault("avoidTransport", []).append("taxi")
+    if _has_any(text, ("别的地方", "换商圈", "去别处", "去别的商圈", "离开这里")) and _has_any(text, ("不想", "不要", "别")):
+        patch["distancePreference"] = "same_area"
+    if _has_any(text, ("就在", "同商圈", "附近吃", "附近找", "附近安排")):
+        patch["distancePreference"] = "same_area"
     if _has_any(text, ("晚饭早一点", "晚餐早一点", "吃饭早一点", "早点吃", "早些吃", "提前吃", "先吃")):
         patch["mealTiming"] = "earlier"
     if _has_any(text, ("空窗", "缓冲", "等位", "时间段", "这段", "加点", "加些", "加一个", "奶茶", "茶饮", "休息")):
@@ -95,11 +137,18 @@ def _constraints_patch(text: str) -> dict[str, Any]:
         patch["mustImprovePreviousIdle"] = True
         patch["maxIdleMinutes"] = 45
         patch["targetExperienceBlocksMin"] = 2
+    for alias, area in AREA_ALIASES.items():
+        if alias in text:
+            patch["preferredArea"] = area
+            if "附近" in text or "就在" in text:
+                patch["distancePreference"] = "same_area"
     for area in ("大明宫", "小寨", "钟楼", "曲江", "高新", "行政中心"):
         if _has_any(text, (f"不想去{area}", f"不要{area}", f"别去{area}", f"避开{area}")):
             patch.setdefault("avoidAreas", []).append(area)
         elif area in text:
             patch["preferredArea"] = area
+    if patch:
+        patch["rawText"] = text
     return patch
 
 

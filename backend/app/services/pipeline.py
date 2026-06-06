@@ -455,12 +455,19 @@ def _exclude_current_targets_for_router(
     if not isinstance(session, dict):
         return
     flags = router_result.get("actionFlags", {}) if isinstance(router_result.get("actionFlags"), dict) else {}
+    patch = router_result.get("constraintsPatch", {}) if isinstance(router_result.get("constraintsPatch"), dict) else {}
+    locks = router_result.get("locks", {}) if isinstance(router_result.get("locks"), dict) else {}
     target_kind = str(router_result.get("targetKind") or "")
     kinds: set[str] = set()
     if flags.get("needNewActivity") or target_kind == "activity":
         kinds.add("activity")
     if flags.get("needNewRestaurant") or target_kind == "restaurant":
         kinds.add("restaurant")
+    if flags.get("modifyBudget") or patch.get("budgetPreference") == "lower" or patch.get("budgetFlex") in {"low_cost", "strict"}:
+        if not locks.get("restaurantPoiId"):
+            kinds.add("restaurant")
+        if not locks.get("activityPoiId"):
+            kinds.add("activity")
     if not kinds:
         return
     _add_excluded_poi_ids(
@@ -518,6 +525,116 @@ def _apply_clicked_modify_controls(
         plan_control.setdefault("constraintsPatch", {})["fillBuffer"] = True
 
 
+def _patch_number(value: Any) -> float | None:
+    if isinstance(value, (int, float)) and value >= 0:
+        return float(value)
+    if isinstance(value, str):
+        match = re.search(r"\d+(?:\.\d+)?", value)
+        if match:
+            return float(match.group(0))
+    return None
+
+
+def _people_total_from_demand(demand: dict[str, Any]) -> int:
+    people = demand.get("people", {})
+    if not isinstance(people, dict):
+        return 1
+    total = people.get("total")
+    if isinstance(total, int) and total > 0:
+        return total
+    adults = people.get("adults") if isinstance(people.get("adults"), int) else 0
+    children = people.get("children") if isinstance(people.get("children"), list) else []
+    seniors = people.get("seniors") if isinstance(people.get("seniors"), list) else []
+    return max(1, adults + len(children) + len(seniors))
+
+
+def _append_unique_text(target: Any, text: str) -> None:
+    if isinstance(target, list) and text not in target:
+        target.append(text)
+
+
+def _plan_total_cost(plan: dict[str, Any] | None) -> float | None:
+    if not isinstance(plan, dict):
+        return None
+    budget = plan.get("budgetEstimate")
+    if not isinstance(budget, dict):
+        return None
+    value = budget.get("totalCost")
+    if isinstance(value, (int, float)) and value > 0:
+        return float(value)
+    return None
+
+
+def _apply_relative_budget_ceiling(
+    demand: dict[str, Any],
+    previous_plan: dict[str, Any] | None,
+    patch: dict[str, Any],
+) -> None:
+    if not isinstance(patch, dict):
+        return
+    if patch.get("budgetPerPerson") is not None or patch.get("budgetMaxTotal") is not None:
+        return
+    if patch.get("budgetPreference") != "lower" and patch.get("budgetFlex") not in {"low_cost", "strict"}:
+        return
+    previous_total = _plan_total_cost(previous_plan)
+    if previous_total is None:
+        return
+    plan_control = demand.setdefault("planControl", {})
+    plan_control["lowCostReplan"] = True
+    plan_control["lowCostCeilingTotal"] = previous_total
+    plan_control["lowCostReferenceTotal"] = previous_total
+
+
+def _apply_budget_constraints_patch(demand: dict[str, Any], patch: dict[str, Any]) -> None:
+    budget_preference = str(patch.get("budgetPreference") or "")
+    budget_flex = str(patch.get("budgetFlex") or "")
+    per_person = _patch_number(patch.get("budgetPerPerson") or patch.get("perPersonBudget"))
+    max_total = _patch_number(patch.get("budgetMaxTotal") or patch.get("maxTotalBudget"))
+    if not (budget_preference or budget_flex or per_person is not None or max_total is not None):
+        return
+
+    budget = demand.setdefault("budget", {})
+    if not isinstance(budget, dict):
+        budget = {}
+        demand["budget"] = budget
+    people_total = _people_total_from_demand(demand)
+
+    if per_person is not None:
+        budget["perPerson"] = round(per_person, 2)
+        budget["maxTotal"] = round(per_person * people_total, 2)
+        budget["flexibility"] = "strict"
+    elif max_total is not None:
+        budget["maxTotal"] = round(max_total, 2)
+        budget["perPerson"] = round(max_total / people_total, 2)
+        budget["flexibility"] = "strict"
+    elif budget_preference == "lower" or budget_flex in {"low_cost", "strict"}:
+        budget["flexibility"] = "low_cost" if budget_flex != "strict" else "strict"
+
+    if budget_preference == "lower":
+        demand.setdefault("planControl", {})["lowCostReplan"] = True
+        dimensions = demand.setdefault("demandProfile", {}).setdefault("dimensions", {})
+        if isinstance(dimensions, dict):
+            dimensions["pricePreference"] = {
+                "key": "pricePreference",
+                "target": "low",
+                "weight": 0.9 if per_person is not None or max_total is not None else 0.7,
+                "source": "user_explicit",
+                "confidence": 1.0,
+                "evidence": [patch.get("rawText") or "用户要求更便宜/压预算"],
+            }
+
+    constraints = demand.setdefault("constraints", {})
+    if isinstance(constraints, dict):
+        hard = constraints.setdefault("hard", [])
+        soft = constraints.setdefault("soft", [])
+        if per_person is not None:
+            _append_unique_text(hard, f"本轮用户要求人均预算控制在 {round(per_person)} 元左右")
+        elif max_total is not None:
+            _append_unique_text(hard, f"本轮用户要求总预算控制在 {round(max_total)} 元左右")
+        elif budget_preference == "lower":
+            _append_unique_text(soft, "本轮用户要求明显降价，优先低客单、少付费、少转场方案")
+
+
 def _apply_timeline_policy_controls(
     demand: dict[str, Any],
     router_result: dict[str, Any] | None,
@@ -530,6 +647,7 @@ def _apply_timeline_policy_controls(
     if isinstance(existing_patch, dict):
         existing_patch.update(patch)
         patch = existing_patch
+    _apply_budget_constraints_patch(demand, patch)
     if patch.get("forbidLongBuffer"):
         plan_control["forbidLongBuffer"] = True
         plan_control["mustImprovePreviousIdle"] = True
@@ -748,7 +866,7 @@ def _build_interaction_router_prompt(
         '  "confidence": 0.0,\n'
         '  "evidence": ["用户原话中支持判断的短片段"],\n'
         '  "preserve": ["activity|restaurant|route|budget|timeWindow|destinationAnchors"],\n'
-        '  "constraintsPatch": {"skipActivity": false, "mealTiming": "earlier|keep|null", "budgetPreference": "lower|higher|strict|null", "foodPreference": "短标签或null", "distancePreference": "nearer|same_area|null", "preferredArea": "地点或null"},\n'
+        '  "constraintsPatch": {"skipActivity": false, "mealTiming": "earlier|keep|null", "budgetPreference": "lower|higher|strict|null", "budgetPerPerson": 20, "budgetMaxTotal": 80, "budgetFlex": "strict|low_cost|null", "foodPreference": "短标签或null", "distancePreference": "nearer|same_area|null", "preferredArea": "地点或null", "transportPreference": "public_transport_or_walk|null", "avoidTransport": ["taxi"]},\n'
         '  "needsClarification": false,\n'
         '  "clarificationQuestion": "如果必须追问，给一句有引导性的问题，否则空字符串"\n'
         "}\n"
@@ -954,6 +1072,11 @@ def _start_refinement_dialogue(
     pending_demand["planControl"]["locks"] = router_result.get("locks", {"timeFlexMinutes": 30})
     pending_demand["planControl"]["constraintsPatch"] = router_result.get("constraintsPatch", {})
     _apply_timeline_policy_controls(pending_demand, router_result)
+    _apply_relative_budget_ceiling(
+        pending_demand,
+        session.get("currentPlan"),
+        router_result.get("constraintsPatch", {}),
+    )
     clicked_context = _clicked_modify_context(request.input)
     if clicked_context:
         pending_demand["planControl"]["clickedModify"] = clicked_context
@@ -1063,6 +1186,11 @@ def _extract_or_refine_demand(
                 plan_control.setdefault("constraintsPatch", {})["mealTiming"] = "keep"
             demand.setdefault("planControl", {})["routerResult"] = router_result
             _apply_timeline_policy_controls(demand, router_result)
+            _apply_relative_budget_ceiling(
+                demand,
+                session.get("currentPlan"),
+                router_result.get("constraintsPatch", {}),
+            )
             intent["acceptedPendingRefinement"] = True
             intent["routerResult"] = router_result
             return demand, intent
@@ -1080,7 +1208,8 @@ def _extract_or_refine_demand(
             "你是 FlowCity 的结构化需求修改器。用户在前端点击了时间轴节点或整体大改按钮，"
             "随后补充了自然语言要求。\n"
             "请基于 previousDemand 做修改，输出完整结构化需求 JSON，字段必须尽量沿用原 schema。\n"
-            "要求：保留原始硬约束，例如人数、预算、时间窗、出发地、儿童/老人/饮食边界；"
+            "要求：保留原始硬约束，例如人数、时间窗、出发地、儿童/老人/饮食边界；"
+            "预算也默认保留，但如果 userModification 明确要求更便宜、太贵、人均/总预算变化，必须更新 budget 与 planControl.constraintsPatch。\n"
             "只根据 userModification 改相关偏好、约束、planControl。\n"
             "必须读取 clickedModifyContext.targetKind 和 clickedModifyContext.allowedPatchKeys。\n"
             "如果 targetKind=restaurant，只能重点修改餐饮相关偏好、时间、预算、排队和餐厅锁定；不要无故替换活动。\n"
@@ -1126,6 +1255,11 @@ def _extract_or_refine_demand(
         demand["planControl"]["clickedModify"] = clicked_context
         _apply_clicked_modify_controls(demand, clicked_context)
         _apply_timeline_policy_controls(demand, router_result)
+        _apply_relative_budget_ceiling(
+            demand,
+            session.get("currentPlan"),
+            router_result.get("constraintsPatch", {}),
+        )
         if "【整体大改上下文】" in request.input:
             demand["planControl"]["locks"] = {"timeFlexMinutes": 30}
             demand["planControl"]["majorChange"] = True
@@ -1154,6 +1288,11 @@ def _extract_or_refine_demand(
         demand["planControl"]["locks"] = router_result.get("locks", {"timeFlexMinutes": 30})
         demand["planControl"]["constraintsPatch"] = router_result.get("constraintsPatch", {})
         _apply_timeline_policy_controls(demand, router_result)
+        _apply_relative_budget_ceiling(
+            demand,
+            session.get("currentPlan"),
+            router_result.get("constraintsPatch", {}),
+        )
         if router_result.get("targetKind") == "filler" or router_result.get("constraintsPatch", {}).get("fillBuffer"):
             demand["planControl"]["forceFillerInsert"] = True
         _exclude_current_targets_for_router(demand, session, router_result)
@@ -1216,7 +1355,7 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
     refinement_intent: dict[str, Any] = {}
 
     try:
-        session = _get_session(session_id, touch=True)
+        session = None if request.interactionMode == "new_plan" else _get_session(session_id, touch=True)
         router_result = router.route_interaction(
             request.input,
             has_session=bool(session),
@@ -1493,6 +1632,22 @@ def confirm_execution_from_draft(request: ExecuteRequest) -> dict[str, Any]:
         structured_demand = request.structuredDemand
         timeline_plan = request.timelinePlan
         mock_supply = request.mockSupply
+
+    draft_pending_actions = execution_draft.get("pendingActions") if isinstance(execution_draft, dict) else []
+    plan_has_timeline = isinstance(timeline_plan, dict) and timeline_plan.get("status") != "failed" and bool(timeline_plan.get("timeline"))
+    supply_available = isinstance(mock_supply, dict)
+    old_blocked_draft = isinstance(execution_draft, dict) and execution_draft.get("draftStatus") == "blocked"
+    missing_actions = not isinstance(draft_pending_actions, list) or not draft_pending_actions
+    if plan_has_timeline and supply_available and (old_blocked_draft or missing_actions):
+        execution_draft = executor.build_execution_draft(
+            timeline_plan,
+            {"status": "ok", "issues": []},
+            None,
+            mock_supply,
+        )
+        if session is not None:
+            session["currentExecutionDraft"] = deepcopy(execution_draft)
+            session["updatedAt"] = time.time()
 
     result = executor.confirm_execution(
         execution_draft,

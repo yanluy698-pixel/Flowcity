@@ -19,6 +19,7 @@ from typing import Any
 import area_retrieval
 import demand_profile
 import intent_taxonomy
+import poi_identity
 import route_identity
 import subarea_supply
 import supply_governance
@@ -277,6 +278,8 @@ def _area_by_id(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
 def _parse_minutes(value: str | None) -> int | None:
     if not value:
         return None
+    if ":" not in str(value):
+        return None
     hour, minute = value.split(":", 1)
     return int(hour) * 60 + int(minute)
 
@@ -327,6 +330,47 @@ def _is_open_during_demand(poi: dict[str, Any], demand: dict[str, Any]) -> bool:
     demand_start, demand_end = _demand_time_range(demand)
     open_start, open_end = _open_range_for_demand(poi, demand)
     return _ranges_overlap(demand_start, demand_end, open_start, open_end)
+
+
+def _format_minutes(value: int) -> str:
+    value = value % (24 * 60)
+    return f"{value // 60:02d}:{value % 60:02d}"
+
+
+def _clip_slot_to_open_hours(slot: dict[str, Any], poi: dict[str, Any], demand: dict[str, Any]) -> dict[str, Any] | None:
+    slot_start = _parse_minutes(slot.get("start"))
+    slot_end = _parse_minutes(slot.get("end"))
+    if slot_start is None or slot_end is None:
+        return None
+    if slot_end <= slot_start:
+        slot_end += 24 * 60
+    try:
+        open_start, open_end = _open_range_for_demand(poi, demand)
+    except Exception:
+        return dict(slot)
+    clipped_start = max(slot_start, open_start)
+    clipped_end = min(slot_end, open_end)
+    if clipped_end <= clipped_start:
+        return None
+    clipped = dict(slot)
+    clipped["start"] = _format_minutes(clipped_start)
+    clipped["end"] = _format_minutes(clipped_end)
+    if clipped_start != slot_start or clipped_end != slot_end:
+        clipped["clippedToOpenHours"] = True
+    return clipped
+
+
+def _clip_slots_to_open_hours(
+    slots: list[dict[str, Any]],
+    poi: dict[str, Any],
+    demand: dict[str, Any],
+) -> list[dict[str, Any]]:
+    clipped: list[dict[str, Any]] = []
+    for slot in slots:
+        next_slot = _clip_slot_to_open_hours(slot, poi, demand)
+        if next_slot:
+            clipped.append(next_slot)
+    return clipped
 
 
 def _date_matches(status_date: str | None, demand_date: str | None) -> bool:
@@ -825,7 +869,7 @@ def _nearby_area_ids(area_ids: set[str]) -> set[str]:
 
 
 def _availability_for_activity(
-    activity_id: str, demand: dict[str, Any], data: dict[str, Any]
+    activity_id: str, demand: dict[str, Any], data: dict[str, Any], activity: dict[str, Any] | None = None
 ) -> dict[str, Any] | None:
     demand_date = _date_text(demand)
     for status in data["activityAvailability"]:
@@ -836,6 +880,8 @@ def _availability_for_activity(
         matching_slots = [
             slot for slot in status.get("timeSlots", []) if _time_slot_matches(slot, demand)
         ]
+        if activity:
+            matching_slots = _clip_slots_to_open_hours(matching_slots, activity, demand)
         if matching_slots:
             return {
                 "dateText": status.get("dateText"),
@@ -849,6 +895,49 @@ def _availability_for_activity(
     return None
 
 
+def _default_filler_activity_availability(activity: dict[str, Any], demand: dict[str, Any]) -> dict[str, Any]:
+    tags = " ".join(str(tag) for tag in activity.get("tags", []))
+    queue = 8
+    if "热门" in tags or "排队" in tags:
+        queue = 15
+    slot = {
+        "start": demand.get("timeWindow", {}).get("start") or "待定",
+        "end": demand.get("timeWindow", {}).get("end") or "待定",
+        "ticketLeft": 999,
+        "queueMinutes": queue,
+        "crowdLevel": "medium",
+    }
+    clipped_slots = _clip_slots_to_open_hours([slot], activity, demand)
+    return {
+        "poiId": activity.get("id"),
+        "dateText": _date_text(demand),
+        "timeSlots": clipped_slots,
+        "bestTicketLeft": 999 if clipped_slots else 0,
+        "minQueueMinutes": queue,
+        "worstCrowdLevel": "medium",
+        "sourceType": "mock_default_runtime",
+        "confidence": 0.72,
+        "note": "Mock runtime fallback for flexible filler activity.",
+    }
+
+
+def _availability_for_activity_poi(
+    activity: dict[str, Any],
+    demand: dict[str, Any],
+    data: dict[str, Any],
+    metadata: dict[str, Any],
+) -> dict[str, Any] | None:
+    if poi_identity.is_open_access(activity):
+        return subarea_supply.open_access_availability()
+    explicit = _availability_for_activity(str(activity.get("id") or ""), demand, data, activity)
+    if explicit:
+        return explicit
+    category = str(activity.get("category") or "")
+    if metadata.get("isFiller") or category.startswith("filler_"):
+        return _default_filler_activity_availability(activity, demand)
+    return None
+
+
 def _availability_for_restaurant(
     restaurant_id: str, demand: dict[str, Any], data: dict[str, Any]
 ) -> dict[str, Any] | None:
@@ -859,6 +948,36 @@ def _availability_for_restaurant(
         if _date_matches(status.get("dateText"), demand_date):
             return status
     return None
+
+
+def _default_restaurant_availability(restaurant: dict[str, Any], demand: dict[str, Any]) -> dict[str, Any]:
+    price = float(restaurant.get("avgPricePerPerson") or 0)
+    base_queue = 10
+    if price <= LOW_COST_RESTAURANT_LIMIT:
+        base_queue = 16
+    if "排队" in restaurant.get("tags", []):
+        base_queue += 8
+    if not restaurant.get("reservable"):
+        base_queue += 4
+    return {
+        "poiId": restaurant.get("id"),
+        "dateText": _date_text(demand),
+        "tableAvailable": True,
+        "queueMinutes": min(base_queue, QUEUE_LIMIT_NORMAL),
+        "availableSlots": ["18:30", "19:00", "19:30", "20:00"] if restaurant.get("reservable") else [],
+        "sourceType": "mock_default_runtime",
+        "confidence": 0.72,
+        "note": "Mock runtime fallback: missing dynamic row is not treated as sold out.",
+    }
+
+
+def _availability_for_restaurant_poi(
+    restaurant: dict[str, Any], demand: dict[str, Any], data: dict[str, Any]
+) -> dict[str, Any] | None:
+    explicit = _availability_for_restaurant(str(restaurant.get("id") or ""), demand, data)
+    if explicit:
+        return explicit
+    return _default_restaurant_availability(restaurant, demand)
 
 
 def _worst_crowd_level(levels: list[str]) -> str:
@@ -920,7 +1039,11 @@ def check_activity_availability(
 ) -> dict[str, Any] | None:
     data = data or load_mock_data()
     demand = {"timeWindow": {"dateText": date_text, **time_window}}
-    return _availability_for_activity(activity_id, demand, data)
+    activity = next(
+        (item for item in data.get("activities", []) if str(item.get("id") or "") == activity_id),
+        None,
+    )
+    return _availability_for_activity(activity_id, demand, data, activity)
 
 
 def check_restaurant_availability(
@@ -1027,11 +1150,7 @@ def search_activities(
         if children_ages:
             reasons.append(f"适合 {min(children_ages)} 岁儿童")
 
-        availability = (
-            subarea_supply.open_access_availability()
-            if activity.get("poiLevel") == "sub_area"
-            else _availability_for_activity(activity["id"], structured_demand, data)
-        )
+        availability = _availability_for_activity_poi(activity, structured_demand, data, metadata)
         if not availability:
             filtered_out.append(_filtered(activity, "activity", "没有匹配目标日期和时间的余票状态"))
             continue
@@ -1070,7 +1189,9 @@ def search_activities(
         constraint_fit_score = float(len(matched_tags) * 2)
         if children_ages and "儿童友好" in activity.get("tags", []):
             constraint_fit_score += 2
-        if availability["minQueueMinutes"] <= 15:
+        if poi_identity.is_open_access({"availability": availability, **activity}):
+            reasons.append("开放街区，无需预约")
+        elif availability["minQueueMinutes"] <= 15:
             base_quality_score += 1
             reasons.append("排队较短")
         if target_preferred_areas and activity["areaId"] in target_preferred_areas:
@@ -1148,6 +1269,10 @@ def search_activities(
                 "parentAreaId": activity.get("parentAreaId"),
                 "subAreaId": activity.get("subAreaId"),
                 "poiLevel": activity.get("poiLevel", "poi"),
+                "placeGroupId": activity.get("placeGroupId"),
+                "accessType": activity.get("accessType"),
+                "requiresReservation": activity.get("requiresReservation"),
+                "requiresTicket": activity.get("requiresTicket"),
                 "category": activity["category"],
                 "openHours": activity.get("openHours"),
                 "vibeTags": metadata["vibeTags"],
@@ -1277,7 +1402,7 @@ def search_restaurants(
             filtered_out.append(_filtered(restaurant, "restaurant", "用户希望订座，但餐厅不可预约"))
             continue
 
-        availability = _availability_for_restaurant(restaurant["id"], structured_demand, data)
+        availability = _availability_for_restaurant_poi(restaurant, structured_demand, data)
         if not availability:
             filtered_out.append(_filtered(restaurant, "restaurant", "没有匹配目标日期的餐厅动态状态"))
             continue

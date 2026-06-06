@@ -504,7 +504,7 @@
       ],
       "openHours": {
         "weekday": "10:00-21:30",
-        "weekend": "10:00-22:00"
+        "weekend": "10:00-21:30"
       },
       "suggestedDurationMinutes": 60,
       "pricePerPerson": 30,
@@ -663,12 +663,18 @@
       "id": "act_xa_028",
       "name": "大唐不夜城步行街",
       "areaId": "area_xa_qujiang",
+      "subAreaId": "subarea_qujiang_datang",
+      "placeGroupId": "place_xa_qujiang_datang_buyecheng",
+      "accessType": "open_access",
+      "requiresReservation": false,
+      "requiresTicket": false,
       "category": "photo_walk",
       "tags": [
         "拍照",
         "citywalk",
         "轻松",
-        "夜间",
+        "开放街区",
+        "无需预约",
         "低预算"
       ],
       "openHours": {
@@ -676,28 +682,36 @@
         "weekend": "10:00-22:00"
       },
       "suggestedDurationMinutes": 65,
-      "pricePerPerson": 18,
+      "pricePerPerson": 0,
       "ageMin": 10,
       "ageMax": 99,
       "indoorOutdoor": "mixed",
       "baseRating": 4.2,
-      "mockBasis": "补充曲江全年短线 citywalk。"
+      "mockBasis": "参考大唐不夜城开放式步行街，作为曲江全年可逛的免费开放街区。"
     },
     {
       "id": "act_xa_029",
       "name": "钟鼓楼广场",
       "areaId": "area_xa_zhonglou",
-      "category": "night_citywalk",
+      "subAreaId": "subarea_zhonglou_bell_tower_square",
+      "placeGroupId": "place_xa_zhonglou_bell_tower_square",
+      "accessType": "open_access",
+      "requiresReservation": false,
+      "requiresTicket": false,
+      "category": "landmark_walk",
       "tags": [
+        "钟楼",
+        "鼓楼",
+        "地标",
         "citywalk",
-        "夜间",
+        "开放广场",
         "朋友",
         "小吃",
         "低预算"
       ],
       "openHours": {
-        "weekday": "16:00-23:00",
-        "weekend": "16:00-23:00"
+        "weekday": "10:00-23:00",
+        "weekend": "10:00-23:00"
       },
       "suggestedDurationMinutes": 70,
       "pricePerPerson": 0,
@@ -999,7 +1013,7 @@
       "id": "act_xa_042",
       "name": "小寨轻松话题书店",
       "areaId": "area_xa_xiaozhai",
-      "category": "light_sport",
+      "category": "bookstore_cafe",
       "tags": [
         "聊天",
         "安静",
@@ -1008,14 +1022,14 @@
         "少排队"
       ],
       "openHours": {
-        "weekday": "17:00-22:00",
-        "weekend": "17:00-22:00"
+        "weekday": "17:00-21:30",
+        "weekend": "17:00-21:30"
       },
       "suggestedDurationMinutes": 70,
-      "pricePerPerson": 0,
+      "pricePerPerson": 12,
       "ageMin": 12,
       "ageMax": 99,
-      "indoorOutdoor": "outdoor",
+      "indoorOutdoor": "indoor",
       "baseRating": 4.0,
       "mockBasis": "补充小寨轻松书店。"
     },
@@ -1167,6 +1181,11 @@
       "id": "act_xa_049",
       "name": "大雁塔北广场",
       "areaId": "area_xa_qujiang",
+      "subAreaId": "subarea_qujiang_dayanta_square",
+      "placeGroupId": "place_xa_qujiang_dayanta_north_square",
+      "accessType": "open_access",
+      "requiresReservation": false,
+      "requiresTicket": false,
       "category": "landmark_walk",
       "tags": [
         "大雁塔",
@@ -1193,6 +1212,11 @@
       "id": "act_xa_050",
       "name": "大唐不夜城中轴夜游",
       "areaId": "area_xa_qujiang",
+      "subAreaId": "subarea_qujiang_datang",
+      "placeGroupId": "place_xa_qujiang_datang_buyecheng",
+      "accessType": "open_access",
+      "requiresReservation": false,
+      "requiresTicket": false,
       "category": "night_citywalk",
       "tags": [
         "大唐不夜城",
@@ -1204,8 +1228,8 @@
         "全年可去"
       ],
       "openHours": {
-        "weekday": "16:00-23:30",
-        "weekend": "15:00-23:30"
+        "weekday": "18:30-23:30",
+        "weekend": "18:30-23:30"
       },
       "suggestedDurationMinutes": 80,
       "pricePerPerson": 0,
@@ -1296,6 +1320,11 @@
       "id": "act_xa_054",
       "name": "钟鼓楼广场",
       "areaId": "area_xa_zhonglou",
+      "subAreaId": "subarea_zhonglou_bell_tower_square",
+      "placeGroupId": "place_xa_zhonglou_bell_tower_square",
+      "accessType": "open_access",
+      "requiresReservation": false,
+      "requiresTicket": false,
       "category": "landmark_walk",
       "tags": [
         "钟楼",
@@ -1346,29 +1375,35 @@
     },
     {
       "id": "act_xa_056",
-      "name": "大慈恩寺遗址公园",
+      "name": "大慈恩寺-大雁塔预约参观",
       "areaId": "area_xa_qujiang",
-      "category": "temple_square_walk",
+      "subAreaId": "subarea_qujiang_dayanta_square",
+      "placeGroupId": "place_xa_qujiang_dacien_ticket",
+      "accessType": "ticketed_reservation",
+      "requiresReservation": true,
+      "requiresTicket": true,
+      "category": "landmark_ticket",
       "tags": [
         "大慈恩寺",
         "大雁塔",
         "地标",
         "文化",
-        "低预算",
+        "预约",
+        "门票",
         "全年可去",
         "拍照"
       ],
       "openHours": {
-        "weekday": "10:00-21:30",
-        "weekend": "10:00-22:00"
+        "weekday": "09:00-17:30",
+        "weekend": "09:00-17:30"
       },
-      "suggestedDurationMinutes": 60,
-      "pricePerPerson": 0,
+      "suggestedDurationMinutes": 75,
+      "pricePerPerson": 40,
       "ageMin": 6,
       "ageMax": 99,
       "indoorOutdoor": "outdoor",
       "baseRating": 4.5,
-      "mockBasis": "参考大慈恩寺与大雁塔外广场文化地标动线。"
+      "mockBasis": "参考大慈恩寺/大雁塔入内参观需购票预约；外围广场另由开放街区 POI 表达。"
     },
     {
       "id": "act_xa_057",
@@ -1587,8 +1622,8 @@
       ],
       "isFiller": true,
       "openHours": {
-        "weekday": "10:00-22:30",
-        "weekend": "10:00-23:00"
+        "weekday": "10:00-21:30",
+        "weekend": "10:00-21:30"
       },
       "suggestedDurationMinutes": 45,
       "pricePerPerson": 22,
@@ -1713,8 +1748,8 @@
       ],
       "isFiller": true,
       "openHours": {
-        "weekday": "10:00-22:30",
-        "weekend": "10:00-23:00"
+        "weekday": "10:00-21:30",
+        "weekend": "10:00-21:30"
       },
       "suggestedDurationMinutes": 45,
       "pricePerPerson": 12,
@@ -1747,6 +1782,11 @@
       "id": "act_xa_069",
       "name": "大唐不夜城北广场",
       "areaId": "area_xa_qujiang",
+      "subAreaId": "subarea_qujiang_datang",
+      "placeGroupId": "place_xa_qujiang_datang_buyecheng",
+      "accessType": "open_access",
+      "requiresReservation": false,
+      "requiresTicket": false,
       "category": "filler_free_walk",
       "tags": ["具体公共点位", "休息等待", "免费", "轻逛", "游客地标", "曲江", "低预算", "可拍照"],
       "vibeTags": ["休息等待", "游客地标", "烟火气"],
@@ -1791,7 +1831,7 @@
       "behaviorTags": ["休息等待", "看书选书", "可坐下聊天"],
       "audienceTags": ["大学生", "朋友多人", "亲子", "家庭"],
       "isFiller": true,
-      "openHours": { "weekday": "10:00-22:00", "weekend": "10:00-22:30" },
+      "openHours": { "weekday": "10:00-21:30", "weekend": "10:00-21:30" },
       "suggestedDurationMinutes": 45,
       "pricePerPerson": 12,
       "ageMin": 0,
@@ -1810,7 +1850,7 @@
       "behaviorTags": ["休息等待", "可坐下聊天", "轻逛"],
       "audienceTags": ["轻约会", "朋友多人", "游客"],
       "isFiller": true,
-      "openHours": { "weekday": "10:00-22:00", "weekend": "10:00-22:30" },
+      "openHours": { "weekday": "10:00-21:00", "weekend": "10:00-21:00" },
       "suggestedDurationMinutes": 45,
       "pricePerPerson": 12,
       "ageMin": 8,
@@ -1918,6 +1958,11 @@
       "id": "act_xa_078",
       "name": "钟鼓楼广场",
       "areaId": "area_xa_zhonglou",
+      "subAreaId": "subarea_zhonglou_bell_tower_square",
+      "placeGroupId": "place_xa_zhonglou_bell_tower_square",
+      "accessType": "open_access",
+      "requiresReservation": false,
+      "requiresTicket": false,
       "category": "filler_free_walk",
       "tags": ["具体街区", "钟楼", "回民街", "免费", "轻逛", "休息等待", "低预算", "少走路", "游客地标"],
       "vibeTags": ["休息等待", "游客地标", "低压力"],

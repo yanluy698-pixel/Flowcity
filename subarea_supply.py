@@ -56,6 +56,9 @@ def _to_activity(subarea: dict[str, Any]) -> dict[str, Any]:
         "areaId": area_id,
         "parentAreaId": area_id,
         "poiLevel": "sub_area",
+        "accessType": "open_access",
+        "requiresReservation": False,
+        "requiresTicket": False,
         "isFiller": False,
         "ageMin": int(subarea.get("ageMin") or 0),
         "ageMax": int(subarea.get("ageMax") or 99),
@@ -87,4 +90,5 @@ def open_access_availability() -> dict[str, Any]:
         "worstCrowdLevel": "unknown",
         "supplyType": "open_subarea",
         "status": "open_access",
+        "inventoryModel": "open_access",
     }

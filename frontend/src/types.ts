@@ -37,6 +37,15 @@ export type ModifyDraft = {
   suggestion: string;
   systemPrompt: string;
   constraintsPatch?: Record<string, unknown>;
+  prefillInput?: boolean;
+};
+
+export type SessionHistoryEntry = {
+  sessionId: string;
+  title: string;
+  lastInput: string;
+  updatedAt: number;
+  turns: ChatTurn[];
 };
 
 export type TimelineItem = {

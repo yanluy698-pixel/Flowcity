@@ -2,10 +2,13 @@ import { useState } from "react";
 import { Avatar } from "./Avatar";
 import { ChatInput } from "./ChatInput";
 import { Header } from "./Header";
+import type { SessionHistoryEntry } from "../types";
 
 type Props = {
   onSubmit: (text: string) => void;
   onNewSession?: () => void;
+  onResumeSession?: (entry: SessionHistoryEntry) => void;
+  sessionHistory?: SessionHistoryEntry[];
   disabled?: boolean;
 };
 
@@ -17,18 +20,38 @@ const examples = [
   "周六下午2点到6点，我从长安大学渭水校区出发，想去市区和喜欢的女生玩，她最近减肥，吃的要好吃但别油腻，总预算200以内，别安排得太正式。"
 ];
 
-export function HomeScreen({ onSubmit, onNewSession, disabled }: Props) {
+function formatHistoryTime(updatedAt: number) {
+  return new Date(updatedAt).toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+export function HomeScreen({
+  onSubmit,
+  onNewSession,
+  onResumeSession,
+  sessionHistory = [],
+  disabled
+}: Props) {
   const [draftText, setDraftText] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const hasHistory = sessionHistory.length > 0;
 
   return (
     <main className="page">
       <section className="phone-shell">
-        <Header onNewSession={onNewSession} disabled={disabled} />
+        <Header
+          onNewSession={onNewSession}
+          onHistoryClick={hasHistory ? () => setHistoryOpen(true) : undefined}
+          hasHistory={hasHistory}
+          disabled={disabled}
+        />
         <div className="home-content">
           <section className="home-hero">
             <div className="home-hero-copy">
               <span className="mini-label">FlowCity · 西安周末闲时规划</span>
-              <h1>把一句话变成能模拟执行的周末安排</h1>
+              <h1>把一句话变成能落地的周末安排</h1>
               <p>先理解需求，再查活动、餐厅、路线和动态状态；确认前如果变了，就重新给你排一版。</p>
             </div>
             <div className="home-yellow-panel">
@@ -62,6 +85,44 @@ export function HomeScreen({ onSubmit, onNewSession, disabled }: Props) {
           showDraftPreview={false}
           onClearDraft={() => setDraftText("")}
         />
+        {historyOpen && (
+          <div className="history-drawer-layer">
+            <button
+              type="button"
+              className="history-backdrop"
+              aria-label="关闭历史记录"
+              onClick={() => setHistoryOpen(false)}
+            />
+            <aside className="history-drawer" aria-label="历史规划">
+              <div className="history-drawer-head">
+                <strong>最近规划</strong>
+                <button type="button" onClick={() => setHistoryOpen(false)} aria-label="关闭历史记录">
+                  ×
+                </button>
+              </div>
+              <div className="history-list">
+                {sessionHistory.map((entry) => (
+                  <button
+                    key={entry.sessionId}
+                    type="button"
+                    className="history-item"
+                    onClick={() => {
+                      onResumeSession?.(entry);
+                      setHistoryOpen(false);
+                    }}
+                    disabled={disabled}
+                  >
+                    <span>
+                      <strong>{entry.title}</strong>
+                      <small>{entry.lastInput}</small>
+                    </span>
+                    <em>{formatHistoryTime(entry.updatedAt)}</em>
+                  </button>
+                ))}
+              </div>
+            </aside>
+          </div>
+        )}
       </section>
     </main>
   );

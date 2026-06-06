@@ -1119,25 +1119,11 @@
       "dateText": "周末",
       "runtimeState": "changed",
       "eventType": "queue_extended",
-      "runtimeMessage": "大唐不夜城中轴夜游确认前客流变大，排队约45分钟，需要换更短等待的景点。",
+      "runtimeMessage": "大唐不夜城中轴夜游确认前客流变大，晚间段排队约45分钟，需要换更短等待的夜间点位。",
       "timeSlots": [
         {
-          "start": "13:00",
-          "end": "15:00",
-          "ticketLeft": 60,
-          "queueMinutes": 8,
-          "crowdLevel": "medium"
-        },
-        {
-          "start": "15:00",
-          "end": "17:00",
-          "ticketLeft": 50,
-          "queueMinutes": 45,
-          "crowdLevel": "high"
-        },
-        {
-          "start": "17:00",
-          "end": "22:30",
+          "start": "18:30",
+          "end": "23:30",
           "ticketLeft": 45,
           "queueMinutes": 45,
           "crowdLevel": "high"
@@ -1299,28 +1285,21 @@
       "dateText": "周末",
       "runtimeState": "unchanged",
       "eventType": "unchanged",
-      "runtimeMessage": "大慈恩寺遗址公园确认前状态未变化。",
+      "runtimeMessage": "大慈恩寺-大雁塔预约参观确认前状态未变化。",
       "timeSlots": [
         {
           "start": "13:00",
           "end": "15:00",
-          "ticketLeft": 60,
+          "ticketLeft": 36,
           "queueMinutes": 8,
           "crowdLevel": "medium"
         },
         {
           "start": "15:00",
           "end": "17:00",
-          "ticketLeft": 50,
+          "ticketLeft": 30,
           "queueMinutes": 10,
           "crowdLevel": "medium"
-        },
-        {
-          "start": "17:00",
-          "end": "22:30",
-          "ticketLeft": 45,
-          "queueMinutes": 15,
-          "crowdLevel": "high"
         }
       ]
     },
@@ -3741,4 +3720,3 @@
     }
   ]
 }
-

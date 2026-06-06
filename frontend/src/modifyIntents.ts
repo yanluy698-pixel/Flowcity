@@ -131,8 +131,8 @@ export function buildNodeModifyDraft(item: TimelineItem): ModifyDraft {
   const timeRange = `${item.start ?? "待定"}-${item.end ?? "待定"}`;
   const poiId = item.poiId ?? "无";
   return {
-    label: `${config.labelPrefix}：${title}`,
-    suggestion: config.suggestion,
+    label: `修改：${title}`,
+    suggestion: "",
     systemPrompt: [
       "【节点修改上下文】",
       `targetKind=${config.targetKind}`,
@@ -161,8 +161,8 @@ export function buildNodeModifyDraft(item: TimelineItem): ModifyDraft {
 export function buildMajorChangeDraft(plan: Record<string, unknown>): ModifyDraft {
   const summary = String(plan.summary ?? "当前方案");
   return {
-    label: "整体大改",
-    suggestion: "我对整体安排不太满意，帮我换一个思路重新规划，重点优化体验和路线。",
+    label: "调整：整体安排",
+    suggestion: "",
     systemPrompt: [
       "【整体大改上下文】",
       "targetKind=whole_plan",

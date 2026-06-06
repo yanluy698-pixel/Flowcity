@@ -487,8 +487,8 @@ Mock 是比赛允许的工具层实现方式，但 Mock 不能像临时假数据
 当前项目不做注册、登录和用户中心，只做轻量会话隔离：
 
 ```text
-浏览器 localStorage 保存随机 sessionId
--> 同一浏览器刷新可继续
+首页默认生成新 sessionId，不静默继承上一轮
+-> 最近 2 小时的会话以历史入口展示，用户点选后才恢复旧 sessionId
 -> 点击“新规划”生成新 sessionId 并清空聊天
 -> 后端 SESSION_STORE 保存当前 plan/demand/supply/executionDraft
 -> 超过 TTL 或容量上限自动清理

@@ -140,7 +140,7 @@ function planSummary(payload?: Record<string, unknown>) {
     const selected = scheduler.selectedCombination;
     const picked = [selected?.activity, selected?.restaurant].filter(Boolean).join(" + ");
     return userText(
-      `已用时间调度器评估 ${evaluated} 个组合，淘汰 ${rejected} 个不合适组合，选择 ${picked || "当前可执行方案"}。`
+      `已比较 ${evaluated} 个走法，排除 ${rejected} 个不合适的，先选 ${picked || "当前更稳的方案"}。`
     );
   }
   const timeline = (plan.timeline ?? []) as TimelineItem[];

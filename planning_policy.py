@@ -204,6 +204,15 @@ def _has_explicit_meetup_context(demand: dict[str, Any], raw_text: str) -> bool:
     return bool(location.get("startPoint") or location.get("preferredArea") or anchor_text)
 
 
+def _has_explicit_meetup_start(raw_text: str, demand: dict[str, Any]) -> bool:
+    if not any(term in raw_text for term in ("集合", "见面", "碰头", "会合", "约在")):
+        return False
+    time_window = demand.get("timeWindow", {}) if isinstance(demand.get("timeWindow"), dict) else {}
+    return bool(time_window.get("startTime")) or any(
+        marker in raw_text for marker in ("点集合", "点见", "点碰头", "点会合", "点约")
+    )
+
+
 def resolve_planning_policy(demand: dict[str, Any], raw_input: str | None = None) -> PlanningPolicy:
     raw_text = str(raw_input if raw_input is not None else demand.get("rawInput") or "")
     raw_policy = demand.get("planningPolicy") if isinstance(demand.get("planningPolicy"), dict) else {}
@@ -217,16 +226,17 @@ def resolve_planning_policy(demand: dict[str, Any], raw_input: str | None = None
     requested = _requested_components(demand)
     simple_trip = is_simple_trip_intent(demand)
     explicit_meetup_context = _has_explicit_meetup_context(demand, raw_text)
+    explicit_meetup_start = _has_explicit_meetup_start(raw_text, demand)
 
     default_time_scope = "door_to_door" if has_origin else "unknown"
     default_start_anchor = "origin_departure" if has_origin else "unknown"
     time_scope = _enum_value(raw_policy, "timeScope", default_time_scope)
     start_anchor_type = _enum_value(raw_policy, "startAnchorType", default_start_anchor)
     end_anchor_type = _enum_value(raw_policy, "endAnchorType", "leave_last_poi")
-    if explicit_meetup_context and not origin_points and not cross_city.get("enabled"):
+    if (explicit_meetup_context or explicit_meetup_start) and not cross_city.get("enabled"):
         time_scope = "onsite_after_meetup"
         start_anchor_type = "explicit_meetup"
-    if origin_points:
+    if origin_points and not explicit_meetup_start:
         time_scope = "door_to_door"
         start_anchor_type = "origin_departure"
     if any(keyword in raw_text for keyword in ("回家", "回去", "到家", "回学校", "回校")):
@@ -235,9 +245,9 @@ def resolve_planning_policy(demand: dict[str, Any], raw_input: str | None = None
     include_outbound = raw_policy.get("includeOutboundRoute")
     if not isinstance(include_outbound, bool):
         include_outbound = time_scope == "door_to_door" or bool(cross_city.get("enabled")) or bool(origin_points)
-    if origin_points:
+    if origin_points and not explicit_meetup_start:
         include_outbound = True
-    if start_anchor_type in {"explicit_meetup", "already_in_area"} and not origin_points and not cross_city.get("enabled"):
+    if start_anchor_type in {"explicit_meetup", "already_in_area"} and not cross_city.get("enabled"):
         include_outbound = False
 
     include_return = raw_policy.get("includeReturnRoute")

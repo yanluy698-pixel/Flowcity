@@ -237,7 +237,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "21:00",
           "ticketLeft": 12,
           "queueMinutes": 6,
           "crowdLevel": "low"
@@ -277,7 +277,7 @@
         },
         {
           "start": "21:00",
-          "end": "22:30",
+          "end": "22:00",
           "ticketLeft": 0,
           "queueMinutes": 5,
           "crowdLevel": "medium"
@@ -457,7 +457,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "21:30",
           "ticketLeft": 14,
           "queueMinutes": 12,
           "crowdLevel": "medium"
@@ -477,7 +477,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "21:00",
           "ticketLeft": 14,
           "queueMinutes": 12,
           "crowdLevel": "medium"
@@ -497,7 +497,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "20:30",
           "ticketLeft": 14,
           "queueMinutes": 12,
           "crowdLevel": "medium"
@@ -514,13 +514,6 @@
           "ticketLeft": 20,
           "queueMinutes": 8,
           "crowdLevel": "low"
-        },
-        {
-          "start": "20:00",
-          "end": "22:00",
-          "ticketLeft": 14,
-          "queueMinutes": 12,
-          "crowdLevel": "medium"
         }
       ]
     },
@@ -557,7 +550,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "21:30",
           "ticketLeft": 14,
           "queueMinutes": 8,
           "crowdLevel": "medium"
@@ -651,7 +644,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "20:30",
           "ticketLeft": 14,
           "queueMinutes": 8,
           "crowdLevel": "medium"
@@ -711,7 +704,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "21:30",
           "ticketLeft": 14,
           "queueMinutes": 12,
           "crowdLevel": "medium"
@@ -728,13 +721,6 @@
           "ticketLeft": 20,
           "queueMinutes": 8,
           "crowdLevel": "low"
-        },
-        {
-          "start": "20:00",
-          "end": "22:00",
-          "ticketLeft": 14,
-          "queueMinutes": 12,
-          "crowdLevel": "medium"
         }
       ]
     },
@@ -764,17 +750,10 @@
       "timeSlots": [
         {
           "start": "18:30",
-          "end": "20:00",
+          "end": "19:30",
           "ticketLeft": 20,
           "queueMinutes": 4,
           "crowdLevel": "low"
-        },
-        {
-          "start": "20:00",
-          "end": "22:00",
-          "ticketLeft": 14,
-          "queueMinutes": 8,
-          "crowdLevel": "medium"
         }
       ]
     },
@@ -791,7 +770,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "20:30",
           "ticketLeft": 14,
           "queueMinutes": 12,
           "crowdLevel": "medium"
@@ -808,13 +787,6 @@
           "ticketLeft": 20,
           "queueMinutes": 8,
           "crowdLevel": "low"
-        },
-        {
-          "start": "20:00",
-          "end": "22:00",
-          "ticketLeft": 14,
-          "queueMinutes": 12,
-          "crowdLevel": "medium"
         }
       ]
     },
@@ -831,7 +803,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "20:30",
           "ticketLeft": 14,
           "queueMinutes": 8,
           "crowdLevel": "medium"
@@ -851,7 +823,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "21:30",
           "ticketLeft": 14,
           "queueMinutes": 8,
           "crowdLevel": "medium"
@@ -871,7 +843,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "21:00",
           "ticketLeft": 14,
           "queueMinutes": 12,
           "crowdLevel": "medium"
@@ -951,7 +923,7 @@
         },
         {
           "start": "20:00",
-          "end": "22:00",
+          "end": "21:30",
           "ticketLeft": 14,
           "queueMinutes": 12,
           "crowdLevel": "medium"
@@ -1017,29 +989,15 @@
       "dateText": "周末",
       "timeSlots": [
         {
-          "start": "13:00",
-          "end": "15:00",
-          "ticketLeft": 80,
-          "queueMinutes": 5,
-          "crowdLevel": "medium"
-        },
-        {
-          "start": "15:00",
-          "end": "17:00",
-          "ticketLeft": 70,
-          "queueMinutes": 8,
-          "crowdLevel": "medium"
-        },
-        {
-          "start": "17:00",
-          "end": "19:30",
+          "start": "18:30",
+          "end": "20:30",
           "ticketLeft": 65,
           "queueMinutes": 12,
           "crowdLevel": "high"
         },
         {
-          "start": "19:30",
-          "end": "22:30",
+          "start": "20:30",
+          "end": "23:30",
           "ticketLeft": 60,
           "queueMinutes": 15,
           "crowdLevel": "high"
@@ -1223,30 +1181,16 @@
         {
           "start": "13:00",
           "end": "15:00",
-          "ticketLeft": 80,
-          "queueMinutes": 5,
+          "ticketLeft": 42,
+          "queueMinutes": 8,
           "crowdLevel": "medium"
         },
         {
           "start": "15:00",
           "end": "17:00",
-          "ticketLeft": 70,
-          "queueMinutes": 8,
-          "crowdLevel": "medium"
-        },
-        {
-          "start": "17:00",
-          "end": "19:30",
-          "ticketLeft": 65,
+          "ticketLeft": 36,
           "queueMinutes": 12,
-          "crowdLevel": "high"
-        },
-        {
-          "start": "19:30",
-          "end": "22:30",
-          "ticketLeft": 60,
-          "queueMinutes": 15,
-          "crowdLevel": "high"
+          "crowdLevel": "medium"
         }
       ]
     },
@@ -1542,7 +1486,7 @@
       "dateText": "周末",
       "timeSlots": [
         { "start": "14:00", "end": "18:00", "ticketLeft": 35, "queueMinutes": 4, "crowdLevel": "low" },
-        { "start": "18:00", "end": "21:30", "ticketLeft": 28, "queueMinutes": 7, "crowdLevel": "medium" }
+        { "start": "18:00", "end": "21:00", "ticketLeft": 28, "queueMinutes": 7, "crowdLevel": "medium" }
       ]
     },
     {

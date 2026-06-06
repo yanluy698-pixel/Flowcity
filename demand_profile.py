@@ -86,7 +86,7 @@ INFERRED_DIMENSION_RULES = (
     ("restAvailability", 0.75, ("老人", "父母", "长辈")),
     ("physicalIntensity", 0.3, ("老人", "父母", "长辈", "减脂")),
     ("interactionLevel", 0.65, ("喜欢的女生", "好感", "暧昧", "刚认识", "第一次见")),
-    ("conversationFriendly", 0.75, ("喜欢的女生", "好感", "暧昧", "刚认识", "朋友", "同学")),
+    ("conversationFriendly", 0.75, ("喜欢的女生", "好感", "暧昧", "刚认识")),
     ("formality", 0.45, ("喜欢的女生", "好感", "暧昧")),
 )
 
@@ -112,7 +112,7 @@ DIMENSION_EVIDENCE_TERMS: dict[str, tuple[str, ...]] = {
     "physicalIntensity": ("少走路", "别太累", "不累", "走不动", "低体力", "老人", "父母", "长辈", "带孩子", "带娃"),
     "activityIntensity": ("放电", "释放精力", "跑跳", "运动", "痛快玩", "放松", "别太刺激"),
     "interactionLevel": ("互动", "一起玩", "边玩边聊", "不会冷场", "破冰", "暧昧", "好感", "刚认识"),
-    "conversationFriendly": ("聊天", "慢聊", "坐下来聊", "不会冷场", "边玩边聊", "朋友", "同学", "暧昧", "好感", "刚认识"),
+    "conversationFriendly": ("聊天", "慢聊", "坐下来聊", "不会冷场", "边玩边聊", "暧昧", "好感", "刚认识"),
     "noiseLevel": ("安静", "别太吵", "不要太吵", "吵", "降噪"),
     "formality": ("不要太正式", "别太正式", "随意一点", "轻松一点", "暧昧", "好感", "第一次见"),
     "privacy": ("私密", "不被打扰", "独处"),
@@ -319,10 +319,11 @@ def _dimensions(demand: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         key = str(item["key"])
         source = str(item.get("source") or "hypothesis")
+        evidence = [str(value) for value in item.get("evidence", []) if value] if isinstance(item.get("evidence"), list) else []
         support_terms = DIMENSION_EVIDENCE_TERMS.get(key, ())
-        if not any(term in raw for term in support_terms):
+        if not any(value in raw for value in evidence) and not any(term in raw for term in support_terms):
             continue
-        if social_primary in {"unknown", "casual_meetup"} and source != "explicit":
+        if social_primary in {"unknown", "casual_meetup"} and source == "hypothesis":
             continue
         dimensions[key] = deepcopy(item)
 

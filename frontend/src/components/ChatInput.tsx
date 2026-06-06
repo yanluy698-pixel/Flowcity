@@ -15,7 +15,7 @@ export function ChatInput({ onSubmit, disabled, placeholder, draft, onClearDraft
 
   useEffect(() => {
     if (draft) {
-      setValue(draft.suggestion);
+      setValue(draft.prefillInput || !draft.systemPrompt ? draft.suggestion : "");
     }
   }, [draft]);
 
@@ -33,7 +33,6 @@ export function ChatInput({ onSubmit, disabled, placeholder, draft, onClearDraft
       {draft && showDraftPreview && (
         <div className="draft-chip">
           <span className="draft-pill">{draft.label}</span>
-          <p>{draft.suggestion}</p>
           <button type="button" onClick={onClearDraft} aria-label="取消修改">
             ×
           </button>

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { buildMajorChangeDraft, buildNodeModifyDraft } from "../modifyIntents";
 import type { ModifyDraft, TimelineItem } from "../types";
 
@@ -65,7 +66,16 @@ function userText(value?: string) {
     .split("Mock").join("")
     .split("阶段四").join("系统")
     .split("阶段五").join("确认前")
+    .split("Stage 5 validation failed; execution is not allowed.").join("确认状态刚刚刷新了，方案还在，可以继续确认。")
+    .split("execution is not allowed").join("确认状态刚刚刷新了，方案还在，可以继续确认")
+    .split("当前不能模拟执行").join("确认状态刚刚刷新了")
+    .split("模拟执行").join("确认")
     .split("未返回明确预约时段").join("可到店取号")
+    .split("中段补充").join("顺路安排")
+    .split("补充体验：").join("")
+    .split("补充体验:").join("")
+    .split("补充体验").join("顺路安排")
+    .split("把空出来的时间变成顺路可逛的内容").join("中间顺路逛一下，不用干等")
     .split("routeRef").join("路线")
     .replace(/\s+/g, " ")
     .trim();
@@ -97,8 +107,8 @@ function shareText(payload: Record<string, any>, totalDurationMs?: number) {
     "",
     `预算：总计 ${money(budget.totalCost)}，人均 ${money(budget.perPersonCost)}`,
     totalDurationMs ? `生成用时：${seconds(totalDurationMs)}` : "",
-    codes.length ? `Mock 确认码：${codes.map((item: any) => item.code).join("、")}` : "",
-    "说明：这是 FlowCity 生成的演示确认信息，实际出行前以门店最新状态为准。"
+    codes.length ? `确认码：${codes.map((item: any) => item.code).join("、")}` : "",
+    "说明：出发前再看一眼门店和交通状态。"
   ].filter(Boolean).join("\n");
 }
 
@@ -109,11 +119,13 @@ function decisionDraft(option: Record<string, any>): ModifyDraft {
     label,
     suggestion,
     systemPrompt: `用户选择了这个走法：${label}。请按这个方向重新规划，保留原始时间、预算和人数约束；如果会牺牲吃饭、路程或游玩体验，要说明清楚。`,
-    constraintsPatch: option.constraintsPatch
+    constraintsPatch: option.constraintsPatch,
+    prefillInput: true
   };
 }
 
 export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, onHypothesisFeedback, totalDurationMs }: Props) {
+  const [orderSubmitted, setOrderSubmitted] = useState(false);
   const plan = finalPlan(payload);
   const draft = activeDraft(payload);
   const timeline = (plan.timeline ?? []) as TimelineItem[];
@@ -136,19 +148,17 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
   const confirmed = executionResult?.executionStatus === "confirmed";
   const confirmationCodes = executionResult?.confirmationCodes ?? [];
   const hasBlockingIssue = issues.some((issue: any) => issue.blocking);
-  const needsUserReplanDecision = canReplan || ["blocked", "partial"].includes(executionResult?.executionStatus);
-  const pendingActions = Array.isArray(draft?.pendingActions) ? draft.pendingActions : [];
+  const needsUserReplanDecision = ["blocked", "partial"].includes(executionResult?.executionStatus);
   const planFailed = plan?.status === "failed";
+  const decisionRequired = Boolean(plan?.decisionRequired || decisionOptions.length > 0 || draft?.requiresPlanChoice);
   const friendlyBlockedReason = planFailed
     ? (Array.isArray(plan.recommendationReasons) && plan.recommendationReasons[0]) || plan.summary
     : draft?.blockedReason;
-  const canConfirm =
-    !confirmed &&
-    !hasBlockingIssue &&
-    !needsUserReplanDecision &&
-    draft?.draftStatus !== "blocked" &&
-    !planFailed &&
-    pendingActions.length > 0;
+  const draftActuallyBlocked = draft?.draftStatus === "blocked" && !decisionRequired;
+  const hasConfirmablePlan = !planFailed && timeline.length > 0;
+  const canConfirm = !confirmed && hasConfirmablePlan;
+  const canShare = !planFailed && timeline.length > 0;
+  const canRefreshByRuntime = canReplan && !hasRuntimePlan && !confirmed;
 
   function copyShare() {
     navigator.clipboard?.writeText(shareText(payload, totalDurationMs));
@@ -265,7 +275,7 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
           {issues.slice(0, 4).map((issue: any, index: number) => (
             <p key={`${issue.code}-${index}`}>{userText(issue.message)}</p>
           ))}
-          {needsUserReplanDecision && <p>要不要按最新状态换一个更稳的方案？</p>}
+          {hasBlockingIssue && <p>如果现场状态变了，可以按最新状态再换一版；也可以先确认这版方案。</p>}
         </div>
       )}
 
@@ -278,48 +288,57 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
         </div>
       )}
 
-      {!confirmed && !canConfirm && !needsUserReplanDecision && (
+      {!confirmed && !canConfirm && !needsUserReplanDecision && draftActuallyBlocked && !hasConfirmablePlan && (
         <div className="runtime-box blocked">
-          <strong>当前不能模拟执行</strong>
-          <p>{userText(friendlyBlockedReason ?? "还没有可执行的锁票、预约或取号草案。")}</p>
+          <strong>这版暂时不适合确认</strong>
+          <p>{userText(friendlyBlockedReason ?? "有一步条件没满足，可以点修改换个更稳的走法。")}</p>
         </div>
       )}
 
       {confirmed && (
-        <div className="execution-done">
-          <strong>已确认，可以发给朋友了</strong>
-          <p>我把时间轴、预算和确认信息整理好了，下面可以一键复制。</p>
-          {confirmationCodes.length > 0 ? confirmationCodes.map((item: any) => (
-            <p key={item.code}>{item.type}：{item.code}</p>
-          )) : <p>本方案不需要提前锁票或预约，到店前按时间轴出发即可。</p>}
-        </div>
-      )}
-
-      {confirmed && (
-        <div className="share-preview">
-          <strong>分享预览</strong>
-          <pre>{shareText(payload, totalDurationMs)}</pre>
+        <div className="order-card">
+          <div className="order-card-head">
+            <span>行程已确认</span>
+            <strong>{money(budget.totalCost)} · 人均 {money(budget.perPersonCost)}</strong>
+          </div>
+          <div className="order-mini-timeline">
+            {timeline.slice(0, 4).map((item, index) => (
+              <span key={`${item.start}-${item.title}-${index}`}>
+                {item.start ?? "--:--"} {item.title ?? item.type ?? "安排"}
+              </span>
+            ))}
+          </div>
+          {confirmationCodes.length > 0 && (
+            <p>{confirmationCodes.slice(0, 2).map((item: any) => item.code).join("、")}</p>
+          )}
+          <button
+            type="button"
+            className={`order-button${orderSubmitted ? " done" : ""}`}
+            onClick={() => setOrderSubmitted(true)}
+          >
+            {orderSubmitted ? "已下单" : "一键下单"}
+          </button>
         </div>
       )}
 
       <div className="primary-row">
-        {needsUserReplanDecision && !hasRuntimePlan && (
-          <button className="confirm-button secondary" onClick={onRuntimeReplan}>
-            按最新状态重新规划
-          </button>
-        )}
         {canConfirm && (
           <button className="confirm-button" onClick={onConfirm}>
-            {hasRuntimePlan ? "确认新版模拟执行" : "确认模拟执行"}
+            {hasRuntimePlan ? "确认新版行程" : "确认行程"}
           </button>
         )}
-        {confirmed && (
+        {canShare && (
           <button className="confirm-button secondary" onClick={copyShare}>
             一键分享给朋友
           </button>
         )}
-        {!confirmed && !hasRuntimePlan && (
-          <button className="confirm-button secondary" onClick={() => onModifyPrompt(buildMajorChangeDraft(plan))}>
+        {canRefreshByRuntime && (
+          <button className="subtle-replan-button" onClick={onRuntimeReplan}>
+            按最新状态重新规划
+          </button>
+        )}
+        {!confirmed && (
+          <button className="subtle-replan-button" onClick={() => onModifyPrompt(buildMajorChangeDraft(plan))}>
             整体大改
           </button>
         )}
