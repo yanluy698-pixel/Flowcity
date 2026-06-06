@@ -918,6 +918,95 @@ button {
   font-size: 12px;
 }
 
+.coverage-panel {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #eadb9b;
+  border-radius: 8px;
+  background: #fffdf3;
+}
+
+.coverage-principles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.coverage-principles span {
+  padding: 5px 7px;
+  border-radius: 7px;
+  background: #fff3bd;
+  color: #4f4100;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.runtime-ratio {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: #eef8ed;
+}
+
+.runtime-ratio.warn {
+  background: #fff0e0;
+}
+
+.runtime-ratio strong {
+  font-size: 20px;
+}
+
+.runtime-ratio span {
+  color: #5f5a4f;
+  font-size: 12px;
+  text-align: right;
+}
+
+.coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 8px;
+}
+
+.coverage-card {
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+  border: 1px solid #e5dfce;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.coverage-card.warn {
+  border-color: #e5be5c;
+  background: #fff9e8;
+}
+
+.coverage-card strong {
+  display: block;
+  font-size: 13px;
+}
+
+.coverage-card span,
+.coverage-card p,
+.coverage-card em {
+  margin: 0;
+  color: #6a6256;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.coverage-card em {
+  color: #8a5b00;
+  font-style: normal;
+  font-weight: 700;
+}
+
 .admin-dataset-tabs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));

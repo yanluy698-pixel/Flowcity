@@ -669,7 +669,7 @@
     {
       "dealId": "deal_xa_049",
       "poiId": "act_xa_028",
-      "name": "2人大唐不夜城短线拍照走套餐",
+      "name": "2人大唐不夜城步行街套餐",
       "price": 48,
       "peopleCount": 2,
       "stockLeft": 8,
@@ -683,7 +683,7 @@
     {
       "dealId": "deal_xa_050",
       "poiId": "act_xa_029",
-      "name": "2人钟楼夜色短线Citywalk套餐",
+      "name": "2人钟鼓楼广场夜游套餐",
       "price": 48,
       "peopleCount": 2,
       "stockLeft": 8,
@@ -907,7 +907,7 @@
     {
       "dealId": "deal_xa_066",
       "poiId": "act_xa_045",
-      "name": "2人钟楼短线小吃Citywalk套餐",
+      "name": "2人北院门食光巷套餐",
       "price": 54,
       "peopleCount": 2,
       "stockLeft": 8,
@@ -949,7 +949,7 @@
     {
       "dealId": "deal_xa_069",
       "poiId": "act_xa_048",
-      "name": "2人行政中心夜间慢走线套餐",
+      "name": "2人西安城市运动公园套餐",
       "price": 48,
       "peopleCount": 2,
       "stockLeft": 8,

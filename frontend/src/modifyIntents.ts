@@ -102,6 +102,12 @@ function intentKeyForItem(item: TimelineItem): keyof typeof MODIFY_INTENTS {
   if (item.type === "restaurant") return "restaurant";
   if (item.type === "activity") return "activity";
   if (item.type === "filler") return "filler";
+  if (
+    item.type === "buffer" ||
+    [item.title, item.description].some((value) => /空窗|缓冲|等位|休息|转场/.test(String(value ?? "")))
+  ) {
+    return "filler";
+  }
   if (item.type === "route" || item.type === "multi_origin_route") return "route";
   return "generic";
 }

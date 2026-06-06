@@ -222,7 +222,7 @@
     },
     {
       "id": "act_xa_010",
-      "name": "大明宫轻游营地(龙首原店)",
+      "name": "大明宫万达亲子营地",
       "areaId": "area_xa_daminggong",
       "category": "park_light_walk",
       "tags": [
@@ -246,7 +246,7 @@
     },
     {
       "id": "act_xa_011",
-      "name": "北院门食光Citywalk(钟楼店)",
+      "name": "北院门食光巷",
       "areaId": "area_xa_zhonglou",
       "category": "citywalk",
       "tags": [
@@ -342,7 +342,7 @@
     },
     {
       "id": "act_xa_015",
-      "name": "大明宫遗址公园四季漫步",
+      "name": "大明宫国家遗址公园",
       "areaId": "area_xa_daminggong",
       "category": "park_light_walk",
       "tags": [
@@ -416,7 +416,7 @@
     },
     {
       "id": "act_xa_018",
-      "name": "钟楼短线小吃Citywalk",
+      "name": "北院门风情街",
       "areaId": "area_xa_zhonglou",
       "category": "compact_citywalk",
       "tags": [
@@ -661,7 +661,7 @@
     },
     {
       "id": "act_xa_028",
-      "name": "大唐不夜城短线拍照走",
+      "name": "大唐不夜城步行街",
       "areaId": "area_xa_qujiang",
       "category": "photo_walk",
       "tags": [
@@ -685,7 +685,7 @@
     },
     {
       "id": "act_xa_029",
-      "name": "钟楼夜色短线Citywalk",
+      "name": "钟鼓楼广场",
       "areaId": "area_xa_zhonglou",
       "category": "night_citywalk",
       "tags": [
@@ -1069,7 +1069,7 @@
     },
     {
       "id": "act_xa_045",
-      "name": "钟楼短线小吃Citywalk",
+      "name": "北院门食光巷",
       "areaId": "area_xa_zhonglou",
       "category": "exhibition",
       "tags": [
@@ -1141,7 +1141,7 @@
     },
     {
       "id": "act_xa_048",
-      "name": "行政中心夜间慢走线",
+      "name": "西安城市运动公园",
       "areaId": "area_xa_xingzheng",
       "category": "chat_space",
       "tags": [
@@ -1165,7 +1165,7 @@
     },
     {
       "id": "act_xa_049",
-      "name": "大雁塔北广场喷泉轻游",
+      "name": "大雁塔北广场",
       "areaId": "area_xa_qujiang",
       "category": "landmark_walk",
       "tags": [
@@ -1217,7 +1217,7 @@
     },
     {
       "id": "act_xa_051",
-      "name": "大唐芙蓉园外线文化漫步",
+      "name": "大唐芙蓉园",
       "areaId": "area_xa_qujiang",
       "category": "culture_walk",
       "tags": [
@@ -1242,7 +1242,7 @@
     },
     {
       "id": "act_xa_052",
-      "name": "曲江池遗址公园湖畔散步",
+      "name": "曲江池遗址公园",
       "areaId": "area_xa_qujiang",
       "category": "park_walk",
       "tags": [
@@ -1294,7 +1294,7 @@
     },
     {
       "id": "act_xa_054",
-      "name": "钟鼓楼广场城市漫步",
+      "name": "钟鼓楼广场",
       "areaId": "area_xa_zhonglou",
       "category": "landmark_walk",
       "tags": [
@@ -1320,7 +1320,7 @@
     },
     {
       "id": "act_xa_055",
-      "name": "回民街小吃短逛线",
+      "name": "回民街",
       "areaId": "area_xa_zhonglou",
       "category": "snack_citywalk",
       "tags": [
@@ -1346,7 +1346,7 @@
     },
     {
       "id": "act_xa_056",
-      "name": "大慈恩寺外广场轻游",
+      "name": "大慈恩寺遗址公园",
       "areaId": "area_xa_qujiang",
       "category": "temple_square_walk",
       "tags": [
@@ -1875,6 +1875,139 @@
       "indoorOutdoor": "indoor",
       "baseRating": 4.1,
       "mockBasis": "具体茶饮 POI：熙地港内吃饭前后的低体力休息补位，可选择低糖/无糖。"
+    },
+    {
+      "id": "act_xa_076",
+      "name": "茶话弄(回民街路口店)",
+      "areaId": "area_xa_zhonglou",
+      "category": "filler_tea_break",
+      "tags": ["具体店铺", "茶饮", "奶茶", "回民街", "钟楼", "休息等待", "低预算", "可坐下聊天", "少走路"],
+      "vibeTags": ["休息等待", "烟火气", "低压力"],
+      "behaviorTags": ["休息等待", "茶饮", "可坐下聊天", "附近轻逛"],
+      "audienceTags": ["朋友多人", "游客", "大学生"],
+      "isFiller": true,
+      "openHours": { "weekday": "10:00-23:00", "weekend": "10:00-23:30" },
+      "suggestedDurationMinutes": 35,
+      "pricePerPerson": 16,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.2,
+      "mockBasis": "低预算茶饮补位：适合钟楼/回民街附近晚饭前坐一下，避免长时间空等。"
+    },
+    {
+      "id": "act_xa_077",
+      "name": "北院门风情街",
+      "areaId": "area_xa_zhonglou",
+      "category": "filler_food_walk",
+      "tags": ["具体街区", "回民街", "小吃", "轻逛", "低预算", "休息等待", "烟火气", "朋友多人"],
+      "vibeTags": ["烟火气", "休息等待", "轻松热闹"],
+      "behaviorTags": ["附近轻逛", "小吃试吃", "拍照打卡"],
+      "audienceTags": ["朋友多人", "游客", "大学生"],
+      "isFiller": true,
+      "openHours": { "weekday": "11:00-23:30", "weekend": "10:30-24:00" },
+      "suggestedDurationMinutes": 45,
+      "pricePerPerson": 12,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.1,
+      "mockBasis": "低预算街区补位：用于钟楼活动后到晚饭前的短逛和小吃，不作为正式正餐。"
+    },
+    {
+      "id": "act_xa_078",
+      "name": "钟鼓楼广场",
+      "areaId": "area_xa_zhonglou",
+      "category": "filler_free_walk",
+      "tags": ["具体街区", "钟楼", "回民街", "免费", "轻逛", "休息等待", "低预算", "少走路", "游客地标"],
+      "vibeTags": ["休息等待", "游客地标", "低压力"],
+      "behaviorTags": ["附近轻逛", "拍照打卡", "休息等待"],
+      "audienceTags": ["朋友多人", "游客", "大学生"],
+      "isFiller": true,
+      "openHours": { "weekday": "10:00-23:30", "weekend": "10:00-24:00" },
+      "suggestedDurationMinutes": 40,
+      "pricePerPerson": 0,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.0,
+      "mockBasis": "严格低预算兜底：当晚饭前空窗太长且预算不允许茶饮消费时，用钟鼓楼/回民街口短逛填补。"
+    },
+    {
+      "id": "act_xa_079",
+      "name": "高新大都荟",
+      "areaId": "area_xa_gaoxin",
+      "category": "free_mall_walk",
+      "tags": ["具体商场", "免费", "轻逛", "高新", "室内", "低预算", "少走路", "拍照", "白领"],
+      "vibeTags": ["低压力", "现代轻松", "自然不尴尬"],
+      "behaviorTags": ["商场轻逛", "拍照打卡", "可坐下休息"],
+      "audienceTags": ["朋友多人", "轻约会", "大学生"],
+      "isFiller": false,
+      "openHours": { "weekday": "10:00-22:00", "weekend": "10:00-22:30" },
+      "suggestedDurationMinutes": 40,
+      "pricePerPerson": 0,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.0,
+      "mockBasis": "补齐高新商圈免费活动层：适合低预算、雨天、少走路的短时商场轻逛。"
+    },
+    {
+      "id": "act_xa_080",
+      "name": "大明宫国家遗址公园",
+      "areaId": "area_xa_daminggong",
+      "category": "park_light_walk",
+      "tags": ["公园", "免费", "亲子", "长辈", "低体力友好", "少走路", "户外", "低预算"],
+      "vibeTags": ["亲子照顾", "低压力", "不赶时间"],
+      "behaviorTags": ["轻散步", "可休息", "亲子互动"],
+      "audienceTags": ["亲子", "家庭", "长辈"],
+      "isFiller": false,
+      "openHours": { "weekday": "09:30-21:30", "weekend": "09:30-22:00" },
+      "suggestedDurationMinutes": 55,
+      "pricePerPerson": 0,
+      "ageMin": 0,
+      "ageMax": 99,
+      "indoorOutdoor": "outdoor",
+      "baseRating": 4.1,
+      "mockBasis": "补齐大明宫商圈免费活动层：用于长辈照顾、低预算亲子和轻体力场景。"
+    },
+    {
+      "id": "act_xa_081",
+      "name": "霸王茶姬(大明宫万达店)",
+      "areaId": "area_xa_daminggong",
+      "category": "filler_tea_break",
+      "tags": ["具体店铺", "茶饮", "休息等待", "大明宫", "室内", "低预算", "可坐下聊天", "少走路"],
+      "vibeTags": ["休息等待", "低压力", "少折腾"],
+      "behaviorTags": ["休息等待", "茶饮", "可坐下聊天"],
+      "audienceTags": ["亲子", "家庭", "朋友多人"],
+      "isFiller": true,
+      "openHours": { "weekday": "10:00-22:00", "weekend": "10:00-22:30" },
+      "suggestedDurationMinutes": 35,
+      "pricePerPerson": 18,
+      "ageMin": 0,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "补齐大明宫商圈补位点：用于活动后到晚饭前的茶饮、休息和低体力等待。"
+    },
+    {
+      "id": "act_xa_082",
+      "name": "霸王茶姬(高新万达店)",
+      "areaId": "area_xa_gaoxin",
+      "category": "filler_tea_break",
+      "tags": ["具体店铺", "茶饮", "无糖可选", "高新", "室内", "休息等待", "低预算", "减脂友好"],
+      "vibeTags": ["休息等待", "低压力", "安静慢聊"],
+      "behaviorTags": ["休息等待", "茶饮", "可坐下聊天"],
+      "audienceTags": ["朋友多人", "轻约会", "白领"],
+      "isFiller": true,
+      "openHours": { "weekday": "10:00-22:30", "weekend": "10:00-23:00" },
+      "suggestedDurationMinutes": 35,
+      "pricePerPerson": 18,
+      "ageMin": 6,
+      "ageMax": 99,
+      "indoorOutdoor": "indoor",
+      "baseRating": 4.1,
+      "mockBasis": "补齐高新商圈补位点：用于减脂、少排队、等位休息和短时聊天。"
     }
   ]
 }

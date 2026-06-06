@@ -58,6 +58,30 @@ def record_hypothesis_session(
 def run() -> list[str]:
     errors: list[str] = []
 
+    drifted_scene = extractor.normalize_structured_demand(
+        {
+            "rawInput": "周六下午2点到4点，从咸阳出发，必须去大雁塔逛一圈，还想吃饭，预算200。",
+            "scene": {"primaryType": "tourist_sightseeing", "confidence": 0.9, "tags": ["游客", "地标"]},
+            "socialIntent": {"primary": "tourist_sightseeing", "preferredVibes": [], "avoidVibes": [], "evidence": ["大雁塔"]},
+            "timeWindow": {"dateText": "周六", "startTime": "14:00", "endTime": "16:00", "durationHours": 2, "isFlexible": False},
+            "people": {"total": None, "adults": None, "children": [], "seniors": [], "relationship": None, "specialNeeds": []},
+            "budget": {"maxTotal": 200, "perPerson": None, "flexibility": "strict"},
+            "location": {"startPoint": "咸阳", "preferredArea": "大雁塔", "distancePreference": None, "transportPreference": "public_transport"},
+            "preferences": {"activityTypes": [], "foodTags": [], "experienceTags": [], "avoidTags": []},
+            "constraints": {"hard": [], "soft": []},
+            "potentialConflicts": [],
+            "expectedOutput": {"planFormat": "timeline_plan", "mustInclude": ["时间轴", "预算估算"]},
+            "assumptions": [],
+            "clarificationQuestions": [],
+        },
+        "周六下午2点到4点，从咸阳出发，必须去大雁塔逛一圈，还想吃饭，预算200。",
+    )
+    if drifted_scene["scene"]["primaryType"] not in {"family", "couple", "friends", "solo", "elderly", "open"}:
+        errors.append("schema drift: scene.primaryType must normalize social-intent enum values")
+    schema_errors = extractor.basic_validate(drifted_scene, extractor.load_json(extractor.SCHEMA_PATH))
+    if schema_errors:
+        errors.append(f"schema drift: normalized tourist scene should validate, got {schema_errors[:2]}")
+
     anchored = demand_from_text("周六下午想去西安大雁塔玩，从咸阳秦都站附近出发，预算400。")
     anchored["location"]["startPoint"] = "咸阳秦都站附近"
     anchored["location"]["preferredArea"] = "大雁塔"
@@ -180,6 +204,33 @@ def run() -> list[str]:
     if routed_whole["locks"].get("activityPoiId") or routed_whole["locks"].get("restaurantPoiId"):
         errors.append("LLM router: whole-plan change should not keep old POI locks")
 
+    overlap_session = {
+        "currentPlan": {
+            "selectedItems": [
+                {"kind": "activity", "poiId": "act_old", "name": "大雁塔北广场"},
+                {"kind": "restaurant", "poiId": "res_hotpot", "name": "高新云炉鲜切火锅"},
+            ]
+        }
+    }
+    overlap_demand = {"planControl": {}}
+    pipeline._exclude_previous_plan_for_major_change(
+        overlap_demand,
+        overlap_session,
+        followup_text="整体大改，改成火锅局，别排队太久。",
+    )
+    if "res_hotpot" in overlap_demand["planControl"].get("excludedPoiIds", []):
+        errors.append("major change: already-matching explicit preference should not be excluded")
+    if "act_old" not in overlap_demand["planControl"].get("excludedPoiIds", []):
+        errors.append("major change: unrelated old activity should still be excluded")
+    negated_demand = {"planControl": {}}
+    pipeline._exclude_previous_plan_for_major_change(
+        negated_demand,
+        overlap_session,
+        followup_text="整体大改，不要火锅，换个别的吃。",
+    )
+    if "res_hotpot" not in negated_demand["planControl"].get("excludedPoiIds", []):
+        errors.append("major change: negated current preference should still be excluded")
+
     previous_admin_token = os.environ.pop("FLOWCITY_ADMIN_TOKEN", None)
     try:
         admin_disabled_routes = [route.path for route in app.main.create_app().routes]
@@ -282,6 +333,11 @@ def run() -> list[str]:
                 store=store,
             ):
                 errors.append("ontology evolution: approved pattern should generalize to an unseen paraphrase")
+            elif ontology_evolution.approved_hypothesis_matches(
+                "和不熟的人出门时，强制安排拍照打卡任务避免冷场",
+                store=store,
+            ):
+                errors.append("ontology evolution: approved pattern must not recall blocked negative concepts")
         if reports.get("forced_photo", {}).get("status") != "negative_pattern_blocked":
             errors.append("ontology evolution: high-delete negative pattern must be blocked")
         if reports.get("lively_music", {}).get("status") != "mixed_signal_observing":

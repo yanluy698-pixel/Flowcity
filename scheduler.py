@@ -981,13 +981,26 @@ def _insert_filler_if_needed(
     if not timeline or not fillers:
         return plan, None
 
+    plan_control = demand.get("planControl", {}) if isinstance(demand.get("planControl"), dict) else {}
     buffer_index = next(
         (
             index
             for index, step in enumerate(timeline)
             if step.get("type") == "buffer"
-            and "晚餐前" in str(step.get("title") or "")
             and (_parse_minutes(step.get("end")) or 0) - (_parse_minutes(step.get("start")) or 0) >= FILLER_MIN_GAP_MINUTES
+            and (
+                plan_control.get("forceFillerInsert")
+                or (
+                    any(prev.get("type") == "activity" for prev in timeline[:index])
+                    and ("晚餐前" in str(step.get("title") or "") or "等位" in str(step.get("title") or ""))
+                )
+                or (
+                    any(prev.get("type") == "activity" for prev in timeline[:index])
+                    and
+                    index + 1 < len(timeline)
+                    and timeline[index + 1].get("type") == "restaurant"
+                )
+            )
         ),
         None,
     )
@@ -1017,7 +1030,9 @@ def _insert_filler_if_needed(
     budget_limit = _budget_limit(demand)
     current_total = float(budget.get("totalCost") or 0)
     strict = _budget_is_strict(demand)
-    same_area_fillers = [item for item in fillers if item.get("areaId") == preferred_area] or fillers
+    same_area_fillers = [item for item in fillers if item.get("areaId") == preferred_area]
+    if not same_area_fillers:
+        return plan, None
     affordable = [
         item
         for item in same_area_fillers
@@ -1026,12 +1041,24 @@ def _insert_filler_if_needed(
     if not affordable:
         return plan, None
 
-    filler = sorted(affordable, key=lambda item: (-float(item.get("score") or 0), float(item.get("estimatedCost") or 0), item.get("name", "")))[0]
+    filler = sorted(
+        affordable,
+        key=lambda item: (
+            0 if any(word in str(item.get("name") or "") for word in ("茶", "奶茶", "小吃", "回民街")) else 1,
+            float(item.get("estimatedCost") or 0),
+            -float(item.get("score") or 0),
+            item.get("name", ""),
+        ),
+    )[0]
     start = _parse_minutes(timeline[buffer_index].get("start"))
     end = _parse_minutes(timeline[buffer_index].get("end"))
     if start is None or end is None or end <= start:
         return plan, None
-    filler_minutes = min(FILLER_TARGET_MINUTES, max(30, end - start))
+    gap_minutes = end - start
+    if gap_minutes >= 90:
+        filler_minutes = min(90, max(75, gap_minutes - 15))
+    else:
+        filler_minutes = min(FILLER_TARGET_MINUTES, max(30, gap_minutes))
     filler_cost = float(filler.get("estimatedCost") or 0)
     filler_step = {
         "start": _format_minutes(start, "待定"),
@@ -1062,7 +1089,7 @@ def _insert_filler_if_needed(
     plan["budgetEstimate"] = budget
     plan.setdefault("selectedItems", []).append(
         {
-            "kind": "activity",
+            "kind": "filler",
             "poiId": filler.get("poiId"),
             "name": filler.get("name"),
             "reason": "晚餐锚点前的同商圈实体休息/等位 filler，不参与主组合穷举。",
@@ -1169,10 +1196,19 @@ def schedule_timeline(
 
     plan_control = structured_demand.get("planControl", {}) if isinstance(structured_demand.get("planControl"), dict) else {}
     locks = plan_control.get("locks", {}) if isinstance(plan_control.get("locks"), dict) else {}
+    excluded_poi_ids = {
+        str(item)
+        for item in plan_control.get("excludedPoiIds", [])
+        if item
+    } if isinstance(plan_control.get("excludedPoiIds"), list) else set()
     all_activities = mock_supply.get("activityCandidates", [])
     fillers = [item for item in all_activities if item.get("isFiller")]
-    activities = [item for item in all_activities if not item.get("isFiller")][:top_k]
-    restaurants = mock_supply.get("restaurantCandidates", [])[:top_k]
+    activities = [
+        item for item in all_activities if not item.get("isFiller") and item.get("poiId") not in excluded_poi_ids
+    ][:top_k]
+    restaurants = [
+        item for item in mock_supply.get("restaurantCandidates", []) if item.get("poiId") not in excluded_poi_ids
+    ][:top_k]
     if locks.get("activityPoiId"):
         locked = [item for item in all_activities if item.get("poiId") == locks.get("activityPoiId") and not item.get("isFiller")]
         if locked:

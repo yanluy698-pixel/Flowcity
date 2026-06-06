@@ -38,7 +38,7 @@ export function ChatScreen({
           {turns.map((turn) => (
             <section className="turn" key={turn.id}>
               <div className="user-bubble">{turn.displayInput}</div>
-              {!turn.finalPayload?.assistantMessage && (
+              {!turn.finalPayload && (
                 <div className="assistant-row compact">
                   <Avatar />
                   <StageProgress stages={turn.stages} totalDurationMs={turn.totalDurationMs} />

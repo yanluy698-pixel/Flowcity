@@ -683,6 +683,8 @@ def draft_plan_without_llm(
         "rejectedCombinations": scheduled.get("rejectedCombinations", []),
         "evaluatedCombinationCount": scheduled.get("evaluatedCombinationCount", 0),
         "feasibleCombinationCount": scheduled.get("feasibleCombinationCount", 0),
+        "fillerInsertion": scheduled.get("fillerInsertion"),
+        "locks": scheduled.get("locks", {}),
     }
     return plan
 

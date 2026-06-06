@@ -13,6 +13,7 @@ import {
 import {
   createAdminRecord,
   deleteAdminRecord,
+  fetchAdminCoverage,
   fetchAdminDatasets,
   fetchLearningAnalysis,
   fetchLearningProposals,
@@ -68,6 +69,30 @@ type LearningAnalysis = {
   eventCount?: number;
 };
 
+type CoverageArea = {
+  areaId: string;
+  areaName: string;
+  activityCount: number;
+  restaurantCount: number;
+  fillerCount: number;
+  activityPriceBuckets: Record<string, number>;
+  restaurantPriceBuckets: Record<string, number>;
+  gaps: string[];
+};
+
+type CoverageReport = {
+  principles?: string[];
+  areas?: CoverageArea[];
+  runtimeStatus?: {
+    total: number;
+    abnormal: number;
+    normal: number;
+    abnormalRatio: number;
+    targetAbnormalRatio: number;
+    withinTolerance: boolean;
+  };
+};
+
 const ADMIN_TOKEN_KEY = "flowcity.adminToken";
 
 function recordTitle(record: AdminRecord, index: number) {
@@ -102,6 +127,7 @@ function getProposal(row: LearningProposalRow): LearningProposalPayload {
 export function AdminConsole() {
   const [token, setToken] = useState(() => window.localStorage.getItem(ADMIN_TOKEN_KEY) ?? "");
   const [datasets, setDatasets] = useState<AdminDataset[]>([]);
+  const [coverage, setCoverage] = useState<CoverageReport>({});
   const [analysis, setAnalysis] = useState<LearningAnalysis>({});
   const [proposals, setProposals] = useState<LearningProposalRow[]>([]);
   const [selectedSlug, setSelectedSlug] = useState("");
@@ -139,13 +165,15 @@ export function AdminConsole() {
     setIsLoading(true);
     setError("");
     try {
-      const [datasetPayload, learningPayload, proposalPayload] = await Promise.all([
+      const [datasetPayload, coveragePayload, learningPayload, proposalPayload] = await Promise.all([
         fetchAdminDatasets(activeToken),
+        fetchAdminCoverage(activeToken),
         fetchLearningAnalysis(activeToken),
         fetchLearningProposals(activeToken)
       ]);
       const nextDatasets = datasetPayload.datasets as AdminDataset[];
       setDatasets(nextDatasets);
+      setCoverage(coveragePayload as CoverageReport);
       setAnalysis(learningPayload as LearningAnalysis);
       setProposals((proposalPayload.proposals ?? []) as LearningProposalRow[]);
       const nextDataset = nextDatasets.find((item) => item.slug === selectedSlug) ?? nextDatasets[0];
@@ -273,6 +301,45 @@ export function AdminConsole() {
               <div>
                 <strong>POI / Mock 数据</strong>
                 <span>当前按 FlowCity 新字段直接读取 data/*.json</span>
+              </div>
+            </div>
+
+            <div className="coverage-panel">
+              <div className="coverage-principles">
+                {(coverage.principles ?? []).slice(0, 6).map((principle) => (
+                  <span key={principle}>{principle}</span>
+                ))}
+              </div>
+              {coverage.runtimeStatus && (
+                <div className={`runtime-ratio ${coverage.runtimeStatus.withinTolerance ? "ok" : "warn"}`}>
+                  <strong>{Math.round(coverage.runtimeStatus.abnormalRatio * 100)}%</strong>
+                  <span>
+                    动态异常池，目标 {Math.round(coverage.runtimeStatus.targetAbnormalRatio * 100)}%，
+                    {coverage.runtimeStatus.abnormal}/{coverage.runtimeStatus.total} 条变化
+                  </span>
+                </div>
+              )}
+              <div className="coverage-grid">
+                {(coverage.areas ?? []).map((area) => (
+                  <article className={area.gaps.length ? "coverage-card warn" : "coverage-card"} key={area.areaId}>
+                    <div>
+                      <strong>{area.areaName}</strong>
+                      <span>{area.areaId}</span>
+                    </div>
+                    <p>
+                      活动 {area.activityCount} / 餐饮 {area.restaurantCount} / 补位 {area.fillerCount}
+                    </p>
+                    <p>
+                      活动价层 F{area.activityPriceBuckets.free ?? 0} L{area.activityPriceBuckets.low ?? 0} M
+                      {area.activityPriceBuckets.mid ?? 0} H{area.activityPriceBuckets.high ?? 0}
+                    </p>
+                    <p>
+                      餐饮价层 L{area.restaurantPriceBuckets.low ?? 0} M{area.restaurantPriceBuckets.mid ?? 0} H
+                      {area.restaurantPriceBuckets.high ?? 0}
+                    </p>
+                    {area.gaps.length > 0 && <em>{area.gaps.join("、")}</em>}
+                  </article>
+                ))}
               </div>
             </div>
 

@@ -71,6 +71,22 @@ DATASETS: dict[str, dict[str, Any]] = {
     },
 }
 
+PRICE_BUCKETS = (
+    ("free", "免费/0元", 0, 0),
+    ("low", "低价 <=30", 1, 30),
+    ("mid", "中价 31-80", 31, 80),
+    ("high", "高价 >80", 81, None),
+)
+
+POI_SUPPLY_PRINCIPLES = [
+    "每个正式商圈至少覆盖活动、餐饮、过渡补位三类供给。",
+    "每个商圈尽量同时有免费/低价/中价/高价候选，避免预算一紧就无解。",
+    "POI 标签优先写事实画像：人群、体力、噪声、可坐下、室内外、预约/排队、消费层级；不要把某个用户故事写成标签。",
+    "补位点只作为空窗、等位、短休息节点，不和主活动混为一谈。",
+    "点名目的地区域必须保留进入下一轮；探索区域才参与粗排淘汰。",
+    "动态异常池整体维持约 40% 变化，用于验证确认前校验和异常重规划。",
+]
+
 
 class RecordPayload(BaseModel):
     record: dict[str, Any]
@@ -127,6 +143,112 @@ def _collection_payload(data: dict[str, Any], key: str) -> dict[str, Any]:
     }
 
 
+def _price_bucket(value: Any) -> str:
+    try:
+        price = float(value or 0)
+    except (TypeError, ValueError):
+        price = 0.0
+    if price <= 0:
+        return "free"
+    if price <= 30:
+        return "low"
+    if price <= 80:
+        return "mid"
+    return "high"
+
+
+def _bucket_counts(records: list[dict[str, Any]], price_key: str) -> dict[str, int]:
+    counts = {key: 0 for key, *_ in PRICE_BUCKETS}
+    for record in records:
+        counts[_price_bucket(record.get(price_key))] += 1
+    return counts
+
+
+def _tag_counts(records: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for record in records:
+        values = record.get(key, [])
+        if not isinstance(values, list):
+            continue
+        for value in values:
+            tag = str(value)
+            counts[tag] = counts.get(tag, 0) + 1
+    return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:10])
+
+
+def _runtime_ratio(runtime_data: dict[str, Any]) -> dict[str, Any]:
+    rows = [
+        record
+        for value in runtime_data.values()
+        if isinstance(value, list)
+        for record in value
+        if isinstance(record, dict)
+    ]
+    total = len(rows)
+    abnormal = sum(
+        1
+        for record in rows
+        if record.get("runtimeState") != "unchanged" or record.get("eventType") not in (None, "none")
+    )
+    ratio = abnormal / total if total else 0.0
+    return {
+        "total": total,
+        "abnormal": abnormal,
+        "normal": total - abnormal,
+        "abnormalRatio": round(ratio, 3),
+        "targetAbnormalRatio": float(runtime_data.get("abnormalShare", 0.4)),
+        "withinTolerance": abs(ratio - float(runtime_data.get("abnormalShare", 0.4))) <= 0.08,
+    }
+
+
+def _coverage_payload() -> dict[str, Any]:
+    areas = [area for area in _read_dataset("areas").get("areas", []) if not str(area.get("areaId", "")).startswith("origin_")]
+    activities = _read_dataset("activities").get("activities", [])
+    restaurants = _read_dataset("restaurants").get("restaurants", [])
+    runtime_data = _read_dataset("runtime_status")
+    area_rows: list[dict[str, Any]] = []
+    for area in areas:
+        area_id = str(area.get("areaId") or "")
+        area_activities = [item for item in activities if item.get("areaId") == area_id]
+        area_restaurants = [item for item in restaurants if item.get("areaId") == area_id]
+        activity_buckets = _bucket_counts(area_activities, "pricePerPerson")
+        restaurant_buckets = _bucket_counts(area_restaurants, "avgPricePerPerson")
+        filler_count = sum(1 for item in area_activities if item.get("isFiller"))
+        gaps: list[str] = []
+        if len(area_activities) < 8:
+            gaps.append("活动候选偏少")
+        if len(area_restaurants) < 8:
+            gaps.append("餐厅候选偏少")
+        if filler_count < 2:
+            gaps.append("过渡补位点不足")
+        if not (activity_buckets["free"] or activity_buckets["low"]):
+            gaps.append("活动缺免费/低价层")
+        if not restaurant_buckets["low"]:
+            gaps.append("餐饮缺低价层")
+        if not restaurant_buckets["high"]:
+            gaps.append("餐饮缺高价层")
+        area_rows.append(
+            {
+                "areaId": area_id,
+                "areaName": area.get("name"),
+                "activityCount": len(area_activities),
+                "restaurantCount": len(area_restaurants),
+                "fillerCount": filler_count,
+                "activityPriceBuckets": activity_buckets,
+                "restaurantPriceBuckets": restaurant_buckets,
+                "activityAudienceTags": _tag_counts(area_activities, "audienceTags"),
+                "restaurantAudienceTags": _tag_counts(area_restaurants, "audienceTags"),
+                "gaps": gaps,
+            }
+        )
+    return {
+        "principles": POI_SUPPLY_PRINCIPLES,
+        "priceBuckets": [{"key": key, "label": label, "min": minimum, "max": maximum} for key, label, minimum, maximum in PRICE_BUCKETS],
+        "areas": area_rows,
+        "runtimeStatus": _runtime_ratio(runtime_data),
+    }
+
+
 def _dataset_payload(slug: str) -> dict[str, Any]:
     config = _dataset_config(slug)
     path = _dataset_path(slug)
@@ -158,6 +280,11 @@ def list_datasets(_: None = Depends(require_admin_token)) -> dict[str, Any]:
         "dataDir": str(DATA_DIR),
         "datasets": [_dataset_payload(slug) for slug in DATASETS],
     }
+
+
+@router.get("/coverage")
+def coverage_report(_: None = Depends(require_admin_token)) -> dict[str, Any]:
+    return _coverage_payload()
 
 
 @router.put("/datasets/{slug}/{collection_key}/{record_index}")

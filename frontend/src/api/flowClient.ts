@@ -103,6 +103,10 @@ export async function fetchAdminDatasets(token: string) {
   return adminJson("/api/admin/datasets", token);
 }
 
+export async function fetchAdminCoverage(token: string) {
+  return adminJson("/api/admin/coverage", token);
+}
+
 export async function saveAdminRecord(
   token: string,
   slug: string,

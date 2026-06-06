@@ -824,6 +824,137 @@ def _augment_missing_from_raw(result: dict[str, Any], raw_input: str) -> None:
             scene["confidence"] = max(float(scene.get("confidence") or 0), 0.72)
 
 
+def _normalize_scene_primary_type(result: dict[str, Any], raw_input: str) -> None:
+    """Keep scene.primaryType as a broad people/context enum, not a social-intent key."""
+    scene = result.setdefault("scene", {})
+    if not isinstance(scene, dict):
+        result["scene"] = {"primaryType": "open", "confidence": 0.5, "tags": []}
+        return
+
+    allowed = {"family", "couple", "friends", "solo", "elderly", "open"}
+    primary = str(scene.get("primaryType") or "").strip()
+    if primary in allowed:
+        return
+
+    raw_scene = _repair_sparse_result({}, raw_input)["scene"]["primaryType"]
+    aliases = {
+        "family_care": "family",
+        "parent_child": "family",
+        "kid_care": "family",
+        "light_date": "couple",
+        "deep_talk": "couple" if any(word in raw_input for word in ("对象", "约会", "女生", "男生", "喜欢", "好感")) else "open",
+        "group_bonding": "friends",
+        "friend_group": "friends",
+        "friends_trip": "friends",
+        "senior_care": "elderly",
+        "tourist_sightseeing": raw_scene if raw_scene != "open" else "open",
+        "local_food_hunt": raw_scene if raw_scene != "open" else "open",
+        "casual_meetup": raw_scene if raw_scene != "open" else "open",
+        "unknown": "open",
+    }
+    scene["primaryType"] = aliases.get(primary, raw_scene if raw_scene in allowed else "open")
+    try:
+        confidence = float(scene.get("confidence") or 0.5)
+    except (TypeError, ValueError):
+        confidence = 0.5
+    scene["confidence"] = min(confidence, 0.78)
+    tags = scene.setdefault("tags", [])
+    if isinstance(tags, list) and primary and primary not in tags:
+        tags.append(primary)
+
+
+def _normalize_expected_output(result: dict[str, Any]) -> None:
+    expected = result.setdefault("expectedOutput", {})
+    if not isinstance(expected, dict):
+        result["expectedOutput"] = {
+            "planFormat": "timeline_plan",
+            "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "风险提示"],
+        }
+        return
+    if expected.get("planFormat") not in {"timeline_plan", "options_comparison", "open"}:
+        expected["planFormat"] = "timeline_plan"
+    allowed_must_include = {
+        "时间轴",
+        "活动安排",
+        "餐饮安排",
+        "路线/通勤",
+        "预算估算",
+        "推荐理由",
+        "风险提示",
+        "预约/排队状态",
+        "备选方案",
+        "分享文案",
+    }
+    values = expected.get("mustInclude")
+    if not isinstance(values, list):
+        values = []
+    kept = [str(item) for item in values if str(item) in allowed_must_include]
+    for item in ("时间轴", "预算估算", "风险提示"):
+        if item not in kept:
+            kept.append(item)
+    expected["mustInclude"] = kept
+
+
+def _normalize_required_schema_defaults(result: dict[str, Any]) -> None:
+    people = result.setdefault("people", {})
+    if not isinstance(people, dict):
+        people = {}
+        result["people"] = people
+    people.setdefault("total", None)
+    people.setdefault("adults", None)
+    people.setdefault("children", [])
+    people.setdefault("seniors", [])
+    people.setdefault("relationship", None)
+    people.setdefault("specialNeeds", [])
+
+    budget = result.setdefault("budget", {})
+    if not isinstance(budget, dict):
+        budget = {}
+        result["budget"] = budget
+    budget.setdefault("maxTotal", None)
+    budget.setdefault("perPerson", None)
+    budget["currency"] = "CNY"
+    if budget.get("flexibility") not in {"strict", "flexible", "unknown"}:
+        budget["flexibility"] = "unknown"
+
+    location = result.setdefault("location", {})
+    if not isinstance(location, dict):
+        location = {}
+        result["location"] = location
+    location.setdefault("startPoint", None)
+    location.setdefault("originPoints", [])
+    location.setdefault("preferredArea", None)
+    cross_city = location.get("crossCityIntent")
+    if not isinstance(cross_city, dict):
+        cross_city = {}
+    cross_city.setdefault("enabled", False)
+    cross_city.setdefault("fromCity", None)
+    cross_city.setdefault("toCity", None)
+    location["crossCityIntent"] = cross_city
+    location.setdefault("maxTravelMinutes", None)
+    if location.get("transportPreference") not in {"walk", "taxi", "public_transport", "drive", "no_preference", None}:
+        location["transportPreference"] = None
+    location.setdefault("transportPreference", None)
+    location.setdefault("distancePreference", None)
+
+    preferences = result.setdefault("preferences", {})
+    if not isinstance(preferences, dict):
+        preferences = {}
+        result["preferences"] = preferences
+    preferences.setdefault("activityTypes", [])
+    preferences.setdefault("foodTags", [])
+    preferences.setdefault("experienceTags", [])
+    preferences.setdefault("avoidTags", [])
+
+    constraints = result.setdefault("constraints", {})
+    if not isinstance(constraints, dict):
+        constraints = {}
+        result["constraints"] = constraints
+    constraints.setdefault("hard", [])
+    constraints.setdefault("soft", [])
+    constraints.setdefault("dynamic", [])
+
+
 def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str | None = None) -> dict[str, Any]:
     """
     Normalize known model drift after extraction.
@@ -839,6 +970,9 @@ def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str 
     elif fallback_raw_input:
         result["rawInput"] = fallback_raw_input
         _augment_missing_from_raw(result, fallback_raw_input)
+    _normalize_scene_primary_type(result, raw_input)
+    _normalize_expected_output(result)
+    _normalize_required_schema_defaults(result)
     _normalize_child_accompanying_adult(result, raw_input)
     result["socialIntent"] = _infer_social_intent(result, raw_input)
 

@@ -21,6 +21,18 @@ FOLLOW_UP_HINTS = (
     "想玩",
     "景点",
     "逛一下",
+    "空窗",
+    "缓冲",
+    "等位",
+    "时间段",
+    "这段",
+    "加点",
+    "加些",
+    "加一个",
+    "奶茶",
+    "茶饮",
+    "休息",
+    "优化",
     "晚饭",
     "晚餐",
     "吃饭",
@@ -49,11 +61,16 @@ def parse_refinement_intent(text: str) -> dict[str, Any]:
     meal_timing: str | None = None
     require_activity = False
     skip_activity = False
+    fill_buffer = False
 
     if any(value in text for value in ("只吃饭", "只安排吃饭", "不安排活动", "不要活动", "不玩了", "不安排项目")):
         operations.append("replace_restaurant")
         changed_items.append("restaurant")
         skip_activity = True
+    if any(value in text for value in ("空窗", "缓冲", "等位", "时间段", "这段", "加点", "加些", "加一个", "奶茶", "茶饮", "休息")):
+        operations.append("fill_buffer")
+        changed_items.append("filler")
+        fill_buffer = True
     if not skip_activity and any(value in text for value in ("我要玩", "想玩", "景点", "逛一下", "没有什么景点", "自由活动")):
         operations.append("replace_activity")
         changed_items.append("activity")
@@ -105,6 +122,7 @@ def parse_refinement_intent(text: str) -> dict[str, Any]:
         "preferredArea": preferred_area,
         "timeHints": time_hints,
         "mealTiming": meal_timing,
+        "fillBuffer": fill_buffer,
         "requireActivity": require_activity,
         "skipActivity": skip_activity,
         "lockedItems": locked_items,
@@ -144,6 +162,9 @@ def apply_refinement(
     if intent.get("skipActivity"):
         plan_control["skipActivity"] = True
         plan_control["requireActivity"] = False
+    if intent.get("fillBuffer"):
+        plan_control["forceFillerInsert"] = True
+        plan_control.setdefault("constraintsPatch", {})["fillBuffer"] = True
 
     constraints = demand.setdefault("constraints", {})
     hard = constraints.setdefault("hard", [])
@@ -175,6 +196,10 @@ def apply_refinement(
                 hard.append(item)
         if intent.get("mealTiming") == "earlier":
             item = "二次修改要求晚饭/吃饭早一点，调度时优先把餐饮节点提前到可预约的较早时段。"
+            if item not in hard:
+                hard.append(item)
+        if intent.get("fillBuffer"):
+            item = "二次修改要求优化空窗/等位时间，优先加入同商圈低成本休息、茶饮或短逛节点。"
             if item not in hard:
                 hard.append(item)
 

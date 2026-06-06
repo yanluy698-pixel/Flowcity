@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,19 @@ MIN_CLUSTER_COHESION = 0.72
 MIN_DECLARED_KEY_COHESION = 0.65
 NEGATIVE_DELETE_RATE = 0.35
 APPROVED_MATCH_SIMILARITY = 0.76
+APPROVED_MATCH_MIN_LEXICAL_OVERLAP = 0.08
+BLOCKED_PATTERN_MARGIN = 0.03
+SALIENT_STOP_TERMS = {
+    "出门",
+    "时候",
+    "通过",
+    "安排",
+    "避免",
+    "减少",
+    "需要",
+    "希望",
+    "一个",
+}
 
 
 def _proposal_id(cluster_key: str) -> str:
@@ -79,7 +93,7 @@ def _report_status(
     return "proposal_generated"
 
 
-def analyze(store: LearningEventStore) -> dict[str, Any]:
+def analyze(store: LearningEventStore, *, persist_proposals: bool = True) -> dict[str, Any]:
     events = store.events()
     created = [event for event in events if event["event_type"] == "hypothesis_created"]
     clusters: list[dict[str, Any]] = []
@@ -187,10 +201,50 @@ def analyze(store: LearningEventStore) -> dict[str, Any]:
                 "examples": cluster["examples"][:10],
                 "metrics": report,
             }
-            store.upsert_proposal(proposal)
+            if persist_proposals:
+                store.upsert_proposal(proposal)
             proposals.append(proposal)
         reports.append(report)
     return {"clusters": reports, "proposals": proposals, "eventCount": len(events)}
+
+
+def _salient_terms(text: str) -> set[str]:
+    chunks = [item for item in re.findall(r"[\u4e00-\u9fff]{2,}", str(text or "")) if item]
+    terms: set[str] = set()
+    for chunk in chunks:
+        max_len = min(4, len(chunk))
+        for size in range(2, max_len + 1):
+            for index in range(0, len(chunk) - size + 1):
+                term = chunk[index : index + size]
+                if term not in SALIENT_STOP_TERMS:
+                    terms.add(term)
+    return terms
+
+
+def _lexical_overlap(left: str, right: str) -> float:
+    left_terms = _salient_terms(left)
+    right_terms = _salient_terms(right)
+    if not left_terms or not right_terms:
+        return 0.0
+    return len(left_terms & right_terms) / len(left_terms)
+
+
+def _blocked_pattern_similarity(
+    *,
+    text: str,
+    query_vector: list[float],
+    store: LearningEventStore,
+) -> float:
+    blocked_examples: list[str] = []
+    for cluster in analyze(store, persist_proposals=False).get("clusters", []):
+        if cluster.get("status") in {"negative_pattern_blocked", "mixed_signal_observing"}:
+            blocked_examples.extend(str(item) for item in cluster.get("examples", []) if item)
+    if not blocked_examples:
+        return 0.0
+    vectors = RETRIEVER.embed(blocked_examples)
+    vector_score = max(cosine_similarity(query_vector, vector) for vector in vectors)
+    lexical_score = max(_lexical_overlap(text, example) for example in blocked_examples)
+    return max(vector_score, lexical_score)
 
 
 def approved_hypothesis_matches(
@@ -205,6 +259,7 @@ def approved_hypothesis_matches(
         return []
     store = store or LearningEventStore()
     query_vector = RETRIEVER.embed([text])[0]
+    blocked_similarity = _blocked_pattern_similarity(text=text, query_vector=query_vector, store=store)
     matches: list[dict[str, Any]] = []
     for row in store.proposals("approved"):
         proposal = row.get("payload", {})
@@ -215,12 +270,19 @@ def approved_hypothesis_matches(
         similarity = max(cosine_similarity(query_vector, vector) for vector in vectors)
         if similarity < min_similarity:
             continue
+        lexical_overlap = max(_lexical_overlap(text, example) for example in examples)
+        if lexical_overlap < APPROVED_MATCH_MIN_LEXICAL_OVERLAP:
+            continue
+        if blocked_similarity >= similarity - BLOCKED_PATTERN_MARGIN:
+            continue
         matches.append(
             {
                 "proposalId": row.get("proposal_id"),
                 "clusterKey": proposal.get("clusterKey") or row.get("cluster_key"),
                 "text": examples[0],
                 "similarity": round(similarity, 4),
+                "lexicalOverlap": round(lexical_overlap, 4),
+                "blockedSimilarity": round(blocked_similarity, 4),
                 "source": "approved_learning_pattern",
             }
         )

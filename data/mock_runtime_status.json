@@ -412,7 +412,7 @@
           "crowdLevel": "high"
         }
       ],
-      "runtimeMessage": "钟楼短线小吃Citywalk确认前排队变长，需要换等待更短的活动。"
+      "runtimeMessage": "北院门风情街确认前排队变长，需要换等待更短的活动。"
     },
     {
       "poiId": "act_xa_019",
@@ -1080,14 +1080,14 @@
           "crowdLevel": "high"
         }
       ],
-      "runtimeMessage": "行政中心夜间慢走线确认前排队变长，需要换等待更短的活动。"
+      "runtimeMessage": "西安城市运动公园确认前排队变长，需要换等待更短的活动。"
     },
     {
       "poiId": "act_xa_049",
       "dateText": "周末",
       "runtimeState": "unchanged",
       "eventType": "unchanged",
-      "runtimeMessage": "大雁塔北广场喷泉轻游确认前状态未变化。",
+      "runtimeMessage": "大雁塔北广场确认前状态未变化。",
       "timeSlots": [
         {
           "start": "13:00",
@@ -1147,7 +1147,7 @@
       "dateText": "周末",
       "runtimeState": "unchanged",
       "eventType": "unchanged",
-      "runtimeMessage": "大唐芙蓉园外线文化漫步确认前状态未变化。",
+      "runtimeMessage": "大唐芙蓉园确认前状态未变化。",
       "timeSlots": [
         {
           "start": "13:00",
@@ -1177,7 +1177,7 @@
       "dateText": "周末",
       "runtimeState": "unchanged",
       "eventType": "unchanged",
-      "runtimeMessage": "曲江池遗址公园湖畔散步确认前状态未变化。",
+      "runtimeMessage": "曲江池遗址公园确认前状态未变化。",
       "timeSlots": [
         {
           "start": "13:00",
@@ -1237,7 +1237,7 @@
       "dateText": "周末",
       "runtimeState": "unchanged",
       "eventType": "unchanged",
-      "runtimeMessage": "钟鼓楼广场城市漫步确认前状态未变化。",
+      "runtimeMessage": "钟鼓楼广场确认前状态未变化。",
       "timeSlots": [
         {
           "start": "13:00",
@@ -1267,7 +1267,7 @@
       "dateText": "周末",
       "runtimeState": "unchanged",
       "eventType": "unchanged",
-      "runtimeMessage": "回民街小吃短逛线确认前状态未变化。",
+      "runtimeMessage": "回民街确认前状态未变化。",
       "timeSlots": [
         {
           "start": "13:00",
@@ -1297,7 +1297,7 @@
       "dateText": "周末",
       "runtimeState": "unchanged",
       "eventType": "unchanged",
-      "runtimeMessage": "大慈恩寺外广场轻游确认前状态未变化。",
+      "runtimeMessage": "大慈恩寺遗址公园确认前状态未变化。",
       "timeSlots": [
         {
           "start": "13:00",
@@ -1522,6 +1522,61 @@
           "crowdLevel": "medium"
         }
       ]
+    },
+    {
+      "poiId": "act_xa_078",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        { "start": "12:00", "end": "18:00", "ticketLeft": 300, "queueMinutes": 0, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "23:30", "ticketLeft": 300, "queueMinutes": 0, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "钟鼓楼广场确认前状态未变化。"
+    },
+    {
+      "poiId": "act_xa_079",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        { "start": "10:00", "end": "18:00", "ticketLeft": 180, "queueMinutes": 0, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "22:30", "ticketLeft": 150, "queueMinutes": 0, "crowdLevel": "medium" }
+      ],
+      "runtimeMessage": "高新大都荟确认前状态未变化。"
+    },
+    {
+      "poiId": "act_xa_080",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "09:30", "end": "18:00", "ticketLeft": 260, "queueMinutes": 42, "crowdLevel": "high" },
+        { "start": "18:00", "end": "22:00", "ticketLeft": 200, "queueMinutes": 42, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "大明宫国家遗址公园确认前客流变大，需要换等待更短的活动。"
+    },
+    {
+      "poiId": "act_xa_081",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "timeSlots": [
+        { "start": "10:00", "end": "18:00", "ticketLeft": 100, "queueMinutes": 0, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "22:30", "ticketLeft": 80, "queueMinutes": 4, "crowdLevel": "medium" }
+      ],
+      "runtimeMessage": "霸王茶姬(大明宫万达店)确认前状态未变化。"
+    },
+    {
+      "poiId": "act_xa_082",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "ticket_sold_out",
+      "timeSlots": [
+        { "start": "10:00", "end": "18:00", "ticketLeft": 0, "queueMinutes": 0, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "23:00", "ticketLeft": 0, "queueMinutes": 4, "crowdLevel": "medium" }
+      ],
+      "runtimeMessage": "霸王茶姬(高新万达店)确认前可用名额变为0，需要换可坐下的替代点。"
     }
   ],
   "restaurantRuntimeStatus": [
@@ -2120,6 +2175,81 @@
       "queueMinutes": 12,
       "tableAvailable": true,
       "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_053",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 8,
+      "tableAvailable": true,
+      "availableSlots": ["17:30", "18:00", "18:30", "19:00"]
+    },
+    {
+      "poiId": "res_xa_054",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "no_table",
+      "queueMinutes": 35,
+      "tableAvailable": false,
+      "availableSlots": [],
+      "runtimeMessage": "钟楼月台Bistro确认前变为无座，需要更换餐厅。"
+    },
+    {
+      "poiId": "res_xa_055",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 12,
+      "tableAvailable": true,
+      "availableSlots": ["16:30", "17:00", "17:30", "18:00", "19:00"]
+    },
+    {
+      "poiId": "res_xa_056",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 10,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_057",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 42,
+      "tableAvailable": true,
+      "availableSlots": [],
+      "runtimeMessage": "魏家凉皮(高新万达店)确认前排队变长，需要换等待更短的餐厅。"
+    },
+    {
+      "poiId": "res_xa_058",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 7,
+      "tableAvailable": true,
+      "availableSlots": []
+    },
+    {
+      "poiId": "res_xa_059",
+      "dateText": "周末",
+      "runtimeState": "unchanged",
+      "eventType": "none",
+      "queueMinutes": 12,
+      "tableAvailable": true,
+      "availableSlots": ["16:30", "17:00", "17:30", "18:00", "19:00"]
+    },
+    {
+      "poiId": "res_xa_060",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "reservation_slots_lost",
+      "queueMinutes": 16,
+      "tableAvailable": true,
+      "availableSlots": [],
+      "runtimeMessage": "西贝莜面村(大明宫万达店)确认前预约时段消失，需要更换餐厅或取号。"
     }
   ],
   "routeRuntimeStatus": [

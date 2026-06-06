@@ -134,7 +134,11 @@ class LearningEventStore:
                     proposal_id, created_at, proposal_type, cluster_key, status, payload_json
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(proposal_id) DO UPDATE SET
-                    status=excluded.status,
+                    status=CASE
+                        WHEN ontology_proposals.status IN ('approved', 'rejected')
+                        THEN ontology_proposals.status
+                        ELSE excluded.status
+                    END,
                     payload_json=excluded.payload_json
                 """,
                 (

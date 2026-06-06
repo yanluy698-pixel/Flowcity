@@ -9,19 +9,10 @@ type Props = {
   disabled?: boolean;
 };
 
-const guideCards = [
-  { title: "人数人员", text: "例如：2大1小、和朋友、带父母" },
-  { title: "出发位置", text: "例如：高新区、钟楼、咸阳" },
-  { title: "时间窗口", text: "例如：周六下午、10点到14点" },
-  { title: "偏好需求", text: "例如：亲子、拍照、少走路、安静" }
-];
-
 const examples = [
   "周六下午2点到6点，我从曲江池附近出发，带5岁孩子和老婆，老婆最近减脂，别太远，总预算400。",
   "今晚6点半我们4个人在钟楼地铁站集合，想citywalk加小吃，别走太多路，最后找个地方坐下来聊。",
-  "周天1点到7点，我们3个男生从咸阳秦都站附近出发，坐地铁去西安市区玩，人均100以内。",
-  "周六中午我们4个大学生从长安大学、西安交大、西北大学、陕师大出发，人均80以内，想找公平集合点。",
-  "周六下午2点到6点，我从长安大学渭水校区出发，想和喜欢的女生去市区玩，吃的别油腻，总预算200。"
+  "周天1点到7点，我们3个男生从咸阳秦都站附近出发，坐地铁去西安市区玩，人均100以内。"
 ];
 
 export function HomeScreen({ onSubmit, onNewSession, disabled }: Props) {
@@ -53,16 +44,7 @@ export function HomeScreen({ onSubmit, onNewSession, disabled }: Props) {
           </div>
           <p className="hint-title">说得越具体，计划越合适</p>
 
-          <div className="guide-grid">
-            {guideCards.map((card) => (
-              <article className="guide-card" key={card.title}>
-                <h3>{card.title}</h3>
-                <p>{card.text}</p>
-              </article>
-            ))}
-          </div>
-
-          <p className="hint-title example-title">试试这样说</p>
+          <p className="hint-title example-title">也可以点一个示例再改</p>
           <div className="example-grid">
             {examples.map((example) => (
               <button key={example} onClick={() => setDraftText(example)} disabled={disabled}>

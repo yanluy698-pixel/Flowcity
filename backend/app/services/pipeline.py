@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -312,6 +313,218 @@ def _selected_poi_id(plan: dict[str, Any] | None, kind: str) -> str | None:
     return None
 
 
+def _selected_poi_ids(
+    plan: dict[str, Any] | None,
+    *,
+    kinds: set[str] | None = None,
+    only_open_hypothesis: bool = False,
+) -> list[str]:
+    if not isinstance(plan, dict):
+        return []
+    result: list[str] = []
+    allowed_kinds = kinds or {"activity", "restaurant"}
+    for item in plan.get("selectedItems", []):
+        if not isinstance(item, dict):
+            continue
+        if item.get("kind") not in allowed_kinds or not item.get("poiId"):
+            continue
+        if only_open_hypothesis and "open_hypothesis_vector" not in item.get("recallSources", []):
+            continue
+        result.append(str(item["poiId"]))
+    for step in plan.get("timeline", []):
+        if not isinstance(step, dict):
+            continue
+        if step.get("type") not in allowed_kinds or not step.get("poiId"):
+            continue
+        result.append(str(step["poiId"]))
+    return list(dict.fromkeys(result))
+
+
+def _plan_entries_with_poi(
+    plan: dict[str, Any] | None,
+    *,
+    kinds: set[str],
+) -> list[dict[str, Any]]:
+    if not isinstance(plan, dict):
+        return []
+    entries: list[dict[str, Any]] = []
+    for item in plan.get("selectedItems", []):
+        if isinstance(item, dict) and item.get("kind") in kinds and item.get("poiId"):
+            entries.append(item)
+    for step in plan.get("timeline", []):
+        if isinstance(step, dict) and step.get("type") in kinds and step.get("poiId"):
+            entries.append(step)
+    return entries
+
+
+def _cjk_ngrams(text: str) -> set[str]:
+    chunks = re.findall(r"[\u4e00-\u9fff]{2,}", str(text or ""))
+    result: set[str] = set()
+    for chunk in chunks:
+        max_len = min(6, len(chunk))
+        for size in range(2, max_len + 1):
+            for index in range(0, len(chunk) - size + 1):
+                result.add(chunk[index : index + size])
+    return result
+
+
+def _term_is_negated(text: str, term: str) -> bool:
+    for match in re.finditer(re.escape(term), text):
+        prefix = text[max(0, match.start() - 6) : match.start()]
+        if any(word in prefix for word in ("不", "别", "不要", "不想", "避开", "换掉", "不去")):
+            return True
+    return False
+
+
+def _selected_poi_ids_matching_followup(
+    plan: dict[str, Any] | None,
+    *,
+    kinds: set[str],
+    followup_text: str,
+) -> set[str]:
+    text = str(followup_text or "")
+    if not text:
+        return set()
+    protected: set[str] = set()
+    weak_terms = {"高新", "小寨", "钟楼", "曲江", "大雁塔", "大明宫", "附近", "当前", "这个"}
+    for entry in _plan_entries_with_poi(plan, kinds=kinds):
+        name = str(entry.get("name") or entry.get("title") or "")
+        reason = str(entry.get("reason") or entry.get("description") or "")
+        terms = _cjk_ngrams(name) | {term for term in _cjk_ngrams(reason) if len(term) >= 3}
+        if any(term in text and term not in weak_terms and not _term_is_negated(text, term) for term in terms):
+            protected.add(str(entry["poiId"]))
+    return protected
+
+
+def _add_excluded_poi_ids(
+    demand: dict[str, Any],
+    poi_ids: list[str],
+    *,
+    reason: str,
+) -> None:
+    if not poi_ids:
+        return
+    plan_control = demand.setdefault("planControl", {})
+    existing = [str(item) for item in plan_control.get("excludedPoiIds", []) if item]
+    protected = {
+        str(item)
+        for item in plan_control.get("protectedFromExclusionPoiIds", [])
+        if item
+    }
+    filtered = [poi_id for poi_id in poi_ids if poi_id not in protected]
+    if not filtered:
+        return
+    plan_control["excludedPoiIds"] = list(dict.fromkeys([*existing, *filtered]))
+    notes = plan_control.setdefault("exclusionReasons", [])
+    if isinstance(notes, list):
+        notes.append({"reason": reason, "poiIds": filtered})
+
+
+def _deep_merge_dicts(base: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+    merged = deepcopy(base)
+    for key, value in patch.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge_dicts(merged[key], value)
+        elif value not in (None, "", []):
+            merged[key] = value
+    return merged
+
+
+def _exclude_previous_plan_for_major_change(
+    demand: dict[str, Any],
+    session: dict[str, Any] | None,
+    *,
+    followup_text: str = "",
+) -> None:
+    if not isinstance(session, dict):
+        return
+    protected = _selected_poi_ids_matching_followup(
+        session.get("currentPlan"),
+        kinds={"activity", "restaurant"},
+        followup_text=followup_text,
+    )
+    if protected:
+        plan_control = demand.setdefault("planControl", {})
+        existing = [str(item) for item in plan_control.get("protectedFromExclusionPoiIds", []) if item]
+        plan_control["protectedFromExclusionPoiIds"] = list(dict.fromkeys([*existing, *protected]))
+    _add_excluded_poi_ids(
+        demand,
+        _selected_poi_ids(session.get("currentPlan"), kinds={"activity", "restaurant"}),
+        reason="用户要求整体大改，上一版活动/餐厅不应原样复用",
+    )
+
+
+def _exclude_current_targets_for_router(
+    demand: dict[str, Any],
+    session: dict[str, Any] | None,
+    router_result: dict[str, Any],
+) -> None:
+    if not isinstance(session, dict):
+        return
+    flags = router_result.get("actionFlags", {}) if isinstance(router_result.get("actionFlags"), dict) else {}
+    target_kind = str(router_result.get("targetKind") or "")
+    kinds: set[str] = set()
+    if flags.get("needNewActivity") or target_kind == "activity":
+        kinds.add("activity")
+    if flags.get("needNewRestaurant") or target_kind == "restaurant":
+        kinds.add("restaurant")
+    if not kinds:
+        return
+    _add_excluded_poi_ids(
+        demand,
+        _selected_poi_ids(session.get("currentPlan"), kinds=kinds),
+        reason="用户二次修改要求替换当前节点，本轮不应原样复用",
+    )
+
+
+def _exclude_hypothesis_related_pois(
+    demand: dict[str, Any],
+    session: dict[str, Any] | None,
+    feedback: dict[str, Any],
+) -> None:
+    if not isinstance(session, dict):
+        return
+    hypothesis_id = str(feedback.get("hypothesisId") or "")
+    poi_ids: list[str] = []
+    supply = session.get("currentSupply")
+    if hypothesis_id and isinstance(supply, dict):
+        for match in supply.get("vectorRecallResult", {}).get("matches", []):
+            if isinstance(match, dict) and match.get("hypothesisId") == hypothesis_id and match.get("poiId"):
+                poi_ids.append(str(match["poiId"]))
+    poi_ids.extend(
+        _selected_poi_ids(
+            session.get("currentPlan"),
+            kinds={"activity", "restaurant"},
+            only_open_hypothesis=True,
+        )
+    )
+    _add_excluded_poi_ids(
+        demand,
+        list(dict.fromkeys(poi_ids)),
+        reason="用户删除了这条需求猜测，相关开放假设召回结果本轮降级排除",
+    )
+
+
+def _apply_clicked_modify_controls(
+    demand: dict[str, Any],
+    clicked_context: dict[str, Any] | None,
+) -> None:
+    if not clicked_context:
+        return
+    target_kind = str(clicked_context.get("targetKind") or "")
+    target_poi_id = str(clicked_context.get("targetPoiId") or "")
+    if target_poi_id and target_poi_id != "无" and target_kind in {"activity", "restaurant"}:
+        _add_excluded_poi_ids(
+            demand,
+            [target_poi_id],
+            reason=f"用户点击修改当前{target_kind}节点，本轮不应原样复用",
+        )
+    if target_kind == "filler":
+        plan_control = demand.setdefault("planControl", {})
+        plan_control["forceFillerInsert"] = True
+        plan_control.setdefault("constraintsPatch", {})["fillBuffer"] = True
+
+
 def _clicked_modify_context(text: str) -> dict[str, Any]:
     fields: dict[str, Any] = {}
     for line in str(text or "").splitlines():
@@ -440,8 +653,10 @@ def _router_flags_for_target(target_kind: str, operation: str | None = None) -> 
     if target == "restaurant":
         flags["needNewRestaurant"] = True
         flags["needReschedule"] = True
-    elif target in {"activity", "filler"}:
+    elif target == "activity":
         flags["needNewActivity"] = True
+        flags["needReschedule"] = True
+    elif target == "filler":
         flags["needReschedule"] = True
     elif target == "route":
         flags["needRouteRefresh"] = True
@@ -518,6 +733,7 @@ def _build_interaction_router_prompt(
         "判断规则：\n"
         "- 修改吃饭、正餐、口味、排队、预约、餐厅氛围 -> targetKind=restaurant。\n"
         "- 修改玩什么、活动强度、室内外、孩子放电、景点/电影/手作 -> targetKind=activity。\n"
+        "- 修改空窗、缓冲、等位、加个奶茶/茶饮/小吃短逛/休息点 -> targetKind=filler。\n"
         "- 修改远近、少走路、交通方式、同商圈、转场 -> targetKind=route。\n"
         "- 只吃饭/不安排活动 -> targetKind=activity, operation=remove, constraintsPatch.skipActivity=true，同时 preserve restaurant。\n"
         "- 用户明显说整体不满意、换个思路、全部重来 -> targetKind=whole_plan。\n"
@@ -693,6 +909,7 @@ def _start_refinement_dialogue(
         request.input,
         session.get("currentPlan"),
     )
+    pending_demand = extractor.normalize_structured_demand(pending_demand)
     pending_demand.setdefault("planControl", {})["routerResult"] = router_result
     pending_demand["planControl"]["actionFlags"] = router_result.get("actionFlags", {})
     pending_demand["planControl"]["locks"] = router_result.get("locks", {"timeFlexMinutes": 30})
@@ -700,8 +917,10 @@ def _start_refinement_dialogue(
     clicked_context = _clicked_modify_context(request.input)
     if clicked_context:
         pending_demand["planControl"]["clickedModify"] = clicked_context
+        _apply_clicked_modify_controls(pending_demand, clicked_context)
     if "【整体大改上下文】" in request.input:
         pending_demand["planControl"]["majorChange"] = True
+        _exclude_previous_plan_for_major_change(pending_demand, session, followup_text=request.input)
     pending_intent["routerResult"] = router_result
     pending_intent["locks"] = router_result.get("locks", {})
     pending_intent["actionFlags"] = router_result.get("actionFlags", {})
@@ -841,22 +1060,34 @@ def _extract_or_refine_demand(
                 timeout_seconds=24,
                 retries=0,
             )
-            demand = extractor.parse_json_object(response_text)
-            demand = extractor.normalize_structured_demand(demand, request.input)
+            patch = extractor.parse_json_object(response_text)
+            demand = _deep_merge_dicts(session["currentDemand"], patch)
+            demand["rawInput"] = "。".join(
+                value
+                for value in [
+                    str(session["currentDemand"].get("rawInput") or ""),
+                    f"用户继续要求：{request.input}",
+                ]
+                if value
+            )
+            demand = extractor.normalize_structured_demand(demand)
         except Exception:
             demand, _ = refinement.apply_refinement(
                 session["currentDemand"],
                 request.input,
                 session.get("currentPlan"),
             )
+            demand = extractor.normalize_structured_demand(demand)
         demand.setdefault("planControl", {})["routerResult"] = router_result
         demand["planControl"]["actionFlags"] = router_result.get("actionFlags", {})
         demand["planControl"]["locks"] = router_result.get("locks", {"timeFlexMinutes": 30})
         demand["planControl"]["constraintsPatch"] = router_result.get("constraintsPatch", {})
         demand["planControl"]["clickedModify"] = clicked_context
+        _apply_clicked_modify_controls(demand, clicked_context)
         if "【整体大改上下文】" in request.input:
             demand["planControl"]["locks"] = {"timeFlexMinutes": 30}
             demand["planControl"]["majorChange"] = True
+            _exclude_previous_plan_for_major_change(demand, session, followup_text=request.input)
         return demand, {
             "mode": "refine",
             "operations": ["llm_node_refine" if "【节点修改上下文】" in request.input else "llm_major_replan"],
@@ -875,13 +1106,20 @@ def _extract_or_refine_demand(
             request.input,
             session.get("currentPlan"),
         )
+        demand = extractor.normalize_structured_demand(demand)
         demand.setdefault("planControl", {})["routerResult"] = router_result
         demand["planControl"]["actionFlags"] = router_result.get("actionFlags", {})
         demand["planControl"]["locks"] = router_result.get("locks", {"timeFlexMinutes": 30})
         demand["planControl"]["constraintsPatch"] = router_result.get("constraintsPatch", {})
+        if router_result.get("targetKind") == "filler" or router_result.get("constraintsPatch", {}).get("fillBuffer"):
+            demand["planControl"]["forceFillerInsert"] = True
+        _exclude_current_targets_for_router(demand, session, router_result)
         intent["routerResult"] = router_result
         intent["locks"] = router_result.get("locks", {})
         intent["actionFlags"] = router_result.get("actionFlags", {})
+        if router_result.get("targetKind") == "whole_plan" or router_result.get("operation") in {"major_replan", "replan_all"}:
+            demand.setdefault("planControl", {})["majorChange"] = True
+            _exclude_previous_plan_for_major_change(demand, session, followup_text=request.input)
         return demand, intent
 
     prompt = extractor.build_prompt(request.input)
@@ -963,6 +1201,7 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
         structured_demand, refinement_intent = _extract_or_refine_demand(request, session_id, router_result)
         if request.hypothesisFeedback:
             demand_profile.apply_hypothesis_feedback(structured_demand, request.hypothesisFeedback)
+            _exclude_hypothesis_related_pois(structured_demand, session, request.hypothesisFeedback)
         demand_profile.ensure_demand_profile(structured_demand)
         if refinement_intent.get("mode") == "refine":
             _record_outcome_for_active_hypotheses(

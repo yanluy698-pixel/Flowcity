@@ -604,6 +604,14 @@ def _avoid_terms(demand: dict[str, Any]) -> list[str]:
     return deduped
 
 
+def _excluded_poi_ids(demand: dict[str, Any]) -> set[str]:
+    plan_control = demand.get("planControl", {}) if isinstance(demand.get("planControl"), dict) else {}
+    values = plan_control.get("excludedPoiIds", [])
+    if not isinstance(values, list):
+        return set()
+    return {str(item) for item in values if item}
+
+
 def _matches_avoid_term(poi: dict[str, Any], area: dict[str, Any], term: str) -> bool:
     searchable = " ".join(
         [
@@ -914,6 +922,7 @@ def search_activities(
     wants_near = _has_any_text(structured_demand, ["别太远", "附近", "近", "少走路"])
     directed_types = _directed_activity_types(structured_demand)
     avoid_terms = _avoid_terms(structured_demand)
+    excluded_poi_ids = _excluded_poi_ids(structured_demand)
     wants_scenic = _wants_scenic_recall(social, structured_demand)
     requires_indoor = any(keyword in _raw_and_structured_text(structured_demand) for keyword in ("室内", "下雨", "雨天"))
 
@@ -929,6 +938,9 @@ def search_activities(
 
     for activity in data["activities"]:
         if allowed_area_ids and activity["areaId"] not in allowed_area_ids:
+            continue
+        if activity["id"] in excluded_poi_ids:
+            filtered_out.append(_filtered(activity, "activity", "用户要求换个思路，本轮排除上一版活动"))
             continue
         reasons: list[str] = []
         area = areas[activity["areaId"]]
@@ -1176,6 +1188,7 @@ def search_restaurants(
     wants_reservation = _has_any_text(structured_demand, ["订座", "预约", "可订"])
     has_children = bool(_children_ages(structured_demand))
     avoid_terms = _avoid_terms(structured_demand)
+    excluded_poi_ids = _excluded_poi_ids(structured_demand)
 
     candidates: list[dict[str, Any]] = []
     filtered_out: list[dict[str, Any]] = []
@@ -1189,6 +1202,9 @@ def search_restaurants(
 
     for restaurant in data["restaurants"]:
         if allowed_area_ids and restaurant["areaId"] not in allowed_area_ids:
+            continue
+        if restaurant["id"] in excluded_poi_ids:
+            filtered_out.append(_filtered(restaurant, "restaurant", "用户要求换个思路，本轮排除上一版餐厅"))
             continue
         reasons: list[str] = []
         area = areas[restaurant["areaId"]]
