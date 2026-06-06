@@ -39,17 +39,6 @@ REQUIRED_FIELDS = [
 ]
 VALID_STATUSES = {"ok", "partial", "failed"}
 
-AREA_LABELS = {
-    "area_xa_xiaozhai": "小寨",
-    "area_xa_qujiang": "曲江",
-    "area_xa_zhonglou": "钟楼",
-    "area_xa_gaoxin": "高新",
-    "area_xa_daminggong": "大明宫",
-    "area_xa_xingzheng": "行政中心",
-    "origin_xianyang_downtown": "咸阳市区",
-}
-
-
 def load_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -65,24 +54,6 @@ def _people_total(demand: dict[str, Any]) -> int:
         return total
     adults = people.get("adults") if isinstance(people.get("adults"), int) else 0
     return max(1, adults + len(people.get("children", [])) + len(people.get("seniors", [])))
-
-
-def _parse_minutes(value: str | None) -> int | None:
-    if not value:
-        return None
-    hour, minute = value.split(":", 1)
-    return int(hour) * 60 + int(minute)
-
-
-def _format_minutes(value: int | None) -> str | None:
-    if value is None:
-        return None
-    value = value % (24 * 60)
-    return f"{value // 60:02d}:{value % 60:02d}"
-
-
-def _time_label(value: int | None, fallback: str) -> str:
-    return _format_minutes(value) or fallback
 
 
 def _budget_limit(demand: dict[str, Any]) -> float | None:
@@ -118,11 +89,6 @@ def _demand_text(demand: dict[str, Any]) -> str:
             " ".join(str(item) for item in constraints.get("soft", [])),
         ]
     )
-
-
-def _has_meal_hard_constraint(demand: dict[str, Any]) -> bool:
-    text = _demand_text(demand)
-    return any(keyword in text for keyword in ("晚饭", "晚餐", "正餐", "吃饭", "餐饮"))
 
 
 def _wants_after_meal_walk(demand: dict[str, Any]) -> bool:
@@ -302,11 +268,21 @@ def _route_ref(route: dict[str, Any] | None) -> str | None:
 
 
 def _route_by_ref(mock_supply: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    return {
-        ref: route
-        for route in mock_supply.get("routeCandidates", [])
-        if (ref := _route_ref(route))
-    }
+    routes: dict[str, dict[str, Any]] = {}
+    for route in mock_supply.get("routeCandidates", []):
+        ref = _route_ref(route)
+        if not ref:
+            continue
+        existing = routes.get(ref)
+        if existing is None or (
+            float(route.get("estimatedCostTotal") or 0),
+            float(route.get("minutes") or 999),
+        ) < (
+            float(existing.get("estimatedCostTotal") or 0),
+            float(existing.get("minutes") or 999),
+        ):
+            routes[ref] = route
+    return routes
 
 
 def _number(value: Any) -> float | None:
@@ -477,155 +453,6 @@ def _llm_plan_needs_fallback(
     return False
 
 
-def _select_pair(
-    activities: list[dict[str, Any]],
-    restaurants: list[dict[str, Any]],
-    demand: dict[str, Any],
-    mock_supply: dict[str, Any],
-) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    if not activities and not restaurants:
-        return None, None
-    if not activities:
-        return None, restaurants[0]
-    if not restaurants:
-        return activities[0], None
-
-    budget_limit = _budget_limit(demand)
-    strict_budget = _budget_is_strict(demand)
-    meal_hard = _has_meal_hard_constraint(demand)
-    after_meal_walk = _wants_after_meal_walk(demand)
-    best_pair: tuple[float, dict[str, Any], dict[str, Any]] | None = None
-    best_feasible_pair: tuple[float, dict[str, Any], dict[str, Any]] | None = None
-    for activity in activities[:8]:
-        for restaurant in restaurants[:8]:
-            activity_cost = float(activity.get("estimatedCost", 0))
-            restaurant_cost = float(restaurant.get("estimatedCost", 0))
-            first_route = _route_for_area(mock_supply, activity.get("areaId"))
-            if first_route and not first_route.get("isCrossCityInbound"):
-                first_route = None
-            transfer_route = _route_between(
-                mock_supply,
-                activity.get("areaId"),
-                restaurant.get("areaId"),
-            )
-            route_cost = float((first_route or {}).get("estimatedCostTotal", 0)) + float(
-                (transfer_route or {}).get("estimatedCostTotal", 0)
-            )
-            total = activity_cost + restaurant_cost + route_cost
-            score = float(activity.get("score", 0)) + float(restaurant.get("score", 0))
-            if activity.get("areaId") == restaurant.get("areaId"):
-                score += 4
-            elif transfer_route:
-                score += 1
-            else:
-                continue
-            if meal_hard:
-                score += 3
-                if budget_limit is not None and restaurant_cost <= budget_limit * 0.55:
-                    score += 3
-                score -= activity_cost / 80
-            if after_meal_walk:
-                activity_text = " ".join([activity.get("category", ""), " ".join(activity.get("matchedReasons", []))])
-                if any(keyword in activity_text for keyword in ("散步", "citywalk", "轻松", "低消费", "免费", "少排队")):
-                    score += 2
-            if budget_limit is not None:
-                if total <= budget_limit:
-                    score += 8 if strict_budget else 3
-                else:
-                    over_budget = total - budget_limit
-                    if strict_budget:
-                        score -= 100 + over_budget
-                    else:
-                        score -= min(6, over_budget / 50)
-            score -= total / 300
-            if best_pair is None or score > best_pair[0]:
-                best_pair = (score, activity, restaurant)
-            if budget_limit is not None and total <= budget_limit:
-                if best_feasible_pair is None or score > best_feasible_pair[0]:
-                    best_feasible_pair = (score, activity, restaurant)
-
-    if strict_budget and best_feasible_pair:
-        return best_feasible_pair[1], best_feasible_pair[2]
-    if strict_budget and meal_hard and budget_limit is not None:
-        cheapest_restaurant: tuple[float, dict[str, Any]] | None = None
-        for restaurant in restaurants:
-            restaurant_cost = float(restaurant.get("estimatedCost", 0))
-            first_route = _route_for_area(mock_supply, restaurant.get("areaId"))
-            if first_route and not first_route.get("isCrossCityInbound"):
-                first_route = None
-            route_cost = float((first_route or {}).get("estimatedCostTotal", 0))
-            total = restaurant_cost + route_cost
-            if total <= budget_limit and (
-                cheapest_restaurant is None or total < cheapest_restaurant[0]
-            ):
-                cheapest_restaurant = (total, restaurant)
-        if cheapest_restaurant:
-            return None, cheapest_restaurant[1]
-    if best_pair:
-        return best_pair[1], best_pair[2]
-    return activities[0], restaurants[0]
-
-
-def _route_for_area(mock_supply: dict[str, Any], area_id: str | None) -> dict[str, Any] | None:
-    if not area_id:
-        return None
-    routes = mock_supply.get("routeCandidates", [])
-    inbound = [
-        route
-        for route in routes
-        if route.get("toAreaId") == area_id and route.get("isCrossCityInbound")
-    ]
-    if inbound:
-        return sorted(inbound, key=lambda item: (item.get("minutes", 999), item.get("estimatedCostTotal", 999)))[0]
-    same_area = [
-        route
-        for route in routes
-        if route.get("fromAreaId") == area_id and route.get("toAreaId") == area_id
-    ]
-    if same_area:
-        return sorted(same_area, key=lambda item: item.get("minutes", 999))[0]
-    direct = [route for route in routes if route.get("toAreaId") == area_id]
-    if direct:
-        return sorted(direct, key=lambda item: item.get("minutes", 999))[0]
-    return None
-
-
-def _route_between(
-    mock_supply: dict[str, Any],
-    from_area_id: str | None,
-    to_area_id: str | None,
-) -> dict[str, Any] | None:
-    if not from_area_id or not to_area_id or from_area_id == to_area_id:
-        return None
-    routes = [
-        route
-        for route in mock_supply.get("routeCandidates", [])
-        if route.get("fromAreaId") == from_area_id and route.get("toAreaId") == to_area_id
-    ]
-    if not routes:
-        return None
-    return sorted(
-        routes,
-        key=lambda item: (item.get("minutes", 999), item.get("estimatedCostTotal", 999)),
-    )[0]
-
-
-def _route_name(route: dict[str, Any] | None, selected: dict[str, Any] | None) -> str:
-    if not route:
-        return "路线/通勤"
-    if selected and selected.get("routeSummary"):
-        return selected["routeSummary"]
-    if route.get("routeSummary"):
-        return route["routeSummary"]
-    from_name = AREA_LABELS.get(str(route.get("fromAreaId")), str(route.get("fromAreaId")))
-    to_name = AREA_LABELS.get(str(route.get("toAreaId")), str(route.get("toAreaId")))
-    transport_name = {"walk": "步行", "public_transport": "公共交通", "taxi": "打车"}.get(
-        str(route.get("transport")),
-        str(route.get("transport") or "交通"),
-    )
-    return f"{from_name}到{to_name}，{transport_name}约{route.get('minutes')}分钟"
-
-
 def _failed_plan(structured_demand: dict[str, Any], mock_supply: dict[str, Any]) -> dict[str, Any]:
     supply_status = mock_supply.get("supplyStatus", {})
     reasons = supply_status.get("reasons") or ["阶段三供给查询未返回可用候选"]
@@ -674,7 +501,7 @@ def draft_plan_without_llm(
     mock_supply: dict[str, Any],
     limit: int = 8,
 ) -> dict[str, Any]:
-    scheduled = scheduler.schedule_timeline(structured_demand, mock_supply, top_k=max(8, limit))
+    scheduled = scheduler.schedule_timeline(structured_demand, mock_supply, top_k=max(scheduler.SCHEDULER_MIN_TOP_K, limit))
     plan = scheduled["timelinePlan"]
     plan["schedulerResult"] = {
         "status": scheduled.get("status"),
@@ -687,278 +514,6 @@ def draft_plan_without_llm(
         "locks": scheduled.get("locks", {}),
     }
     return plan
-
-    supply_status = mock_supply.get("supplyStatus", {}).get("status")
-    if supply_status == "failed":
-        return _failed_plan(structured_demand, mock_supply)
-
-    activities = mock_supply.get("activityCandidates", [])
-    restaurants = mock_supply.get("restaurantCandidates", [])
-    activity, restaurant = _select_pair(activities, restaurants, structured_demand, mock_supply)
-    selected_area = (activity or restaurant or {}).get("areaId")
-    first_route = _route_for_area(mock_supply, selected_area)
-    if first_route and not first_route.get("isCrossCityInbound"):
-        first_route = None
-    transfer_route = _route_between(
-        mock_supply,
-        (activity or {}).get("areaId"),
-        (restaurant or {}).get("areaId"),
-    )
-    route_cost = float((first_route or {}).get("estimatedCostTotal", 0)) + float(
-        (transfer_route or {}).get("estimatedCostTotal", 0)
-    )
-    activity_cost = float((activity or {}).get("estimatedCost", 0))
-    restaurant_cost = float((restaurant or {}).get("estimatedCost", 0))
-    total_cost = activity_cost + restaurant_cost + route_cost
-    people_total = _people_total(structured_demand)
-    per_person = round(total_cost / people_total, 2)
-
-    time_window = structured_demand.get("timeWindow", {})
-    cursor = _parse_minutes(time_window.get("startTime"))
-    timeline: list[dict[str, Any]] = []
-    wants_after_meal_walk = _wants_after_meal_walk(structured_demand)
-
-    if first_route and first_route.get("minutes", 0) > 0:
-        route_start = cursor
-        route_end = None if cursor is None else cursor + int(first_route.get("minutes", 0))
-        timeline.append(
-            {
-                "start": _time_label(route_start, "先到达目标商圈"),
-                "end": _time_label(route_end, "到达后"),
-                "type": "route",
-                "title": "路线/通勤",
-                "description": _route_name(first_route, activity or restaurant),
-                "poiId": None,
-                "routeRef": _route_ref(first_route),
-                "estimatedCost": float(first_route.get("estimatedCostTotal", 0)),
-            }
-        )
-        cursor = route_end
-
-    if activity:
-        start = cursor
-        end = None if cursor is None else cursor + 90
-        availability = activity.get("availability", {})
-        timeline.append(
-            {
-                "start": _time_label(start, "第一段"),
-                "end": _time_label(end, "活动结束"),
-                "type": "activity",
-                "title": activity["name"],
-                "description": "；".join(activity.get("matchedReasons", [])[:4])
-                or "作为本次主要活动。",
-                "poiId": activity.get("poiId"),
-                "routeRef": None,
-                "estimatedCost": activity_cost,
-            }
-        )
-        cursor = end
-        if availability:
-            queue = availability.get("minQueueMinutes")
-            tickets = availability.get("bestTicketLeft")
-            if queue is not None or tickets is not None:
-                timeline[-1]["description"] += f" 余票 {tickets}，排队约 {queue} 分钟。"
-
-    if activity and restaurant and transfer_route:
-        start = cursor
-        end = None if cursor is None else cursor + int(transfer_route.get("minutes", 0))
-        timeline.append(
-            {
-                "start": _time_label(start, "活动后"),
-                "end": _time_label(end, "到达餐饮点"),
-                "type": "route",
-                "title": "活动到餐饮转场",
-                "description": _route_name(transfer_route, None),
-                "poiId": None,
-                "routeRef": _route_ref(transfer_route),
-                "estimatedCost": float(transfer_route.get("estimatedCostTotal", 0)),
-            }
-        )
-        cursor = end
-
-    if activity and restaurant:
-        start = cursor
-        end = None if cursor is None else cursor + 15
-        timeline.append(
-            {
-                "start": _time_label(start, "活动后"),
-                "end": _time_label(end, "餐饮前"),
-                "type": "buffer",
-                "title": "缓冲与转场",
-                "description": "预留一点找路、等人和调整节奏的时间。",
-                "poiId": None,
-                "routeRef": None,
-                "estimatedCost": 0,
-            }
-        )
-        cursor = end
-
-    if restaurant:
-        start = cursor
-        end = None if cursor is None else cursor + 75
-        availability = restaurant.get("availability", {})
-        timeline.append(
-            {
-                "start": _time_label(start, "最后一段"),
-                "end": _time_label(end, "结束"),
-                "type": "restaurant",
-                "title": restaurant["name"],
-                "description": "；".join(restaurant.get("matchedReasons", [])[:4])
-                or "作为本次吃饭和坐下休息安排。",
-                "poiId": restaurant.get("poiId"),
-                "routeRef": None,
-                "estimatedCost": restaurant_cost,
-            }
-        )
-        cursor = end
-        queue = availability.get("queueMinutes")
-        table = availability.get("tableAvailable")
-        slots = availability.get("availableSlots", [])
-        if queue is not None or table is not None or slots:
-            timeline[-1]["description"] += (
-                f" 座位状态：{'有座' if table else '未知'}，排队约 {queue} 分钟，"
-                f"可选时段：{'、'.join(slots[:3]) if slots else '未返回明确预约时段'}。"
-            )
-
-    if restaurant and wants_after_meal_walk:
-        start = cursor
-        end = None if cursor is None else cursor + 35
-        area_name = restaurant.get("areaName") or AREA_LABELS.get(str(restaurant.get("areaId")), "附近")
-        timeline.append(
-            {
-                "start": _time_label(start, "饭后"),
-                "end": _time_label(end, "结束前"),
-                "type": "activity",
-                "title": f"{area_name}附近饭后散步",
-                "description": "吃完饭后就近走一小段，留出聊天和各自返程前的缓冲，不额外增加门票预算。",
-                "poiId": None,
-                "routeRef": None,
-                "estimatedCost": 0,
-            }
-        )
-        cursor = end
-
-    selected_items: list[dict[str, Any]] = []
-    for route in (first_route, transfer_route):
-        if not route:
-            continue
-        selected_for_route = activity or restaurant if route is first_route else None
-        selected_items.append(
-            {
-                "kind": "route",
-                "poiId": None,
-                "name": _route_name(route, selected_for_route),
-                "reason": "用于估算通勤时间和路线成本。",
-            }
-        )
-    if activity:
-        selected_items.append(
-            {
-                "kind": "activity",
-                "poiId": activity.get("poiId"),
-                "name": activity.get("name"),
-                "reason": "；".join(activity.get("matchedReasons", [])[:3]) or "活动候选综合分较高。",
-            }
-        )
-    if restaurant:
-        selected_items.append(
-            {
-                "kind": "restaurant",
-                "poiId": restaurant.get("poiId"),
-                "name": restaurant.get("name"),
-                "reason": "；".join(restaurant.get("matchedReasons", [])[:3]) or "餐饮候选综合分较高。",
-            }
-        )
-
-    budget_limit = _budget_limit(structured_demand)
-    risk_tips: list[str] = []
-    if first_route and first_route.get("isCrossCityInbound"):
-        risk_tips.append(
-            f"跨城入城通勤约 {first_route.get('minutes')} 分钟，路线成本约 {float(first_route.get('estimatedCostTotal', 0)):.0f} 元，会压缩可玩时间和预算。"
-        )
-    if transfer_route:
-        risk_tips.append(
-            f"活动到餐饮还需要约 {transfer_route.get('minutes')} 分钟转场，阶段五需要继续校验时间窗口。"
-        )
-    if budget_limit is not None and total_cost > budget_limit:
-        risk_tips.append(
-            f"预估总价 {total_cost:.0f} 元超过预算上限 {budget_limit:.0f} 元，阶段五需要重排或替换。"
-        )
-    elif budget_limit is not None:
-        risk_tips.append(
-            f"预估总价 {total_cost:.0f} 元，低于预算上限 {budget_limit:.0f} 元。"
-        )
-    if supply_status == "partial":
-        risk_tips.append("活动或餐饮候选存在缺口，方案可能需要放宽条件。")
-    if not risk_tips:
-        risk_tips.append("已按预算、距离和体验匹配度做初步组合，确认前还会再检查余票、座位和排队。")
-
-    tradeoffs = [
-        item.get("description", "")
-        for item in structured_demand.get("potentialConflicts", [])
-        if item.get("description")
-    ]
-    if not tradeoffs:
-        tradeoffs = ["优先在可用供给内平衡预算、通勤和体验匹配度。"]
-
-    return {
-        "status": "partial" if supply_status == "partial" else "ok",
-        "summary": _summary(activity, restaurant, first_route, total_cost, people_total),
-        "timeline": timeline,
-        "selectedItems": selected_items,
-        "budgetEstimate": {
-            "activityCost": activity_cost,
-            "restaurantCost": restaurant_cost,
-            "routeCost": route_cost,
-            "totalCost": total_cost,
-            "perPersonCost": per_person,
-            "currency": "CNY",
-            "notes": ["费用来自阶段三 Mock 供给，不代表真实交易价格。"],
-        },
-        "recommendationReasons": _recommendation_reasons(activity, restaurant, first_route, transfer_route),
-        "riskTips": risk_tips,
-        "tradeoffs": tradeoffs,
-        "rawPlannerNotes": "Deterministic product planner fallback.",
-    }
-
-
-def _summary(
-    activity: dict[str, Any] | None,
-    restaurant: dict[str, Any] | None,
-    route: dict[str, Any] | None,
-    total_cost: float,
-    people_total: int,
-) -> str:
-    parts: list[str] = []
-    if route and route.get("isCrossCityInbound"):
-        parts.append("先完成跨城入城")
-    if activity:
-        parts.append(f"安排 {activity.get('name')}")
-    if restaurant:
-        parts.append(f"{'再去' if activity or parts else '安排'} {restaurant.get('name')}")
-    if not parts:
-        return "当前候选不足，只能形成部分规划。"
-    return "，".join(parts) + f"，预估总价 {total_cost:.0f} 元，人均 {total_cost / people_total:.0f} 元。"
-
-
-def _recommendation_reasons(
-    activity: dict[str, Any] | None,
-    restaurant: dict[str, Any] | None,
-    first_route: dict[str, Any] | None,
-    transfer_route: dict[str, Any] | None = None,
-) -> list[str]:
-    reasons: list[str] = []
-    if activity:
-        reasons.append(f"活动选择 {activity['name']}：{'；'.join(activity.get('matchedReasons', [])[:4])}")
-    if restaurant:
-        reasons.append(f"餐饮选择 {restaurant['name']}：{'；'.join(restaurant.get('matchedReasons', [])[:4])}")
-    if first_route:
-        reasons.append(f"路线采用 {_route_name(first_route, activity or restaurant)}。")
-    if transfer_route:
-        reasons.append(f"活动到餐饮转场采用 {_route_name(transfer_route, None)}。")
-    if not reasons:
-        reasons.append("没有足够候选可组合成完整方案。")
-    return reasons
 
 
 def call_planner_llm(

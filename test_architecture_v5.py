@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+import json
 import os
 import sys
 import time
@@ -27,6 +28,13 @@ from poi_profiles import build_poi_profile
 
 def demand_from_text(text: str) -> dict:
     return extractor.normalize_structured_demand(extractor._repair_sparse_result({}, text), text)
+
+
+def _parse_minutes(value: str | None) -> int:
+    if not value or ":" not in value:
+        return 0
+    hour, minute = value.split(":", 1)
+    return int(hour) * 60 + int(minute)
 
 
 def record_hypothesis_session(
@@ -100,6 +108,25 @@ def run() -> list[str]:
     origin_only = demand_from_text("周六下午从曲江池附近出发，带孩子吃个饭，别太远。")
     if demand_profile.protected_area_ids(origin_only):
         errors.append("destination anchor: an origin mention must not be silently promoted to a destination anchor")
+    meetup = demand_from_text("今晚6点半我们4个人在钟楼地铁站集合，想citywalk加小吃，10点前结束。")
+    meetup["planningPolicy"] = {
+        "timeScope": "onsite_after_meetup",
+        "startAnchorType": "explicit_meetup",
+        "endAnchorType": "leave_last_poi",
+        "includeOutboundRoute": False,
+        "includeReturnRoute": False,
+        "targetExperienceBlocks": 2,
+        "maxIdleMinutes": 45,
+        "allowCrossAreaTransfer": False,
+        "maxTransferMinutes": 20,
+        "evidence": ["钟楼地铁站集合"],
+    }
+    meetup = extractor.normalize_structured_demand(meetup, meetup["rawInput"])
+    if meetup["planningPolicy"]["timeScope"] != "onsite_after_meetup" or meetup["planningPolicy"]["includeOutboundRoute"]:
+        errors.append("planning policy: explicit meetup should plan from the meetup point without inbound route")
+    door_to_door = demand_from_text("周天1点到7点，我们3个男生从咸阳秦都站附近出发，坐地铁去西安市区玩，人均100以内。")
+    if door_to_door["planningPolicy"]["timeScope"] != "door_to_door" or not door_to_door["planningPolicy"]["includeOutboundRoute"]:
+        errors.append("planning policy: origin departure should include inbound route")
 
     open_demand = demand_from_text("和刚认识的人找个有事情做、边玩边聊、不会冷场的地方。")
     supply = mock_api.search_supply(open_demand)
@@ -123,6 +150,21 @@ def run() -> list[str]:
     unknown_plan = planner.plan_timeline(unknown, unknown_supply, use_llm=False, limit=8)
     if any(item.get("kind") == "activity" for item in unknown_plan.get("selectedItems", [])):
         errors.append("requested components: a clear meal-only request must not invent an activity")
+
+    tight_meal = mock_api.load_example_demand("pursuing_date_low_budget")
+    tight_meal_supply = mock_api.search_supply(tight_meal)
+    tight_meal_plan = planner.plan_timeline(tight_meal, tight_meal_supply, use_llm=False, limit=8)
+    decision_options = tight_meal_plan.get("decisionOptions", [])
+    if not decision_options or {item.get("id") for item in decision_options} != {"normal_dinner", "early_simple_meal"}:
+        errors.append("meal timing: before-18:00 dinner should expose normal-vs-early decision options")
+    restaurant_steps = [step for step in tight_meal_plan.get("timeline", []) if step.get("type") == "restaurant"]
+    if not restaurant_steps:
+        errors.append("meal timing: tight dinner plan should still produce a restaurant step when a compressed meal fits")
+    elif max(_parse_minutes(step.get("end")) - _parse_minutes(step.get("start")) for step in restaurant_steps) > 60:
+        errors.append("meal timing: tight dinner plan should not force every restaurant to 75 minutes")
+    previews = [option.get("previewPlan") for option in decision_options]
+    if not all(preview and preview.get("timeline") for preview in previews):
+        errors.append("meal timing: each decision option should include a timeline preview for frontend selection")
 
     hotpot = demand_from_text("周六下午两人去高新，改成吃火锅，人均120。")
     hotpot_supply = mock_api.search_supply(hotpot)
@@ -203,6 +245,34 @@ def run() -> list[str]:
         errors.append("LLM router: whole-plan change should release activity, restaurant and route")
     if routed_whole["locks"].get("activityPoiId") or routed_whole["locks"].get("restaurantPoiId"):
         errors.append("LLM router: whole-plan change should not keep old POI locks")
+
+    long_idle_route = pipeline.router.route_interaction(
+        "你这中间空了两个小时太不合理了，重新排",
+        has_session=True,
+        session={"currentPlan": current_plan},
+    )
+    if not long_idle_route["constraintsPatch"].get("forbidLongBuffer"):
+        errors.append("router: long-idle complaint should become a hard no-long-buffer patch")
+    if not long_idle_route["actionFlags"]["needNewActivity"]:
+        errors.append("router: long-idle complaint should allow changing the activity, not only filler")
+
+    old_schema_demand = demand_from_text("周天1点到7点，我们3个男生从咸阳秦都站附近出发，坐地铁去西安市区玩，人均100以内。")
+    old_schema_demand.pop("planningPolicy", None)
+    original_call_llm = pipeline.extractor.call_llm
+    try:
+        pipeline.extractor.call_llm = lambda *args, **kwargs: json.dumps(old_schema_demand, ensure_ascii=False)
+        from fastapi.testclient import TestClient
+
+        response = TestClient(app.main.create_app()).post(
+            "/api/flow/run-stream",
+            json={"input": old_schema_demand["rawInput"]},
+        )
+        if response.status_code != 200:
+            errors.append("API stream: old-schema LLM output should still return 200")
+        if "Stage 2 validation failed" in response.text or "$.planningPolicy" in response.text:
+            errors.append("API stream: missing planningPolicy must be normalized before schema validation")
+    finally:
+        pipeline.extractor.call_llm = original_call_llm
 
     overlap_session = {
         "currentPlan": {

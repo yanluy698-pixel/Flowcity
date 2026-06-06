@@ -58,6 +58,7 @@ AREA_ALIASES = {
     "大明宫": "area_xa_daminggong",
     "龙首原": "area_xa_daminggong",
 }
+KNOWN_AREA_IDS = set(AREA_ALIASES.values())
 
 PREFERRED_ANCHOR_MARKERS = ("最好", "有时间", "顺路", "可以去", "想顺便")
 REQUIRED_ANCHOR_MARKERS = ("必须", "一定", "就去", "专门去", "主要去", "想去", "要去", "去玩", "去逛")
@@ -151,6 +152,15 @@ RESTAURANT_REQUEST_TERMS = (
     "大排档",
     "减脂",
     "清淡",
+)
+ACTIVITY_NEGATION_TERMS = (
+    "别安排活动",
+    "不用安排活动",
+    "不要安排活动",
+    "不安排活动",
+    "只吃饭",
+    "只想吃饭",
+    "就吃饭",
 )
 
 
@@ -250,7 +260,19 @@ def resolve_destination_anchors(demand: dict[str, Any]) -> list[dict[str, Any]]:
     preferred_area = str(demand.get("location", {}).get("preferredArea") or "")
     start_point = str(demand.get("location", {}).get("startPoint") or "")
     existing = demand.get("demandProfile", {}).get("destinationAnchors", [])
-    anchors: list[dict[str, Any]] = [deepcopy(item) for item in existing if isinstance(item, dict)]
+    anchors: list[dict[str, Any]] = []
+    for item in existing:
+        if not isinstance(item, dict):
+            continue
+        anchor = deepcopy(item)
+        name = str(anchor.get("name") or "")
+        if name in AREA_ALIASES:
+            anchor["resolvedAreaId"] = AREA_ALIASES[name]
+            anchor.setdefault("status", "resolved")
+        area_id = str(anchor.get("resolvedAreaId") or "")
+        if area_id and area_id not in KNOWN_AREA_IDS:
+            continue
+        anchors.append(anchor)
     for name, area_id in AREA_ALIASES.items():
         if name not in raw_input and name not in preferred_area:
             continue
@@ -332,11 +354,47 @@ def _dimensions(demand: dict[str, Any]) -> list[dict[str, Any]]:
     return list(dimensions.values())
 
 
+def _minutes(value: Any) -> int | None:
+    if not isinstance(value, str) or ":" not in value:
+        return None
+    hour, minute = value.split(":", 1)
+    if not hour.isdigit() or not minute.isdigit():
+        return None
+    return int(hour) * 60 + int(minute)
+
+
+def _window_minutes(demand: dict[str, Any]) -> int:
+    time_window = demand.get("timeWindow", {}) if isinstance(demand.get("timeWindow"), dict) else {}
+    start = _minutes(time_window.get("startTime"))
+    end = _minutes(time_window.get("endTime"))
+    if start is not None and end is not None and end > start:
+        return end - start
+    duration = time_window.get("durationHours")
+    if isinstance(duration, (int, float)) and duration > 0:
+        return int(float(duration) * 60)
+    return 0
+
+
+def _implies_afternoon_activity_before_meal(demand: dict[str, Any], raw: str) -> bool:
+    if not any(term in raw for term in ("集合", "见面", "碰头", "约在", "会合")):
+        return False
+    if not any(term in raw for term in ("晚上", "晚饭", "晚餐", "一起吃饭", "吃饭")):
+        return False
+    start = _minutes((demand.get("timeWindow") or {}).get("startTime") if isinstance(demand.get("timeWindow"), dict) else None)
+    return _window_minutes(demand) >= 240 and (start is None or start < 17 * 60)
+
+
 def _requested_components(demand: dict[str, Any]) -> list[str]:
     raw = str(demand.get("rawInput") or "")
     preferences = demand.get("preferences", {})
     activity_requested = bool(preferences.get("activityTypes")) or any(term in raw for term in ACTIVITY_REQUEST_TERMS)
     restaurant_requested = bool(preferences.get("foodTags")) or any(term in raw for term in RESTAURANT_REQUEST_TERMS)
+    if _implies_afternoon_activity_before_meal(demand, raw):
+        activity_requested = True
+        restaurant_requested = True
+    if any(term in raw for term in ACTIVITY_NEGATION_TERMS):
+        activity_requested = False
+        restaurant_requested = True
     if not activity_requested and not restaurant_requested:
         return ["activity", "restaurant"]
     result = []

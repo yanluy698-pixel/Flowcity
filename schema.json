@@ -424,6 +424,74 @@
         }
       }
     },
+    "planningPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timeScope",
+        "startAnchorType",
+        "endAnchorType",
+        "includeOutboundRoute",
+        "includeReturnRoute",
+        "targetExperienceBlocks",
+        "maxIdleMinutes",
+        "allowCrossAreaTransfer",
+        "maxTransferMinutes",
+        "evidence"
+      ],
+      "properties": {
+        "timeScope": {
+          "type": "string",
+          "enum": ["onsite_after_meetup", "door_to_door", "unknown"],
+          "description": "时间窗含义：从集合点开始、门到门出行，或未知。"
+        },
+        "startAnchorType": {
+          "type": "string",
+          "enum": ["explicit_meetup", "origin_departure", "home_departure", "already_in_area", "unknown"],
+          "description": "开始锚点类型。"
+        },
+        "endAnchorType": {
+          "type": "string",
+          "enum": ["leave_last_poi", "return_to_origin", "unknown"],
+          "description": "结束锚点类型。"
+        },
+        "includeOutboundRoute": {
+          "type": "boolean",
+          "description": "是否需要把出发到目标商圈/集合点的路程写入时间轴。"
+        },
+        "includeReturnRoute": {
+          "type": "boolean",
+          "description": "是否需要把返程写入时间轴。"
+        },
+        "targetExperienceBlocks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "除正餐外希望安排的体验块数量。4-6小时本地出行通常为2-3。"
+        },
+        "maxIdleMinutes": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 90,
+          "description": "最大连续无意义等待/空窗分钟数。默认45。"
+        },
+        "allowCrossAreaTransfer": {
+          "type": "boolean",
+          "description": "当时间允许时，是否允许跨商圈补充体验。"
+        },
+        "maxTransferMinutes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 90,
+          "description": "体验块之间可接受的单次转场分钟数。"
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "支撑这些规划政策的用户原话或推断证据。"
+        }
+      }
+    },
     "preferences": {
       "type": "object",
       "additionalProperties": false,

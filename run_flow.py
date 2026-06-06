@@ -48,15 +48,7 @@ def run_from_natural_language(
     strict_planner_llm: bool,
     confirm_execute: bool = False,
 ) -> dict[str, Any]:
-    prompt = extractor.build_prompt(user_input)
-    response_text = extractor.call_llm(prompt)
-    structured_demand = extractor.parse_json_object(response_text)
-    structured_demand = extractor.normalize_structured_demand(structured_demand, user_input)
-    validation_errors = extractor.basic_validate(
-        structured_demand, extractor.load_json(extractor.SCHEMA_PATH)
-    )
-    if validation_errors:
-        raise ValueError("Stage 2 validation failed: " + "; ".join(validation_errors))
+    structured_demand = extractor.extract_structured_demand(user_input)
 
     full_supply = mock_api.search_supply(structured_demand)
     mock_supply = _limit_supply(full_supply, limit)

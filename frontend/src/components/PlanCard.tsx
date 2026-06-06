@@ -102,6 +102,16 @@ function shareText(payload: Record<string, any>, totalDurationMs?: number) {
   ].filter(Boolean).join("\n");
 }
 
+function decisionDraft(option: Record<string, any>): ModifyDraft {
+  const label = String(option.label ?? "这个走法");
+  const suggestion = String(option.userPrompt ?? label);
+  return {
+    label,
+    suggestion,
+    systemPrompt: `用户选择了这个走法：${label}。请按这个方向重新规划，保留原始时间、预算和人数约束；如果会牺牲吃饭、路程或游玩体验，要说明清楚。`
+  };
+}
+
 export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, onHypothesisFeedback, totalDurationMs }: Props) {
   const plan = finalPlan(payload);
   const draft = activeDraft(payload);
@@ -111,6 +121,8 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
   const recommendationReasons = Array.isArray(plan.recommendationReasons)
     ? plan.recommendationReasons.slice(0, 3)
     : [];
+  const mealTimingDecision = plan.mealTimingDecision;
+  const decisionOptions = Array.isArray(plan.decisionOptions) ? plan.decisionOptions.slice(0, 3) : [];
   const executionResult = payload.executionResult;
   const issues = runtimeIssues(payload);
   const canReplan = executionResult?.canRuntimeReplan && !runtimeReplan(payload);
@@ -163,6 +175,40 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {mealTimingDecision && decisionOptions.length > 0 && (
+        <div className="decision-panel">
+          <strong>{userText(mealTimingDecision.title ?? "这里想让你拍个板")}</strong>
+          <p>{userText(mealTimingDecision.message ?? "这次有两种都能走的安排，我把取舍说清楚，你选更舒服的那个。")}</p>
+          <div className="decision-options">
+            {decisionOptions.map((option: any) => {
+              const active = option.id === mealTimingDecision.chosenOptionId;
+              const previewTimeline = option.previewPlan?.timeline ?? [];
+              return (
+                <div className={`decision-option${active ? " active" : ""}`} key={option.id ?? option.label}>
+                  <div className="decision-heading">
+                    <span>{userText(option.label ?? "备选方案")}</span>
+                    <em>{active ? "现在看到的是这个" : option.status === "ok" ? "也可以这样走" : "要稍微取舍"}</em>
+                  </div>
+                  <p>{userText(option.tradeoff ?? option.summary ?? "")}</p>
+                  {Array.isArray(previewTimeline) && previewTimeline.length > 0 && (
+                    <ul>
+                      {previewTimeline.slice(0, 3).map((item: TimelineItem, index: number) => (
+                        <li key={`${option.id}-${index}`}>{item.start ?? ""}-{item.end ?? ""} {item.title ?? item.type ?? "安排"}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {!active && (
+                    <button type="button" onClick={() => onModifyPrompt(decisionDraft(option))}>
+                      就按这个来
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

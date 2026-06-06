@@ -14,6 +14,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+import temporal_utils
+
 import mock_api
 import planner
 
@@ -49,7 +51,7 @@ def _parse_range(value: str) -> tuple[int, int]:
 
 
 def _is_weekend(date_text: str | None) -> bool:
-    return bool(date_text and ("周六" in date_text or "周日" in date_text or "周末" in date_text))
+    return temporal_utils.is_weekend_text(date_text)
 
 
 def _issue(
@@ -108,11 +110,21 @@ def _route_ref(route: dict[str, Any] | None) -> str | None:
 
 
 def _route_by_ref(mock_supply: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    return {
-        ref: route
-        for route in mock_supply.get("routeCandidates", [])
-        if (ref := _route_ref(route))
-    }
+    routes: dict[str, dict[str, Any]] = {}
+    for route in mock_supply.get("routeCandidates", []):
+        ref = _route_ref(route)
+        if not ref:
+            continue
+        existing = routes.get(ref)
+        if existing is None or (
+            float(route.get("estimatedCostTotal") or 0),
+            float(route.get("minutes") or 999),
+        ) < (
+            float(existing.get("estimatedCostTotal") or 0),
+            float(existing.get("minutes") or 999),
+        ):
+            routes[ref] = route
+    return routes
 
 
 def _people_total(demand: dict[str, Any]) -> int:

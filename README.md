@@ -8,7 +8,7 @@ FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型
 自然语言输入 -> LLM 需求抽取 -> 语义画像补全 -> 本地供给召回打分 -> Scheduler 组合时间轴 -> Validator 校验 -> 执行草案 -> 交互式修改
 ```
 
-当前进度：**语义画像桥 v5 + 固定渐进式区域召回 + 本地向量开放假设召回 + 受控自进化审核链路 + Web Demo 交互式修改已跑通**。
+当前进度：**语义画像桥 v5 + 出行语义 planningPolicy + 多节点时间窗 Scheduler + 二级商圈 open-access 供给 + 受控自进化审核链路 + Web Demo 交互式修改已跑通**。
 
 ## 当前能力
 
@@ -26,6 +26,12 @@ FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型
 - 人话确认：当用户追问“晚饭早一点”“早点回家”“只吃饭不安排活动”等可能冲突的需求时，系统会先给可执行选项，而不是直接报错。
 - Mock 执行：默认只生成执行草案；用户显式确认后才生成 Mock 票码、预约号、取号号或路线提醒。
 - 固定渐进式召回：所有请求都先粗排商圈/景点圈，点名目的地永远保留；探索区域才参与淘汰。
+- 出行语义策略：`planningPolicy` 统一判断时间窗是集合后开始还是门到门出行、是否计算出发/返程、目标体验块数、最大空窗、跨商圈转场上限。
+- 多节点时间窗：Scheduler 不再只拼 `1 个活动 + 1 个餐厅`，而是在主活动、补充体验、二级商圈、茶饮休息、餐饮和路线中组合可变长度时间轴。
+- 长空窗约束：连续无意义等待超过策略阈值会淘汰；供给不足时明确说明，而不是把两小时等待包装成合理休息。
+- 弹性时长：开放街区、商场、书店、茶饮、博物馆等按可弹性时长排布；电影、演出、剧本杀等固定场次保持固定时长。
+- 饭点分支：晚饭默认 17:30 后，但当用户明确早结束时，前端展示“正常晚饭”和“提前轻松吃一顿”两个可执行走法，不偷偷替用户改饭点。
+- 二级商圈供给：`data/mock_subareas.json` 用开放街区/商场/步行街补足大商圈内部可逛空间，作为 `open_access` 节点参与规划，不需要库存影子表。
 - 显式偏好保真：用户明确改成火锅、烤肉、大排档时，系统要么命中真实品类，要么进入引导协商，不能拿相近氛围糊弄。
 - 受控自进化：长尾模糊需求作为开放假设进入向量召回，用户删除、修改、确认、模拟执行形成匿名反馈；稳定后只生成待审提案，不会自动改正式画像库。
 
@@ -45,7 +51,11 @@ Flowcity/
   intent_taxonomy.py       # 本地语义画像库、默认标签、权重和显式偏好策略
   extractor.py             # LLM 需求抽取和结构化归一
   mock_api.py              # Stage 3 供给过滤、矩阵打分、Top-K 海选
-  scheduler.py             # 活动 x 餐厅 x 路线组合与时间轴调度
+  planning_policy.py       # 出行语义策略：时间窗含义、出发/返程、体验块、空窗和转场策略
+  scheduler.py             # 多节点时间窗调度：主活动、补充体验、二级商圈、餐饮、路线和缓冲
+  timeline_quality.py      # 时间利用率、空窗、路线和体验块质量度量
+  subarea_supply.py        # 二级商圈 open-access 供给导入与校验
+  temporal_utils.py        # 周末/周天等时间语义工具
   validator.py             # 预算、营业、余票、座位、排队、路线风险校验
   executor.py              # Mock 执行草案与确认后 Mock 执行
   router.py                # 多轮交互路由：新规划、局部修改、解释、确认
@@ -93,14 +103,16 @@ FLOWCITY_SESSION_MAX_COUNT=500
 
 `.env` 包含真实 Key，不能提交到 Git。
 
-DeepSeek Chat API 用于结构化理解。本地向量召回使用轻量中文 Embedding 模型 `BAAI/bge-small-zh-v1.5`。当前约 142 个 POI，启动时预计算向量，请求时只对开放假设生成向量并在内存里做余弦相似度，无需部署向量数据库。
+DeepSeek Chat API 用于结构化理解。本地向量召回使用轻量中文 Embedding 模型 `BAAI/bge-small-zh-v1.5`。当前主 POI 约 142 个，另有 18 个二级商圈 open-access 节点；启动时预计算向量，请求时只对开放假设生成向量并在内存里做余弦相似度，无需部署向量数据库。
 
 ## POI 供给原则
 
+- 比赛允许并建议使用 Mock API。FlowCity 的 Mock 层模拟 POI 召回、路线、余票、座位、排队、团购、运行时异常和确认前重排；后续接真实平台时替换 Tool Adapter，需求画像、Scheduler、Validator 和 Executor 边界不变。
 - `name` 只写真实地点、门店或品牌名，例如 `钟楼`、`大雁塔北广场`、`北院门风情街`；不要把“散步线、短逛、休息点、等位”写进名字。
 - 动作和适用场景放进 `behaviorTags`、`vibeTags`、`audienceTags`、`mockBasis`，让算法理解它适合慢聊、低体力、补位或亲子，但不污染用户看到的地点名。
 - POI 标签只写稳定事实画像：人群、体力、噪声、可坐下、室内外、预约、排队、消费层级；不要把“老婆减脂/想放松一下”这类用户故事写成正式标签。
 - 每个正式商圈都要覆盖活动、餐厅和过渡补位点，并尽量有免费/低价/中价/高价层，避免预算变化后系统无解。
+- 二级商圈是开放街区/开放商场节点，使用 `poiLevel=sub_area` 和 `open_access` 动态供给，不进入正式 POI 库存和运行时影子表；管理台和数据健康检查要把它识别为“开放供给”，不能当成缺库存。
 - 动态异常放在 `mock_runtime_status.json`。活动和餐厅是一对一 POI 运行时影子表，当前 142 个 POI 对应 142 条运行时状态，其中约 40% 变化；路线和团购券是额外动态对象，不参与 POI 异常比例。
 - 新长尾需求先进入开放假设和学习提案，只有经过后台审核后才参与后续召回，不自动改正式 taxonomy。
 
@@ -159,6 +171,7 @@ http://localhost:5173
 
 ```powershell
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' test_examples.py
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' test_architecture_v5.py
 ```
 
 前端构建：
@@ -172,6 +185,12 @@ npm run build
 
 ```powershell
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' "D:\产品\美团\周末闲时活动规划\Flowcity_v5_eval_runs\run_eval_v5.py"
+```
+
+当前能力覆盖回归：
+
+```powershell
+& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -B run_llm_capability_eval.py --limit 12
 ```
 
 受控自进化专项验收：
@@ -229,6 +248,7 @@ http://localhost:5173/#admin
 - `test_examples.py`：13 个离线样例通过。
 - `frontend npm run build`：通过。
 - `test_architecture_v5.py`：v5 架构回归通过。
+- `run_llm_capability_eval.py --limit 12`：21/21 通过；7 个能力每个 3 条用例通过；首页 5 个案例全部通过。
 - 10 组多轮真实 LLM 自测：`PASSED=10/10`，最大单轮 19.298 秒。
 - 自进化专项验收：通过。未审批前正向模式召回率 0%；审批后留出集规范化假设召回率 100%；负向和分歧模式误晋升均为 0%。
 - 速度口径按真实演示优先级验证：每组完整多轮端到端流程不超过 2 分钟；方案生成/重排目标压在 30 秒内。

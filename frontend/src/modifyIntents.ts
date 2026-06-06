@@ -60,17 +60,26 @@ const MODIFY_INTENTS: Record<string, ModifyIntentConfig> = {
   },
   filler: {
     labelPrefix: "修改过渡",
-    suggestion: "这个过渡节点想调整一下，可以换成更舒服的休息点，少走路，也别影响后面的吃饭时间。",
+    suggestion: "这个过渡/空窗想调整一下，可以加短逛、茶饮书店、换活动或换商圈，避免长时间干等。",
     targetKind: "filler",
-    allowedPatchKeys: ["fillerPreference", "preferredArea", "routePreference", "mealTiming", "budgetFlex"],
-    decisionOptions: [
-      "保留主活动和餐厅，只换休息/等位点",
-      "同商圈找可坐下、低消费、少排队的地方",
-      "如果时间不够，建议缩短过渡或直接去餐厅等位"
+    allowedPatchKeys: [
+      "fillerPreference",
+      "preferredArea",
+      "routePreference",
+      "mealTiming",
+      "budgetFlex",
+      "forbidLongBuffer",
+      "maxIdleMinutes",
+      "targetExperienceBlocks"
     ],
-    focus: ["可坐下", "低消费", "距离餐厅近", "是否适合等位", "不影响后续预约"],
-    preserve: ["主活动", "餐厅", "总预算", "时间窗"],
-    promptGoal: "只优化过渡/等位/休息节点，尽量不改变主活动和餐厅。"
+    decisionOptions: [
+      "优先消除长空窗，必要时加一个短活动或短逛",
+      "如果同商圈填不满，允许20-30分钟转场去另一个商圈",
+      "如果仍然冲突，释放原活动锁重新排一版"
+    ],
+    focus: ["最长空窗", "体验块数量", "是否能加短逛/书店/茶饮", "跨商圈转场是否值得", "不影响后续预约"],
+    preserve: ["总预算", "时间窗", "明确出发地/集合点"],
+    promptGoal: "把用户对长空窗的不满转成后端可执行约束；不要只换一个休息点，必要时允许换活动或跨商圈补体验。"
   },
   route: {
     labelPrefix: "修改路线",

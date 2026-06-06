@@ -612,6 +612,85 @@ button {
   line-height: 1.45;
 }
 
+.decision-panel {
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid rgba(226, 184, 0, 0.42);
+  border-radius: 7px;
+  background: #fff9df;
+  color: #453b24;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.decision-panel strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #1f1f1f;
+  font-size: 12px;
+}
+
+.decision-panel p {
+  margin: 0 0 7px;
+}
+
+.decision-options {
+  display: grid;
+  gap: 7px;
+}
+
+.decision-option {
+  padding: 8px;
+  border: 1px solid rgba(226, 184, 0, 0.28);
+  border-radius: 6px;
+  background: #fffdf3;
+}
+
+.decision-option.active {
+  background: #fff3ba;
+}
+
+.decision-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.decision-heading span {
+  min-width: 0;
+  color: #1f1f1f;
+  font-weight: 700;
+}
+
+.decision-heading em {
+  flex-shrink: 0;
+  font-style: normal;
+  color: #7a6200;
+  font-size: 10px;
+}
+
+.decision-option ul {
+  display: grid;
+  gap: 2px;
+  margin: 5px 0 0;
+  padding-left: 15px;
+  color: #5b5140;
+}
+
+.decision-option button {
+  margin-top: 6px;
+  border: 1px solid rgba(226, 184, 0, 0.5);
+  border-radius: 6px;
+  background: #111;
+  color: #ffd200;
+  padding: 5px 9px;
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+}
+
 .timeline {
   display: grid;
   gap: 8px;

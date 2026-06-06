@@ -51,6 +51,25 @@ def is_likely_refinement(text: str, has_session: bool) -> bool:
     return any(hint in text for hint in FOLLOW_UP_HINTS) or len(text) <= 28
 
 
+def _complains_long_buffer(text: str) -> bool:
+    return any(
+        value in text
+        for value in (
+            "空窗",
+            "空了",
+            "等太久",
+            "等待太久",
+            "休息太久",
+            "休息两个",
+            "等两个",
+            "两个小时",
+            "两个半小时",
+            "太不合理",
+            "中间太空",
+        )
+    )
+
+
 def parse_refinement_intent(text: str) -> dict[str, Any]:
     operations: list[str] = []
     locked_items: list[str] = []
@@ -62,6 +81,7 @@ def parse_refinement_intent(text: str) -> dict[str, Any]:
     require_activity = False
     skip_activity = False
     fill_buffer = False
+    forbid_long_buffer = False
 
     if any(value in text for value in ("只吃饭", "只安排吃饭", "不安排活动", "不要活动", "不玩了", "不安排项目")):
         operations.append("replace_restaurant")
@@ -71,6 +91,12 @@ def parse_refinement_intent(text: str) -> dict[str, Any]:
         operations.append("fill_buffer")
         changed_items.append("filler")
         fill_buffer = True
+    if _complains_long_buffer(text):
+        operations.append("forbid_long_buffer")
+        changed_items.append("time_window")
+        changed_items.append("activity")
+        fill_buffer = True
+        forbid_long_buffer = True
     if not skip_activity and any(value in text for value in ("我要玩", "想玩", "景点", "逛一下", "没有什么景点", "自由活动")):
         operations.append("replace_activity")
         changed_items.append("activity")
@@ -123,6 +149,7 @@ def parse_refinement_intent(text: str) -> dict[str, Any]:
         "timeHints": time_hints,
         "mealTiming": meal_timing,
         "fillBuffer": fill_buffer,
+        "forbidLongBuffer": forbid_long_buffer,
         "requireActivity": require_activity,
         "skipActivity": skip_activity,
         "lockedItems": locked_items,
@@ -165,6 +192,19 @@ def apply_refinement(
     if intent.get("fillBuffer"):
         plan_control["forceFillerInsert"] = True
         plan_control.setdefault("constraintsPatch", {})["fillBuffer"] = True
+    if intent.get("forbidLongBuffer"):
+        plan_control["forbidLongBuffer"] = True
+        plan_control["mustImprovePreviousIdle"] = True
+        patch = plan_control.setdefault("constraintsPatch", {})
+        patch["fillBuffer"] = True
+        patch["forbidLongBuffer"] = True
+        patch["mustImprovePreviousIdle"] = True
+        patch["maxIdleMinutes"] = 45
+        patch["targetExperienceBlocksMin"] = 2
+        policy = demand.setdefault("planningPolicy", {})
+        if isinstance(policy, dict):
+            policy["maxIdleMinutes"] = min(int(policy.get("maxIdleMinutes") or 45), 45)
+            policy["targetExperienceBlocks"] = max(int(policy.get("targetExperienceBlocks") or 0), 2)
 
     constraints = demand.setdefault("constraints", {})
     hard = constraints.setdefault("hard", [])
@@ -200,6 +240,10 @@ def apply_refinement(
                 hard.append(item)
         if intent.get("fillBuffer"):
             item = "二次修改要求优化空窗/等位时间，优先加入同商圈低成本休息、茶饮或短逛节点。"
+            if item not in hard:
+                hard.append(item)
+        if intent.get("forbidLongBuffer"):
+            item = "二次修改明确认为长时间空窗不合理；最大连续无意义等待不得超过45分钟，必要时换活动、加短逛或跨商圈补充体验。"
             if item not in hard:
                 hard.append(item)
 

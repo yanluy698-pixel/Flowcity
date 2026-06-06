@@ -44,6 +44,25 @@ def _has_any(text: str, keywords: tuple[str, ...]) -> bool:
     return any(keyword in text for keyword in keywords)
 
 
+def _complains_long_buffer(text: str) -> bool:
+    return _has_any(
+        text,
+        (
+            "空窗",
+            "空了",
+            "等太久",
+            "等待太久",
+            "休息太久",
+            "休息两个",
+            "等两个",
+            "两个小时",
+            "两个半小时",
+            "太不合理",
+            "中间太空",
+        ),
+    )
+
+
 def _locks_from_text(text: str, current_plan: dict[str, Any] | None) -> dict[str, Any]:
     locks: dict[str, Any] = {"timeFlexMinutes": 30}
     if _has_any(text, ("活动别换", "电影别换", "玩的别换", "项目别换", "保留活动", "活动不变")):
@@ -71,6 +90,11 @@ def _constraints_patch(text: str) -> dict[str, Any]:
         patch["mealTiming"] = "earlier"
     if _has_any(text, ("空窗", "缓冲", "等位", "时间段", "这段", "加点", "加些", "加一个", "奶茶", "茶饮", "休息")):
         patch["fillBuffer"] = True
+    if _complains_long_buffer(text):
+        patch["forbidLongBuffer"] = True
+        patch["mustImprovePreviousIdle"] = True
+        patch["maxIdleMinutes"] = 45
+        patch["targetExperienceBlocksMin"] = 2
     for area in ("大明宫", "小寨", "钟楼", "曲江", "高新", "行政中心"):
         if _has_any(text, (f"不想去{area}", f"不要{area}", f"别去{area}", f"避开{area}")):
             patch.setdefault("avoidAreas", []).append(area)
@@ -150,11 +174,16 @@ def route_interaction(
             restaurant_id = _selected_poi_id(current_plan, "restaurant")
             if restaurant_id:
                 locks["restaurantPoiId"] = restaurant_id
+        patch = _constraints_patch(raw)
+        if patch.get("forbidLongBuffer"):
+            flags["needNewActivity"] = True
+            flags["needRouteRefresh"] = True
+            locks.pop("activityPoiId", None)
         return {
             "mode": "refine",
             "actionFlags": flags,
             "locks": locks if target_kind != "whole_plan" else {"timeFlexMinutes": 30},
-            "constraintsPatch": _constraints_patch(raw),
+            "constraintsPatch": patch,
             "fallbackMode": "none",
             "clarificationQuestion": None,
             "rawInput": raw,
@@ -220,6 +249,13 @@ def route_interaction(
         flags["needRouteRefresh"] = True
         flags["needReschedule"] = True
     if _has_any(raw, filler_terms):
+        flags["needReschedule"] = True
+        if _complains_long_buffer(raw):
+            flags["needNewActivity"] = not preserve_activity
+            flags["needRouteRefresh"] = True
+    elif _complains_long_buffer(raw):
+        flags["needNewActivity"] = not preserve_activity
+        flags["needRouteRefresh"] = True
         flags["needReschedule"] = True
     if _has_any(raw, ("晚饭早一点", "晚餐早一点", "吃饭早一点", "早点吃", "早些吃", "提前吃", "先吃")):
         flags["needNewRestaurant"] = not preserve_restaurant

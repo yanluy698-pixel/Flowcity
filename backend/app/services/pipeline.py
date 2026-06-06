@@ -525,6 +525,35 @@ def _apply_clicked_modify_controls(
         plan_control.setdefault("constraintsPatch", {})["fillBuffer"] = True
 
 
+def _apply_timeline_policy_controls(
+    demand: dict[str, Any],
+    router_result: dict[str, Any] | None,
+) -> None:
+    patch = (router_result or {}).get("constraintsPatch", {})
+    if not isinstance(patch, dict):
+        patch = {}
+    plan_control = demand.setdefault("planControl", {})
+    existing_patch = plan_control.setdefault("constraintsPatch", {})
+    if isinstance(existing_patch, dict):
+        existing_patch.update(patch)
+        patch = existing_patch
+    if patch.get("forbidLongBuffer"):
+        plan_control["forbidLongBuffer"] = True
+        plan_control["mustImprovePreviousIdle"] = True
+        plan_control["forceFillerInsert"] = True
+        policy = demand.setdefault("planningPolicy", {})
+        if isinstance(policy, dict):
+            policy["maxIdleMinutes"] = min(int(policy.get("maxIdleMinutes") or 45), int(patch.get("maxIdleMinutes") or 45))
+            policy["targetExperienceBlocks"] = max(
+                int(policy.get("targetExperienceBlocks") or 0),
+                int(patch.get("targetExperienceBlocksMin") or 2),
+            )
+            policy["allowCrossAreaTransfer"] = True if policy.get("allowCrossAreaTransfer") is not False else policy["allowCrossAreaTransfer"]
+            evidence = policy.setdefault("evidence", [])
+            if isinstance(evidence, list) and "二次修改：禁止长空窗" not in evidence:
+                evidence.append("二次修改：禁止长空窗")
+
+
 def _clicked_modify_context(text: str) -> dict[str, Any]:
     fields: dict[str, Any] = {}
     for line in str(text or "").splitlines():
@@ -914,6 +943,7 @@ def _start_refinement_dialogue(
     pending_demand["planControl"]["actionFlags"] = router_result.get("actionFlags", {})
     pending_demand["planControl"]["locks"] = router_result.get("locks", {"timeFlexMinutes": 30})
     pending_demand["planControl"]["constraintsPatch"] = router_result.get("constraintsPatch", {})
+    _apply_timeline_policy_controls(pending_demand, router_result)
     clicked_context = _clicked_modify_context(request.input)
     if clicked_context:
         pending_demand["planControl"]["clickedModify"] = clicked_context
@@ -1022,6 +1052,7 @@ def _extract_or_refine_demand(
                 plan_control["mealTiming"] = "keep"
                 plan_control.setdefault("constraintsPatch", {})["mealTiming"] = "keep"
             demand.setdefault("planControl", {})["routerResult"] = router_result
+            _apply_timeline_policy_controls(demand, router_result)
             intent["acceptedPendingRefinement"] = True
             intent["routerResult"] = router_result
             return demand, intent
@@ -1084,6 +1115,7 @@ def _extract_or_refine_demand(
         demand["planControl"]["constraintsPatch"] = router_result.get("constraintsPatch", {})
         demand["planControl"]["clickedModify"] = clicked_context
         _apply_clicked_modify_controls(demand, clicked_context)
+        _apply_timeline_policy_controls(demand, router_result)
         if "【整体大改上下文】" in request.input:
             demand["planControl"]["locks"] = {"timeFlexMinutes": 30}
             demand["planControl"]["majorChange"] = True
@@ -1111,6 +1143,7 @@ def _extract_or_refine_demand(
         demand["planControl"]["actionFlags"] = router_result.get("actionFlags", {})
         demand["planControl"]["locks"] = router_result.get("locks", {"timeFlexMinutes": 30})
         demand["planControl"]["constraintsPatch"] = router_result.get("constraintsPatch", {})
+        _apply_timeline_policy_controls(demand, router_result)
         if router_result.get("targetKind") == "filler" or router_result.get("constraintsPatch", {}).get("fillBuffer"):
             demand["planControl"]["forceFillerInsert"] = True
         _exclude_current_targets_for_router(demand, session, router_result)
@@ -1122,10 +1155,7 @@ def _extract_or_refine_demand(
             _exclude_previous_plan_for_major_change(demand, session, followup_text=request.input)
         return demand, intent
 
-    prompt = extractor.build_prompt(request.input)
-    response_text = extractor.call_llm(prompt)
-    structured_demand = extractor.parse_json_object(response_text)
-    structured_demand = extractor.normalize_structured_demand(structured_demand, request.input)
+    structured_demand = extractor.extract_structured_demand(request.input)
     return structured_demand, {
         "mode": "new_plan",
         "operations": ["new_plan"],
@@ -1140,6 +1170,11 @@ def _extract_or_refine_demand(
 
 def _schema_safe_demand(structured_demand: dict[str, Any]) -> dict[str, Any]:
     """Drop internal control fields before validating against schema.json."""
+    if "planningPolicy" not in structured_demand:
+        structured_demand = extractor.normalize_structured_demand(
+            deepcopy(structured_demand),
+            str(structured_demand.get("rawInput") or ""),
+        )
     schema = extractor.load_json(extractor.SCHEMA_PATH)
     allowed = set(schema.get("properties", {}).keys())
     return {key: value for key, value in structured_demand.items() if key in allowed}
@@ -1199,6 +1234,11 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
 
         yield _event("stage_start", stage="extract", label="理解需求")
         structured_demand, refinement_intent = _extract_or_refine_demand(request, session_id, router_result)
+        if "planningPolicy" not in structured_demand:
+            structured_demand = extractor.normalize_structured_demand(
+                structured_demand,
+                str(structured_demand.get("rawInput") or request.input),
+            )
         if request.hypothesisFeedback:
             demand_profile.apply_hypothesis_feedback(structured_demand, request.hypothesisFeedback)
             _exclude_hypothesis_related_pois(structured_demand, session, request.hypothesisFeedback)

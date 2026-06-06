@@ -19,6 +19,8 @@ from typing import Any
 import area_retrieval
 import demand_profile
 import intent_taxonomy
+import subarea_supply
+import temporal_utils
 from poi_profiles import build_poi_profile
 from semantic_retrieval import RETRIEVER
 
@@ -63,9 +65,11 @@ AREA_LABELS = {
     "origin_xianyang_downtown": "咸阳秦都",
     "origin_xa_changan_university": "长安大学",
     "origin_xa_jiaotong_university": "西安交大",
+    "origin_xa_xidian_university": "西安电子科技大学",
     "origin_xa_northwest_university": "西北大学",
     "origin_xa_shaanxi_normal_university": "陕师大",
     "origin_xa_weishui_campus": "长安大学渭水校区",
+    "origin_generic_home": "用户家附近",
 }
 
 NEARBY_AREA_IDS = {
@@ -76,11 +80,22 @@ NEARBY_AREA_IDS = {
 }
 
 ORIGIN_POINT_ALIASES = {
-    "origin_xa_changan_university": ("长安大学", "长大本部"),
+    "origin_xa_changan_university": ("长安大学", "长大本部", "大学城", "长安区大学城"),
     "origin_xa_jiaotong_university": ("西安交大", "交通大学", "交大"),
+    "origin_xa_xidian_university": ("西电", "西安电子科技大学", "西安电子科大"),
     "origin_xa_northwest_university": ("西北大学", "西大"),
     "origin_xa_shaanxi_normal_university": ("陕师大", "陕西师范大学", "师大"),
     "origin_xa_weishui_campus": ("渭水校区", "长安大学渭水校区"),
+    "origin_generic_home": ("家", "家里", "家附近", "从家"),
+}
+
+AREA_ROUTE_PRIOR_MINUTES = {
+    "area_xa_xiaozhai": 28,
+    "area_xa_zhonglou": 32,
+    "area_xa_gaoxin": 38,
+    "area_xa_qujiang": 42,
+    "area_xa_daminggong": 48,
+    "area_xa_xingzheng": 50,
 }
 
 POI_METADATA_RULES = [
@@ -157,9 +172,11 @@ def load_json(path: Path) -> dict[str, Any]:
 
 def load_mock_data(data_dir: Path = DATA_DIR) -> dict[str, Any]:
     """Load all stage-3 mock data files."""
+    activities = load_json(data_dir / "mock_activities.json")["activities"]
+    activities = [*activities, *subarea_supply.load_subarea_activities(data_dir / "mock_subareas.json")]
     return {
         "areas": load_json(data_dir / "mock_areas.json")["areas"],
-        "activities": load_json(data_dir / "mock_activities.json")["activities"],
+        "activities": activities,
         "restaurants": load_json(data_dir / "mock_restaurants.json")["restaurants"],
         "routes": load_json(data_dir / "mock_routes.json")["routes"],
         "activityAvailability": load_json(data_dir / "mock_availability.json")[
@@ -272,7 +289,7 @@ def _date_text(demand: dict[str, Any]) -> str | None:
 
 
 def _is_weekend(date_text: str | None) -> bool:
-    return bool(date_text and ("周六" in date_text or "周日" in date_text or "周末" in date_text))
+    return temporal_utils.is_weekend_text(date_text)
 
 
 def _open_range_for_demand(poi: dict[str, Any], demand: dict[str, Any]) -> tuple[int, int]:
@@ -989,7 +1006,11 @@ def search_activities(
         if children_ages:
             reasons.append(f"适合 {min(children_ages)} 岁儿童")
 
-        availability = _availability_for_activity(activity["id"], structured_demand, data)
+        availability = (
+            subarea_supply.open_access_availability()
+            if activity.get("poiLevel") == "sub_area"
+            else _availability_for_activity(activity["id"], structured_demand, data)
+        )
         if not availability:
             filtered_out.append(_filtered(activity, "activity", "没有匹配目标日期和时间的余票状态"))
             continue
@@ -1103,6 +1124,9 @@ def search_activities(
                 "kind": "activity",
                 "areaId": activity["areaId"],
                 "areaName": area["name"],
+                "parentAreaId": activity.get("parentAreaId"),
+                "subAreaId": activity.get("subAreaId"),
+                "poiLevel": activity.get("poiLevel", "poi"),
                 "category": activity["category"],
                 "openHours": activity.get("openHours"),
                 "vibeTags": metadata["vibeTags"],
@@ -1144,7 +1168,7 @@ def search_activities(
                     deals=deals,
                     availability=availability,
                 ),
-                "source": "mock_activities.json",
+                "source": activity.get("source", "mock_activities.json"),
             }
         )
 
@@ -1486,12 +1510,44 @@ def _route_fairness_by_area(
             ):
                 routes_by_origin_area[key] = route
 
+    def estimated_origin_route(origin: dict[str, str], area_id: str) -> dict[str, Any] | None:
+        comparable = [
+            route
+            for (origin_id, to_area), route in routes_by_origin_area.items()
+            if to_area == area_id and origin_id != origin["originId"]
+        ]
+        if not comparable:
+            median_minutes = float(AREA_ROUTE_PRIOR_MINUTES.get(area_id, 40))
+            median_cost = 4.0
+        else:
+            minutes_values = sorted(float(route.get("minutes") or 0) for route in comparable if route.get("minutes"))
+            cost_values = sorted(float(route.get("estimatedCostPerPerson") or 0) for route in comparable)
+            if not minutes_values:
+                return None
+            middle = len(minutes_values) // 2
+            median_minutes = minutes_values[middle]
+            median_cost = cost_values[middle] if cost_values else 3.0
+        return {
+            "fromAreaId": origin["originId"],
+            "toAreaId": area_id,
+            "transport": "public_transport",
+            "minutes": int(round(median_minutes + 6)),
+            "distanceKm": None,
+            "walkMinutesInsideArea": 8,
+            "routeType": "estimated_origin_to_area",
+            "estimatedCostPerPerson": max(2, int(round(median_cost))),
+            "estimated": True,
+            "mockDescription": "缺少该起点精确路线时，按同城高校到候选商圈的路线分布估算。",
+        }
+
     fairness: dict[str, dict[str, Any]] = {}
     for area_id in sorted(set(area_ids)):
         origin_routes: list[dict[str, Any]] = []
         missing: list[dict[str, str]] = []
         for origin in origins:
             route = routes_by_origin_area.get((origin["originId"], area_id))
+            if not route:
+                route = estimated_origin_route(origin, area_id)
             if not route:
                 missing.append(origin)
                 continue
@@ -1505,6 +1561,7 @@ def _route_fairness_by_area(
                     "estimatedCostPerPerson": route.get("estimatedCostPerPerson", 0),
                     "routeRef": f"{route.get('fromAreaId')}->{route.get('toAreaId')}",
                     "summary": _route_summary(route, data),
+                    "estimated": bool(route.get("estimated")),
                 }
             )
         if origin_routes:
@@ -1609,6 +1666,7 @@ def search_routes(
     transport_preference = structured_demand.get("location", {}).get("transportPreference")
     multi_origins = _origin_points_with_ids(structured_demand)
     multi_origin_ids = {item["originId"] for item in multi_origins}
+    single_origin_id = _origin_id_from_point(structured_demand.get("location", {}).get("startPoint"))
     route_candidates: list[dict[str, Any]] = []
     seen_route_keys: set[tuple[str, str, str]] = set()
 
@@ -1619,6 +1677,40 @@ def search_routes(
         seen_route_keys.add(key)
         route_candidates.append(_route_with_cost(route, people_total))
         route_candidates[-1]["routeSummary"] = _route_summary(route_candidates[-1], data)
+
+    def has_route(from_area_id: str, to_area_id: str) -> bool:
+        return any(
+            route.get("fromAreaId") == from_area_id and route.get("toAreaId") == to_area_id
+            for route in route_candidates
+        )
+
+    def estimated_single_origin_route(origin_id: str, area_id: str) -> dict[str, Any]:
+        comparable = [
+            route
+            for route in data["routes"]
+            if route.get("routeType") == "origin_to_area" and route.get("toAreaId") == area_id
+        ]
+        if comparable:
+            minutes_values = sorted(float(route.get("minutes") or 0) for route in comparable if route.get("minutes"))
+            cost_values = sorted(float(route.get("estimatedCostPerPerson") or 0) for route in comparable)
+            middle = len(minutes_values) // 2
+            minutes = int(round(minutes_values[middle] + 6)) if minutes_values else AREA_ROUTE_PRIOR_MINUTES.get(area_id, 40)
+            cost = max(2, int(round(cost_values[middle]))) if cost_values else 4
+        else:
+            minutes = AREA_ROUTE_PRIOR_MINUTES.get(area_id, 40)
+            cost = 4
+        return {
+            "fromAreaId": origin_id,
+            "toAreaId": area_id,
+            "transport": "public_transport",
+            "minutes": minutes,
+            "distanceKm": round(max(1.0, minutes / 4), 1),
+            "walkMinutesInsideArea": 8,
+            "routeType": "estimated_origin_to_area",
+            "estimatedCostPerPerson": cost,
+            "estimated": True,
+            "mockDescription": "缺少精确出发点路线时，按同城出发点到候选商圈的路线分布估算。",
+        }
 
     for route in data["routes"]:
         if route.get("routeType") == "cross_city_inbound":
@@ -1643,11 +1735,26 @@ def search_routes(
                 continue
             add_route(route)
             continue
+        if (
+            single_origin_id
+            and route.get("routeType") == "origin_to_area"
+            and route.get("fromAreaId") == single_origin_id
+            and route.get("toAreaId") in unique_area_ids
+        ):
+            if transport_preference and route.get("transport") != transport_preference:
+                continue
+            add_route(route)
+            continue
         if route["fromAreaId"] in unique_area_ids and route["toAreaId"] in unique_area_ids:
             add_route(route)
             continue
         if preferred and route["fromAreaId"] in preferred and route["toAreaId"] in unique_area_ids:
             add_route(route)
+
+    if single_origin_id:
+        for area_id in unique_area_ids:
+            if not has_route(single_origin_id, area_id):
+                add_route(estimated_single_origin_route(single_origin_id, area_id))
 
     route_candidates.sort(
         key=lambda item: (

@@ -22,6 +22,7 @@ from typing import Any
 
 import intent_taxonomy
 import demand_profile
+import planning_policy
 
 
 ROOT = Path(__file__).resolve().parent
@@ -955,6 +956,42 @@ def _normalize_required_schema_defaults(result: dict[str, Any]) -> None:
     constraints.setdefault("dynamic", [])
 
 
+def _shift_evening_clock(value: Any) -> Any:
+    if not isinstance(value, str) or ":" not in value:
+        return value
+    hour_text, minute_text = value.split(":", 1)
+    if not hour_text.isdigit():
+        return value
+    hour = int(hour_text)
+    if 1 <= hour <= 11:
+        return f"{hour + 12:02d}:{minute_text}"
+    return value
+
+
+def _normalize_evening_clock(result: dict[str, Any], raw_input: str) -> None:
+    time_window = result.get("timeWindow")
+    if not isinstance(time_window, dict):
+        return
+    date_text = str(time_window.get("dateText") or "")
+    evening_text = raw_input + " " + date_text
+    if not any(keyword in evening_text for keyword in ("今晚", "晚上", "晚饭", "晚餐", "夜里")):
+        return
+    if any(keyword in raw_input for keyword in ("上午", "早上", "清早", "凌晨")):
+        return
+    time_window["startTime"] = _shift_evening_clock(time_window.get("startTime"))
+    time_window["endTime"] = _shift_evening_clock(time_window.get("endTime"))
+
+
+def _normalize_generic_home_origin(result: dict[str, Any], raw_input: str) -> None:
+    if not any(keyword in raw_input for keyword in ("从家", "家出发", "家里出发", "回家", "到家")):
+        return
+    location = result.setdefault("location", {})
+    if not isinstance(location, dict):
+        return
+    if not location.get("startPoint"):
+        location["startPoint"] = "家附近"
+
+
 def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str | None = None) -> dict[str, Any]:
     """
     Normalize known model drift after extraction.
@@ -973,6 +1010,8 @@ def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str 
     _normalize_scene_primary_type(result, raw_input)
     _normalize_expected_output(result)
     _normalize_required_schema_defaults(result)
+    _normalize_evening_clock(result, raw_input)
+    _normalize_generic_home_origin(result, raw_input)
     _normalize_child_accompanying_adult(result, raw_input)
     result["socialIntent"] = _infer_social_intent(result, raw_input)
 
@@ -980,11 +1019,13 @@ def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str 
     has_free_preference = _has_free_preference(raw_input)
     if not (has_low_cost_intent or has_free_preference) or _has_explicit_zero_budget(raw_input):
         demand_profile.ensure_demand_profile(result)
+        result["planningPolicy"] = planning_policy.schema_planning_policy(result, raw_input)
         return result
 
     budget = result.get("budget")
     if not isinstance(budget, dict):
         demand_profile.ensure_demand_profile(result)
+        result["planningPolicy"] = planning_policy.schema_planning_policy(result, raw_input)
         return result
 
     if budget.get("maxTotal") == 0:
@@ -1023,6 +1064,7 @@ def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str 
             soft.append("优先低成本/免费候选，但不等于严格预算 0")
 
     demand_profile.ensure_demand_profile(result)
+    result["planningPolicy"] = planning_policy.schema_planning_policy(result, raw_input)
     return result
 
 
@@ -1123,6 +1165,34 @@ def basic_validate(result: dict[str, Any], schema: dict[str, Any]) -> list[str]:
     return _validate_schema(result, schema, "$")
 
 
+def extract_structured_demand(user_input: str, *, attempts: int = 2) -> dict[str, Any]:
+    prompt = build_prompt(user_input)
+    schema = load_json(SCHEMA_PATH)
+    last_error: Exception | None = None
+    for attempt in range(max(1, attempts)):
+        retry_prompt = prompt
+        if attempt:
+            retry_prompt += (
+                "\n\n上一轮输出无法解析或未通过 schema 校验。"
+                "这次必须只返回一个完整 JSON object，不要省略任何必需字段，不要输出 Markdown。"
+            )
+        try:
+            response_text = call_llm(retry_prompt)
+            result = parse_json_object(response_text)
+            result = normalize_structured_demand(result, user_input)
+            errors = basic_validate(result, schema)
+            if errors:
+                raise ValueError("Stage 2 validation failed: " + "; ".join(errors))
+            return result
+        except Exception as exc:  # noqa: BLE001 - keep extraction robust across model failures.
+            last_error = exc
+            if attempt + 1 >= max(1, attempts):
+                break
+            print(f"[FlowCity][LLM] extraction retry after {type(exc).__name__}: {exc}", flush=True)
+    assert last_error is not None
+    raise last_error
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="FlowCity Stage 2 constraint extractor")
     parser.add_argument("--input", required=True, help="User natural-language input")
@@ -1140,9 +1210,7 @@ def main() -> int:
         return 0
 
     # 正式运行：请求模型 -> 解析 JSON -> 用 schema 做基础校验。
-    response_text = call_llm(prompt)
-    result = parse_json_object(response_text)
-    result = normalize_structured_demand(result, args.input)
+    result = extract_structured_demand(args.input)
     errors = basic_validate(result, load_json(SCHEMA_PATH))
 
     print(json.dumps(result, ensure_ascii=False, indent=2))

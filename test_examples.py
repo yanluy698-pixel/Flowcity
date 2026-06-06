@@ -33,6 +33,36 @@ def load_examples() -> list[dict[str, Any]]:
     return data["examples"]
 
 
+def _minutes(value: str | None) -> int | None:
+    if not value or ":" not in value:
+        return None
+    hour, minute = value.split(":", 1)
+    return int(hour) * 60 + int(minute)
+
+
+def _duration_minutes(item: dict[str, Any]) -> int:
+    start = _minutes(item.get("start"))
+    end = _minutes(item.get("end"))
+    if start is None or end is None:
+        return 0
+    if end < start:
+        end += 24 * 60
+    return max(0, end - start)
+
+
+def _longest_idle_minutes(plan: dict[str, Any]) -> int:
+    longest = 0
+    for item in plan.get("timeline", []):
+        text = " ".join(str(item.get(key) or "") for key in ("type", "title", "description"))
+        if item.get("type") == "buffer" or any(keyword in text for keyword in ("空窗", "空档", "等待", "等位", "缓冲")):
+            longest = max(longest, _duration_minutes(item))
+    return longest
+
+
+def _experience_block_count(plan: dict[str, Any]) -> int:
+    return sum(1 for item in plan.get("timeline", []) if item.get("type") in {"activity", "filler", "micro_activity", "rest"})
+
+
 def validate_expected_examples(examples: list[dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     schema = extractor.load_json(extractor.SCHEMA_PATH)
@@ -503,6 +533,24 @@ def check_stage4_planner(examples: list[dict[str, Any]]) -> list[str]:
     risk_text = " ".join(xianyang_plan.get("riskTips", []))
     if route_cost <= 0 and "跨城" not in risk_text and "路线成本" not in risk_text:
         errors.append("xianyang_to_xian_city_trip: planner should reflect cross-city route cost")
+    if _longest_idle_minutes(xianyang_plan) > 45:
+        errors.append("xianyang_to_xian_city_trip: planner must not leave a long dinner-wait idle gap")
+    if _experience_block_count(xianyang_plan) < 2:
+        errors.append("xianyang_to_xian_city_trip: 4-6h local trip should contain at least two experience blocks")
+    restaurant_steps = [item for item in xianyang_plan.get("timeline", []) if item.get("type") == "restaurant"]
+    if restaurant_steps and (_minutes(restaurant_steps[0].get("start")) or 0) < 17 * 60 + 30:
+        errors.append("xianyang_to_xian_city_trip: default dinner should not start before 17:30")
+
+    qindu_demand = example_by_id["xianyang_qindu_low_budget_trip"]["expectedStructuredDemand"]
+    qindu_supply = mock_api.search_supply(qindu_demand)
+    qindu_plan = planner.plan_timeline(qindu_demand, qindu_supply, use_llm=False)
+    if _longest_idle_minutes(qindu_plan) > 45:
+        errors.append("xianyang_qindu_low_budget_trip: planner must fill or reject long idle gaps")
+    if _experience_block_count(qindu_plan) < 2:
+        errors.append("xianyang_qindu_low_budget_trip: planner should add a second experience block before dinner")
+    qindu_restaurants = [item for item in qindu_plan.get("timeline", []) if item.get("type") == "restaurant"]
+    if qindu_restaurants and (_minutes(qindu_restaurants[0].get("start")) or 0) < 17 * 60 + 30:
+        errors.append("xianyang_qindu_low_budget_trip: default dinner should stay anchored at 17:30 or later")
 
     low_cost_demand = example_by_id["contradictory_low_cost_not_tired"]["expectedStructuredDemand"]
     low_cost_supply = mock_api.search_supply(low_cost_demand)
@@ -657,6 +705,8 @@ def check_stage6_executor(examples: list[dict[str, Any]]) -> list[str]:
     draft_text = json.dumps(draft_actions, ensure_ascii=False)
     if any(value in draft_text for value in ("mockTicketCode", "mockReservationCode", "mockQueueNumber")):
         errors.append("family_half_day: execution draft should not contain confirmation codes")
+    if family.get("timelinePlan", {}).get("decisionRequired") and family.get("executionDraft", {}).get("draftStatus") != "blocked":
+        errors.append("family_half_day: unresolved meal timing decision should block execution draft")
 
     family_confirmed = run_flow.run_from_structured_demand(
         example_by_id["family_half_day"]["expectedStructuredDemand"],
@@ -665,13 +715,23 @@ def check_stage6_executor(examples: list[dict[str, Any]]) -> list[str]:
         strict_planner_llm=False,
         confirm_execute=True,
     )
-    if family_confirmed.get("executionResult", {}).get("executionStatus") != "confirmed":
-        errors.append("family_half_day: confirm_execute should generate confirmed mock result")
-    codes = family_confirmed.get("executionResult", {}).get("confirmationCodes", [])
+    if family_confirmed.get("executionResult", {}).get("executionStatus") != "blocked":
+        errors.append("family_half_day: unresolved meal timing decision should remain blocked when confirmed")
+
+    confirmable = run_flow.run_from_structured_demand(
+        example_by_id["couple_date"]["expectedStructuredDemand"],
+        limit=3,
+        planner_llm=False,
+        strict_planner_llm=False,
+        confirm_execute=True,
+    )
+    if confirmable.get("executionResult", {}).get("executionStatus") != "confirmed":
+        errors.append("couple_date: confirm_execute should generate confirmed mock result")
+    codes = confirmable.get("executionResult", {}).get("confirmationCodes", [])
     if not codes:
-        errors.append("family_half_day: confirmed execution should contain mock confirmation codes")
+        errors.append("couple_date: confirmed execution should contain mock confirmation codes")
     if any(code.get("type") == "deal" for code in codes):
-        errors.append("family_half_day: deal previews should not auto-generate deal confirmation codes")
+        errors.append("couple_date: deal previews should not auto-generate deal confirmation codes")
 
     skiing = run_flow.run_from_structured_demand(
         example_by_id["directed_skiing_activity"]["expectedStructuredDemand"],
@@ -813,7 +873,9 @@ def check_mock_density() -> list[str]:
     activity_availability = {item.get("poiId") for item in data.get("activityAvailability", [])}
     restaurant_availability = {item.get("poiId") for item in data.get("restaurantAvailability", [])}
     missing_activities = [
-        item["id"] for item in data.get("activities", []) if item["id"] not in activity_availability
+        item["id"]
+        for item in data.get("activities", [])
+        if item.get("poiLevel") != "sub_area" and item["id"] not in activity_availability
     ]
     missing_restaurants = [
         item["id"] for item in data.get("restaurants", []) if item["id"] not in restaurant_availability
@@ -829,7 +891,7 @@ def check_runtime_status_pool() -> list[str]:
     errors: list[str] = []
     runtime_status = mock_api.load_runtime_status()
     mock_data = mock_api.load_mock_data()
-    activity_ids = {item.get("id") for item in mock_data.get("activities", [])}
+    activity_ids = {item.get("id") for item in mock_data.get("activities", []) if item.get("poiLevel") != "sub_area"}
     restaurant_ids = {item.get("id") for item in mock_data.get("restaurants", [])}
     activity_records = runtime_status.get("activityRuntimeStatus", [])
     restaurant_records = runtime_status.get("restaurantRuntimeStatus", [])

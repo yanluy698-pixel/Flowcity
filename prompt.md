@@ -28,6 +28,7 @@
 - `scene`
 - `socialIntent`
 - `demandProfile`
+- `planningPolicy`
 - `timeWindow`
 - `people`
 - `budget`
@@ -175,6 +176,14 @@
 - 每个维度都必须有能在用户原话或明确同行事实中找到的证据。不能因为“只是吃饭、没有特别要求”就推断用户喜欢随意、不正式。
 - 预算上限属于硬约束；除非用户明确说省钱、便宜、低成本或免费，否则不要仅凭预算金额生成 `pricePreference`。
 
+隐性需求推理边界：
+
+- 你可以利用大模型能力判断用户话语背后的底层体验目标，但输出只能进入 `dimensions`，不能发明新的后端规则、具体场景标签或 POI 类型偏好。
+- 例如“多人朋友/同学远途出来玩、时间较长、没有说少走路”可以低置信度推断更高的 `activityIntensity`、`interactionLevel`、`novelty` 或适中的 `physicalIntensity`；证据必须来自人数、关系、出行距离、时间窗等原话事实。
+- 例如“带孩子/老人/减脂/少走路/别折腾”可以推断更低的 `physicalIntensity`、更高的 `restAvailability`、`safety`、`familyAccessibility` 或 `routeConvenience`；仍然必须保留证据和置信度。
+- 当两种隐性方向冲突时，不要写死结论；把更强证据放入 `dimensions`，把冲突放入 `conflicts` 或 `potentialConflicts`。
+- 后端 POI 只有基础画像和事实字段。不要输出“适合兄弟局”“适合约会”“儿童放电圣地”等场景化标签作为评分依据。
+
 `requestedComponents` 表示用户明确要求系统安排的主组件，只能使用 `activity`、`restaurant`：
 
 - 用户只说“去高新吃个饭”，输出 `["restaurant"]`，不要自动增加活动。
@@ -263,6 +272,37 @@
 - 如果没有跨城/入城意图，`crossCityIntent.enabled` 写为 `false`，`fromCity` 和 `toCity` 填 `null`。
 - 识别跨城意图不等于生成路线，不要擅自假设高铁、地铁、打车线路，除非用户明确说明交通方式。
 - 如果用户没有给出明确通勤分钟数，`maxTravelMinutes` 填 `null`，不要擅自假设。
+
+### planningPolicy
+
+必须输出 `planningPolicy`。它只描述“后端排程器应该如何理解这个出行时间窗”，不要输出预算分配策略，也不要指定具体 POI。
+
+字段：
+
+```json
+{
+  "timeScope": "onsite_after_meetup | door_to_door | unknown",
+  "startAnchorType": "explicit_meetup | origin_departure | home_departure | already_in_area | unknown",
+  "endAnchorType": "leave_last_poi | return_to_origin | unknown",
+  "includeOutboundRoute": true,
+  "includeReturnRoute": false,
+  "targetExperienceBlocks": 2,
+  "maxIdleMinutes": 45,
+  "allowCrossAreaTransfer": true,
+  "maxTransferMinutes": 30,
+  "evidence": []
+}
+```
+
+判断规则：
+
+- 用户明确说“几点在某地集合/碰头/见面”，并且没有要求计算各自出发路程，使用 `timeScope=onsite_after_meetup`、`startAnchorType=explicit_meetup`、`includeOutboundRoute=false`。
+- 用户说“从家/学校/咸阳/某站附近出发”，使用 `timeScope=door_to_door`、`startAnchorType=origin_departure`、`includeOutboundRoute=true`。
+- 用户说“回家/回学校/返程/到家”，使用 `endAnchorType=return_to_origin`、`includeReturnRoute=true`；否则通常为 `leave_last_poi`。
+- 4-6 小时本地出行默认 `targetExperienceBlocks=2`，很长且不怕折腾可为 3；“简单吃饭/少走路/别折腾/预算越低”可降为 1-2。
+- 默认 `maxIdleMinutes=45`。用户明确想慢、带孩子、老人或多休息，可放宽到 60；用户抱怨“等太久/空两小时/休息太久”必须保持 45 或更低。
+- 时间窗 4 小时以上且没有“少走路/别折腾”时，`allowCrossAreaTransfer=true`。如果空窗很长，20-30 分钟跨商圈通常比原地空等更合理。
+- `maxTransferMinutes` 默认 30；少走路/同商圈优先时 20；跨城或强目的地可 35。
 
 ### preferences
 

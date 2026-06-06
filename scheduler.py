@@ -8,9 +8,14 @@ combination search so the first plan is already feasible before Validator runs.
 
 from __future__ import annotations
 
+import re
+from copy import deepcopy
 from typing import Any
 
 import demand_profile
+import planning_policy
+import temporal_utils
+import timeline_quality
 
 
 AREA_LABELS = {
@@ -37,13 +42,20 @@ NEARBY_AREA_IDS = {
 }
 
 DEFAULT_ACTIVITY_MINUTES = 90
+MIN_ACTIVITY_MINUTES = 30
 DEFAULT_RESTAURANT_MINUTES = 75
+MIN_RESTAURANT_MINUTES = 30
+RESTAURANT_DURATION_STEP_MINUTES = 15
 AFTER_MEAL_WALK_MINUTES = 35
 BUFFER_MINUTES = 15
 DINNER_EARLIEST_MINUTES = 17 * 60 + 30
 EARLY_DINNER_EARLIEST_MINUTES = 16 * 60 + 30
 FILLER_MIN_GAP_MINUTES = 35
 FILLER_TARGET_MINUTES = 45
+DEFAULT_MAX_IDLE_MINUTES = planning_policy.DEFAULT_MAX_IDLE_MINUTES
+LONG_IDLE_MINUTES = 90
+TARGET_BUDGET_UTILIZATION = planning_policy.TARGET_BUDGET_UTILIZATION
+SCHEDULER_MIN_TOP_K = 12
 
 
 def _people_total(demand: dict[str, Any]) -> int:
@@ -92,7 +104,7 @@ def _parse_time_range(value: str | None) -> tuple[int, int] | None:
 
 
 def _is_weekend(date_text: str | None) -> bool:
-    return bool(date_text and any(value in date_text for value in ("周六", "周日", "周天", "周末")))
+    return temporal_utils.is_weekend_text(date_text)
 
 
 def _poi_open_for_interval(poi: dict[str, Any] | None, demand: dict[str, Any], start: int | None, minutes: int) -> bool:
@@ -113,14 +125,7 @@ def _poi_open_for_interval(poi: dict[str, Any] | None, demand: dict[str, Any], s
 
 
 def _default_start_minutes(demand: dict[str, Any]) -> int:
-    text = _demand_text(demand)
-    if any(keyword in text for keyword in ("今晚", "傍晚", "晚上", "夜景", "夜游", "晚饭", "晚餐")):
-        return 18 * 60 if "今晚" in text else 17 * 60
-    if any(keyword in text for keyword in ("傍晚", "晚上", "夜景", "夜游", "晚饭", "晚餐")):
-        return 17 * 60
-    if any(keyword in text for keyword in ("上午", "早上")):
-        return 10 * 60
-    return 14 * 60
+    return planning_policy.default_start_minutes(demand)
 
 
 def _format_minutes(value: int | None, fallback: str) -> str:
@@ -131,19 +136,35 @@ def _format_minutes(value: int | None, fallback: str) -> str:
 
 
 def _demand_text(demand: dict[str, Any]) -> str:
-    preferences = demand.get("preferences", {})
-    constraints = demand.get("constraints", {})
-    return " ".join(
-        [
-            str(demand.get("rawInput") or ""),
-            " ".join(str(item) for item in preferences.get("activityTypes", [])),
-            " ".join(str(item) for item in preferences.get("foodTags", [])),
-            " ".join(str(item) for item in preferences.get("experienceTags", [])),
-            " ".join(str(item) for item in preferences.get("avoidTags", [])),
-            " ".join(str(item) for item in constraints.get("hard", [])),
-            " ".join(str(item) for item in constraints.get("soft", [])),
-        ]
-    )
+    return planning_policy.demand_text(demand)
+
+
+def _raw_user_text(demand: dict[str, Any]) -> str:
+    return str(demand.get("rawInput") or "")
+
+
+def _time_window_bounds(demand: dict[str, Any]) -> tuple[int, int]:
+    return planning_policy.time_window_bounds(demand)
+
+
+def _time_window_duration_minutes(demand: dict[str, Any]) -> int:
+    return planning_policy.time_window_duration_minutes(demand)
+
+
+def _is_low_cost_intent(demand: dict[str, Any]) -> bool:
+    return planning_policy.has_low_cost_intent(demand)
+
+
+def _is_simple_trip_intent(demand: dict[str, Any]) -> bool:
+    return planning_policy.is_simple_trip_intent(demand)
+
+
+def _allow_single_node_itinerary(demand: dict[str, Any]) -> bool:
+    return planning_policy.allow_single_node_itinerary(demand)
+
+
+def _planning_policy(demand: dict[str, Any]) -> dict[str, Any]:
+    return planning_policy.resolve_planning_policy(demand)
 
 
 def _positive_activity_text(demand: dict[str, Any]) -> str:
@@ -160,20 +181,34 @@ def _positive_activity_text(demand: dict[str, Any]) -> str:
 
 
 def _has_meal_constraint(demand: dict[str, Any]) -> bool:
-    return any(keyword in _demand_text(demand) for keyword in ("晚饭", "晚餐", "正餐", "吃饭", "餐饮"))
+    requested_components = set(demand.get("demandProfile", {}).get("requestedComponents", []))
+    must_include = demand.get("expectedOutput", {}).get("mustInclude", [])
+    return (
+        "restaurant" in requested_components
+        or (isinstance(must_include, list) and any("餐饮" in str(item) or "吃饭" in str(item) for item in must_include))
+        or any(keyword in _demand_text(demand) for keyword in ("晚饭", "晚餐", "正餐", "吃饭", "餐饮"))
+    )
 
 
 def _requires_dinner_anchor(demand: dict[str, Any]) -> bool:
-    text = _demand_text(demand)
-    explicit_dinner = any(keyword in text for keyword in ("晚饭", "晚餐", "晚上吃", "傍晚吃", "夜间吃饭"))
+    raw_text = _raw_user_text(demand)
+    explicit_dinner = any(keyword in raw_text for keyword in ("晚饭", "晚餐", "傍晚吃", "夜间吃饭")) or (
+        "晚上" in raw_text and any(keyword in raw_text for keyword in ("吃饭", "聚餐", "餐厅", "吃一顿"))
+    )
     if explicit_dinner:
         return True
-    if any(keyword in text for keyword in ("早吃", "早点吃", "先吃", "午饭", "午餐", "中午", "下午茶", "奶茶", "茶歇")):
+    if any(keyword in raw_text for keyword in ("早吃", "早点吃", "先吃", "午饭", "午餐", "中午", "下午茶", "奶茶", "茶歇")):
         return False
     start = _parse_minutes(demand.get("timeWindow", {}).get("startTime"))
     end = _parse_minutes(demand.get("timeWindow", {}).get("endTime"))
-    has_meal = any(keyword in text for keyword in ("吃饭", "正餐", "餐饮", "聚餐", "吃点"))
-    return bool(has_meal and ((start is not None and start >= 15 * 60) or (end is not None and end >= 18 * 60 + 30)))
+    has_meal = _has_meal_constraint(demand) or any(keyword in raw_text for keyword in ("聚餐", "吃点"))
+    return bool(
+        has_meal
+        and (
+            (start is not None and start >= 15 * 60)
+            or (end is not None and end >= 17 * 60 + 30)
+        )
+    )
 
 
 def _meal_timing(demand: dict[str, Any]) -> str | None:
@@ -187,11 +222,157 @@ def _meal_timing(demand: dict[str, Any]) -> str | None:
 
 
 def _dinner_earliest_minutes(demand: dict[str, Any]) -> int:
-    return EARLY_DINNER_EARLIEST_MINUTES if _meal_timing(demand) == "earlier" else DINNER_EARLIEST_MINUTES
+    if _meal_timing(demand) == "earlier":
+        return EARLY_DINNER_EARLIEST_MINUTES
+    return DINNER_EARLIEST_MINUTES
+
+
+def _needs_meal_timing_choice(demand: dict[str, Any]) -> bool:
+    end = _parse_minutes(demand.get("timeWindow", {}).get("endTime"))
+    return bool(
+        end is not None
+        and end <= 18 * 60
+        and _requires_dinner_anchor(demand)
+        and _meal_timing(demand) is None
+    )
+
+
+def _with_meal_timing(demand: dict[str, Any], timing: str) -> dict[str, Any]:
+    variant = deepcopy(demand)
+    plan_control = variant.setdefault("planControl", {})
+    if not isinstance(plan_control, dict):
+        plan_control = {}
+        variant["planControl"] = plan_control
+    patch = plan_control.setdefault("constraintsPatch", {})
+    if not isinstance(patch, dict):
+        patch = {}
+        plan_control["constraintsPatch"] = patch
+    patch["mealTiming"] = timing
+    if timing in {"earlier", "normal"}:
+        patch["targetExperienceBlocks"] = 1
+        policy = variant.setdefault("planningPolicy", {})
+        if not isinstance(policy, dict):
+            policy = {}
+            variant["planningPolicy"] = policy
+        policy["targetExperienceBlocks"] = 1
+    return variant
+
+
+def _compact_decision_plan(plan: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(plan, dict) or plan.get("status") == "failed":
+        return None
+    return {
+        "summary": plan.get("summary"),
+        "budgetEstimate": plan.get("budgetEstimate", {}),
+        "timeline": plan.get("timeline", []),
+        "riskTips": plan.get("riskTips", []),
+        "tradeoffs": plan.get("tradeoffs", []),
+    }
+
+
+def _result_has_preview_plan(result: dict[str, Any]) -> bool:
+    if not isinstance(result, dict):
+        return False
+    plan = result.get("timelinePlan", {})
+    return bool(_compact_decision_plan(plan if isinstance(plan, dict) else None))
+
+
+def _meal_timing_option(
+    *,
+    option_id: str,
+    label: str,
+    result: dict[str, Any],
+    tradeoff: str,
+    user_prompt: str,
+) -> dict[str, Any]:
+    plan = result.get("timelinePlan", {}) if isinstance(result, dict) else {}
+    ok = result.get("status") == "ok" and isinstance(plan, dict) and plan.get("status") != "failed"
+    return {
+        "id": option_id,
+        "label": label,
+        "status": "ok" if ok else "tight",
+        "summary": plan.get("summary") if ok else "这个选项在当前结束时间里放不太下，可能需要少去一个点，或把结束时间往后放一点。",
+        "tradeoff": tradeoff,
+        "previewPlan": _compact_decision_plan(plan),
+        "userPrompt": user_prompt,
+    }
+
+
+def _attach_meal_timing_decision(
+    result: dict[str, Any],
+    demand: dict[str, Any],
+    supply: dict[str, Any],
+    *,
+    top_k: int,
+) -> dict[str, Any]:
+    if not _needs_meal_timing_choice(demand):
+        return result
+
+    normal_result = result
+    if not _result_has_preview_plan(normal_result):
+        normal_result = schedule_timeline(
+            _with_meal_timing(demand, "normal"),
+            supply,
+            top_k=top_k,
+            _with_decision_options=False,
+        )
+    early_result = schedule_timeline(
+        _with_meal_timing(demand, "earlier"),
+        supply,
+        top_k=top_k,
+        _with_decision_options=False,
+    )
+    chosen = normal_result if _result_has_preview_plan(normal_result) else result
+    chosen_option_id = "normal_dinner"
+    if not _result_has_preview_plan(chosen) and early_result.get("status") == "ok":
+        chosen = early_result
+        chosen_option_id = "early_simple_meal"
+
+    options = [
+        _meal_timing_option(
+            option_id="normal_dinner",
+            label="按 17:30 后吃饭",
+            result=normal_result,
+            tradeoff="尊重正常晚饭时间。只是如果还要 18:00 前结束，这顿就更适合快一点吃完；想坐着多聊会儿，可以少安排一站或把结束时间放宽半小时。",
+            user_prompt="保持 17:30 后吃饭。如果坐下来吃饭时间不够，就帮我少安排一站，或者提示我需要放宽结束时间。",
+        ),
+        _meal_timing_option(
+            option_id="early_simple_meal",
+            label="提前吃一顿轻松点的",
+            result=early_result,
+            tradeoff="把吃饭提前一些，适合必须早结束的时候。它更像先好好垫一顿，不会把 16:30 偷偷当成正常晚饭。",
+            user_prompt="我选提前吃一顿轻松点的。把吃饭往前放，其他体验尽量保留。",
+        ),
+    ]
+    decision = {
+        "type": "meal_timing_conflict",
+        "title": "吃饭这块想让你拍板",
+        "message": "你给的结束时间比正常晚饭略早，我没有直接替你们改成早吃，而是把两种更现实的走法都放在这里。",
+        "chosenOptionId": chosen_option_id,
+        "options": options,
+    }
+    plan = chosen.get("timelinePlan", {}) if isinstance(chosen.get("timelinePlan"), dict) else {}
+    plan["decisionRequired"] = True
+    plan["mealTimingDecision"] = decision
+    plan["decisionOptions"] = options
+    plan.setdefault("reasonBadges", []).append("饭点需要你确认")
+    tip = (
+        "当前主方案是提前吃一顿轻松点的；如果你们想 17:30 后再正式吃，可以切到另一个走法，只是留给吃饭的时间会更短。"
+        if chosen_option_id == "early_simple_meal"
+        else "当前主方案还是按 17:30 后吃饭；我也放了一个提前吃的备选，避免系统偷偷替你们改饭点。"
+    )
+    plan.setdefault("riskTips", []).insert(0, tip)
+    chosen["timelinePlan"] = plan
+    chosen["mealTimingDecision"] = decision
+    chosen["decisionOptions"] = options
+    if isinstance(chosen.get("selectedCombination"), dict):
+        chosen["selectedCombination"]["mealTimingChoice"] = chosen_option_id
+    chosen["strategy"] = f"{chosen.get('strategy', 'scheduler')}_with_meal_timing_decision"
+    return chosen
 
 
 def _meal_first(demand: dict[str, Any]) -> bool:
-    text = _demand_text(demand)
+    text = _raw_user_text(demand)
     if _meal_timing(demand) == "earlier":
         return True
     return any(keyword in text for keyword in ("先吃", "先晚饭", "先吃晚饭", "先吃饭", "吃完饭再", "饭后再"))
@@ -219,6 +400,8 @@ def _requires_activity(demand: dict[str, Any]) -> bool:
     requested_components = set(
         demand.get("demandProfile", {}).get("requestedComponents", [])
     )
+    if int(_planning_policy(demand).get("targetExperienceBlocks") or 0) >= 2:
+        return True
     if requested_components == {"activity"}:
         return True
     if _wants_loose_mall_stroll(demand) and not any(keyword in text for keyword in ("必须玩", "一定要玩", "专门玩", "买票", "游乐场")):
@@ -258,6 +441,9 @@ def _has_multi_origin(demand: dict[str, Any]) -> bool:
 
 
 def _requires_inbound_route(demand: dict[str, Any]) -> bool:
+    policy = _planning_policy(demand)
+    if not policy.get("includeOutboundRoute"):
+        return False
     cross_city = demand.get("location", {}).get("crossCityIntent")
     return isinstance(cross_city, dict) and bool(cross_city.get("enabled"))
 
@@ -317,34 +503,62 @@ def _activity_slot_start_minutes(activity: dict[str, Any] | None) -> list[int]:
     return sorted(value for value in parsed if value is not None)
 
 
+def _poi_open_range_for_demand(poi: dict[str, Any] | None, demand: dict[str, Any]) -> tuple[int, int] | None:
+    if not poi:
+        return None
+    open_hours = poi.get("openHours")
+    if not isinstance(open_hours, dict):
+        return None
+    key = "weekend" if _is_weekend(demand.get("timeWindow", {}).get("dateText")) else "weekday"
+    return _parse_time_range(str(open_hours.get(key) or ""))
+
+
 def _align_activity_start(
     timeline: list[dict[str, Any]],
     activity: dict[str, Any],
     cursor: int | None,
+    demand: dict[str, Any],
 ) -> tuple[int | None, dict[str, Any] | None]:
     if cursor is None or _activity_has_slot_at(activity, cursor):
-        return cursor, None
-    slots = _activity_slot_start_minutes(activity)
-    if not slots:
-        return cursor, None
-    aligned = next((slot for slot in slots if slot >= cursor), None)
-    if aligned is None:
-        return None, {
-            "reason": "活动无晚于预计开始时间的可用余票时段",
-            "activity": activity.get("name"),
-            "arrival": _format_minutes(cursor, "待定"),
-            "timeSlots": (activity.get("availability") or {}).get("timeSlots", []),
-        }
-    wait_minutes = aligned - cursor
-    _add_step(
-        timeline,
-        cursor=cursor,
-        minutes=wait_minutes,
-        item_type="buffer",
-        title="活动开场前缓冲",
-        description=f"活动余票时段需对齐到 {_format_minutes(aligned, '待定')}，这段时间用于集合、等位或附近轻逛。",
-    )
-    return aligned, None
+        aligned_cursor = cursor
+    else:
+        slots = _activity_slot_start_minutes(activity)
+        if not slots:
+            aligned_cursor = cursor
+        else:
+            aligned = next((slot for slot in slots if slot >= cursor), None)
+            if aligned is None:
+                return None, {
+                    "reason": "活动无晚于预计开始时间的可用余票时段",
+                    "activity": activity.get("name"),
+                    "arrival": _format_minutes(cursor, "待定"),
+                    "timeSlots": (activity.get("availability") or {}).get("timeSlots", []),
+                }
+            wait_minutes = aligned - cursor
+            _add_step(
+                timeline,
+                cursor=cursor,
+                minutes=wait_minutes,
+                item_type="buffer",
+                title="活动开场前等一会",
+                description=f"这个点要到 {_format_minutes(aligned, '待定')} 才方便开始，中间可以集合、买水，或者在附近先熟悉一下环境。",
+            )
+            aligned_cursor = aligned
+
+    open_range = _poi_open_range_for_demand(activity, demand)
+    if open_range and aligned_cursor is not None:
+        open_start, _ = open_range
+        if aligned_cursor < open_start:
+            _add_step(
+                timeline,
+                cursor=aligned_cursor,
+                minutes=open_start - aligned_cursor,
+                item_type="buffer",
+                title="等开门前附近走走",
+                description=f"{activity.get('name')} {_format_minutes(open_start, '待定')} 后开始更稳，这段可以先在附近集合、拍照或买点喝的。",
+            )
+            aligned_cursor = open_start
+    return aligned_cursor, None
 
 
 def _route_for_area(supply: dict[str, Any], area_id: str | None) -> dict[str, Any] | None:
@@ -354,7 +568,7 @@ def _route_for_area(supply: dict[str, Any], area_id: str | None) -> dict[str, An
     inbound = [
         route for route in routes
         if route.get("toAreaId") == area_id
-        and (route.get("isCrossCityInbound") or route.get("routeType") == "origin_to_area")
+        and (route.get("isCrossCityInbound") or route.get("routeType") in {"origin_to_area", "estimated_origin_to_area"})
     ]
     if inbound:
         return sorted(inbound, key=lambda item: (item.get("minutes", 999), item.get("estimatedCostTotal", 999)))[0]
@@ -377,7 +591,7 @@ def _reverse_origin_route(supply: dict[str, Any], area_id: str | None) -> dict[s
         if route.get("toAreaId") == area_id
         and (
             str(route.get("fromAreaId", "")).startswith("origin_")
-            or route.get("routeType") in {"origin_to_area", "cross_city_inbound"}
+            or route.get("routeType") in {"origin_to_area", "estimated_origin_to_area", "cross_city_inbound"}
             or route.get("isCrossCityInbound")
         )
     ]
@@ -395,6 +609,9 @@ def _reverse_origin_route(supply: dict[str, Any], area_id: str | None) -> dict[s
 
 
 def _should_include_return_route(demand: dict[str, Any]) -> bool:
+    policy = _planning_policy(demand)
+    if policy.get("includeReturnRoute"):
+        return True
     location = demand.get("location", {})
     if len(location.get("originPoints") or []) > 1:
         return False
@@ -444,11 +661,325 @@ def _route_between(supply: dict[str, Any], start: str | None, end: str | None) -
 def _activity_minutes(activity: dict[str, Any] | None) -> int:
     if not activity:
         return 0
-    return int(activity.get("suggestedDurationMinutes") or DEFAULT_ACTIVITY_MINUTES)
+    return _activity_duration_bounds(activity)[1]
 
 
-def _restaurant_minutes(_: dict[str, Any] | None) -> int:
-    return DEFAULT_RESTAURANT_MINUTES
+def _activity_duration_bounds(activity: dict[str, Any] | None) -> tuple[int, int, int]:
+    if not activity:
+        return 0, 0, 0
+    preferred = int(activity.get("suggestedDurationMinutes") or DEFAULT_ACTIVITY_MINUTES)
+    category = str(activity.get("category") or "").lower()
+    text = " ".join(
+        [
+            category,
+            str(activity.get("name") or ""),
+            " ".join(str(tag) for tag in activity.get("tags", [])),
+            " ".join(str(tag) for tag in activity.get("behaviorTags", [])),
+        ]
+    )
+    fixed_terms = ("cinema_ticket", "movie", "performance", "script_game", "剧本杀", "电影", "演出", "场次")
+    light_terms = (
+        "sub_area",
+        "citywalk",
+        "mall",
+        "book",
+        "tea",
+        "cafe",
+        "photo",
+        "snack",
+        "street",
+        "square",
+        "park_walk",
+        "二级商圈",
+        "步行街",
+        "商场",
+        "书店",
+        "茶",
+        "咖啡",
+        "拍照",
+        "广场",
+        "轻逛",
+        "小吃",
+    )
+    visit_terms = ("museum", "exhibition", "landmark", "culture", "temple", "aquarium", "park", "展览", "博物馆", "地标", "文化", "公园", "水族")
+    guided_terms = ("workshop", "handcraft", "playground", "sport", "体验课", "手作", "乐园", "运动")
+    if any(term in text for term in fixed_terms):
+        return preferred, preferred, preferred
+    if activity.get("isFiller") or _is_sub_area_node(activity) or any(term in text for term in light_terms):
+        minimum = max(MIN_ACTIVITY_MINUTES, min(preferred, preferred - 30))
+        return minimum, preferred, max(preferred, preferred + 30)
+    if any(term in text for term in visit_terms):
+        minimum = max(45, preferred - 30)
+        return minimum, preferred, max(preferred + 30, min(120, preferred + 60))
+    if any(term in text for term in guided_terms):
+        minimum = max(45, preferred - 15)
+        return minimum, preferred, max(preferred, preferred + 15)
+    minimum = max(45, preferred - 15)
+    return minimum, preferred, max(preferred, preferred + 15)
+
+
+def _activity_duration_options(activity: dict[str, Any] | None, demand: dict[str, Any]) -> list[int]:
+    min_minutes, preferred_minutes, max_minutes = _activity_duration_bounds(activity)
+    if min_minutes == max_minutes:
+        return [preferred_minutes]
+    values = list(range(min_minutes, max_minutes + 1, RESTAURANT_DURATION_STEP_MINUTES))
+    if preferred_minutes not in values:
+        values.append(preferred_minutes)
+    values = sorted(set(values))
+    tight_window = _time_window_duration_minutes(demand) <= 4 * 60 or _needs_meal_timing_choice(demand)
+    if tight_window or _meal_timing(demand) == "earlier":
+        return sorted(values)
+    return sorted(values, key=lambda value: (abs(value - preferred_minutes), -value))
+
+
+def _fit_activity_minutes(
+    activity: dict[str, Any] | None,
+    demand: dict[str, Any],
+    cursor: int | None,
+    end_limit: int | None,
+    *,
+    reserve_after_minutes: int = 0,
+) -> tuple[int, dict[str, Any] | None]:
+    options = _activity_duration_options(activity, demand)
+    if not options:
+        return 0, None
+    preferred = _activity_minutes(activity)
+    if cursor is None or end_limit is None:
+        chosen = preferred if preferred in options else options[-1]
+    else:
+        latest_end = end_limit - max(0, reserve_after_minutes)
+        fitting = [minutes for minutes in options if cursor + minutes <= latest_end]
+        if not fitting:
+            return preferred, {
+                "reason": "活动时长无法放入时间窗口",
+                "activity": (activity or {}).get("name"),
+                "arrival": _format_minutes(cursor, "待定"),
+                "endLimit": _format_minutes(end_limit, "待定"),
+                "durationOptions": options,
+                "reserveAfterMinutes": reserve_after_minutes,
+            }
+        preferred_fitting = [minutes for minutes in fitting if minutes >= preferred]
+        chosen = min(preferred_fitting, key=lambda minutes: abs(minutes - preferred)) if preferred_fitting else max(fitting)
+    return chosen, {
+        "durationMinutes": chosen,
+        "preferredDurationMinutes": preferred,
+        "compressed": chosen < preferred,
+        "durationOptions": options,
+        "fixedDuration": len(options) == 1,
+    }
+
+
+def _activity_duration_note(meta: dict[str, Any] | None) -> str:
+    if not meta:
+        return ""
+    duration = int(meta.get("durationMinutes") or 0)
+    preferred = int(meta.get("preferredDurationMinutes") or duration)
+    if meta.get("fixedDuration"):
+        return f" 这个是固定场次，基本就是 {duration} 分钟。"
+    if duration < preferred:
+        return f" 这里先留 {duration} 分钟，把最值得看的部分逛到；如果想慢慢看，可以少安排后面的一站。"
+    if duration > preferred:
+        return f" 这里给你们留 {duration} 分钟，逛起来会更从容一点。"
+    return f" 这里给你们留 {duration} 分钟。"
+
+
+def _is_sub_area_node(item: dict[str, Any] | None) -> bool:
+    if not isinstance(item, dict):
+        return False
+    text = " ".join(
+        [
+            str(item.get("poiLevel") or ""),
+            str(item.get("category") or ""),
+            " ".join(str(tag) for tag in item.get("tags", [])),
+            " ".join(str(tag) for tag in item.get("matchedSemanticTags", [])),
+        ]
+    )
+    return item.get("poiLevel") == "sub_area" or "sub_area" in text or "二级商圈" in text
+
+
+def _candidate_estimated_cost(item: dict[str, Any] | None) -> float:
+    if not item:
+        return 0.0
+    value = item.get("estimatedCost")
+    if isinstance(value, (int, float)):
+        return float(value)
+    value = item.get("pricePerPerson")
+    if isinstance(value, (int, float)):
+        return float(value)
+    return 0.0
+
+
+def _candidate_duration_minutes(item: dict[str, Any] | None) -> int:
+    if not item:
+        return 0
+    for key in ("suggestedDurationMinutes", "durationMinutes", "estimatedDurationMinutes"):
+        value = item.get(key)
+        if isinstance(value, (int, float)) and value > 0:
+            return int(value)
+    return DEFAULT_ACTIVITY_MINUTES
+
+
+def _append_unique_candidate(target: list[dict[str, Any]], item: dict[str, Any] | None) -> None:
+    if not item:
+        return
+    key = str(item.get("poiId") or item.get("id") or item.get("name") or "")
+    if not key:
+        return
+    for existing in target:
+        existing_key = str(existing.get("poiId") or existing.get("id") or existing.get("name") or "")
+        if existing_key == key:
+            return
+    target.append(item)
+
+
+def _scheduler_candidate_pool(
+    candidates: list[dict[str, Any]],
+    demand: dict[str, Any],
+    *,
+    kind: str,
+    top_k: int,
+) -> list[dict[str, Any]]:
+    """Keep the scheduler search pool diverse without adding semantic patches."""
+    if not candidates:
+        return []
+    strict_budget = _budget_is_strict(demand) or _is_low_cost_intent(demand)
+    target_size = min(len(candidates), max(top_k, top_k + 8))
+    selected: list[dict[str, Any]] = []
+
+    for item in candidates[: max(4, top_k // 2)]:
+        _append_unique_candidate(selected, item)
+
+    if strict_budget:
+        cheapest = sorted(
+            candidates,
+            key=lambda candidate: (_candidate_estimated_cost(candidate), -float(candidate.get("score") or 0)),
+        )
+        for item in cheapest[: max(4, top_k // 2)]:
+            _append_unique_candidate(selected, item)
+
+    if kind == "activity":
+        for item in [candidate for candidate in candidates if _is_sub_area_node(candidate)][:4]:
+            _append_unique_candidate(selected, item)
+        short_nodes = sorted(
+            [candidate for candidate in candidates if _candidate_duration_minutes(candidate) <= 60],
+            key=lambda candidate: (_candidate_duration_minutes(candidate), _candidate_estimated_cost(candidate)),
+        )
+        for item in short_nodes[:4]:
+            _append_unique_candidate(selected, item)
+
+    for item in candidates:
+        if len(selected) >= target_size:
+            break
+        _append_unique_candidate(selected, item)
+    return selected[:target_size]
+
+
+def _poi_name_key(item_or_name: Any) -> str:
+    if isinstance(item_or_name, dict):
+        name = str(item_or_name.get("name") or item_or_name.get("title") or "")
+    else:
+        name = str(item_or_name or "")
+    return re.sub(r"[\s（）()·\-—_]+", "", name).lower()
+
+
+def _restaurant_duration_bounds(restaurant: dict[str, Any] | None, demand: dict[str, Any] | None = None) -> tuple[int, int, int]:
+    if not restaurant:
+        return MIN_RESTAURANT_MINUTES, DEFAULT_RESTAURANT_MINUTES, DEFAULT_RESTAURANT_MINUTES
+    cuisine = str(restaurant.get("cuisine") or "").lower()
+    tags = " ".join(str(tag) for tag in [*restaurant.get("tags", []), *restaurant.get("behaviorTags", [])])
+    text = f"{cuisine} {tags} {restaurant.get('name') or ''}"
+    quick_terms = (
+        "simple",
+        "student",
+        "fast",
+        "snack",
+        "noodle",
+        "dumpling",
+        "cafe",
+        "tea",
+        "light",
+        "简餐",
+        "快餐",
+        "轻食",
+        "小吃",
+        "面",
+        "饺",
+        "盖饭",
+        "茶餐",
+        "少排队",
+    )
+    long_terms = ("hotpot", "barbecue", "family", "bistro", "火锅", "烤肉", "正餐", "聚餐", "家庭", "可预约")
+    if any(term in text for term in quick_terms):
+        return 30, 45, 60
+    if any(term in text for term in long_terms):
+        return 45, 75, 90
+    return 45, 60, 75
+
+
+def _restaurant_duration_options(restaurant: dict[str, Any] | None, demand: dict[str, Any]) -> list[int]:
+    min_minutes, preferred_minutes, max_minutes = _restaurant_duration_bounds(restaurant, demand)
+    values = list(range(min_minutes, max_minutes + 1, RESTAURANT_DURATION_STEP_MINUTES))
+    if preferred_minutes not in values:
+        values.append(preferred_minutes)
+    values = sorted(set(values))
+    if _meal_timing(demand) == "earlier" or _needs_meal_timing_choice(demand):
+        ordered = sorted(values)
+    else:
+        ordered = sorted(values, key=lambda value: (abs(value - preferred_minutes), -value))
+    return ordered
+
+
+def _restaurant_minutes(restaurant: dict[str, Any] | None, demand: dict[str, Any] | None = None) -> int:
+    if demand is None:
+        return _restaurant_duration_bounds(restaurant)[1]
+    return _restaurant_duration_bounds(restaurant, demand)[1]
+
+
+def _fit_restaurant_minutes(
+    restaurant: dict[str, Any] | None,
+    demand: dict[str, Any],
+    cursor: int | None,
+    end_limit: int | None,
+    *,
+    reserve_after_minutes: int = 0,
+) -> tuple[int, dict[str, Any] | None]:
+    options = _restaurant_duration_options(restaurant, demand)
+    preferred = _restaurant_minutes(restaurant, demand)
+    if cursor is None or end_limit is None:
+        chosen = preferred if preferred in options else options[-1]
+    else:
+        latest_end = end_limit - max(0, reserve_after_minutes)
+        fitting = [minutes for minutes in options if cursor + minutes <= latest_end]
+        if not fitting:
+            return preferred, {
+                "reason": "餐饮时长无法放入时间窗口",
+                "restaurant": (restaurant or {}).get("name"),
+                "arrival": _format_minutes(cursor, "待定"),
+                "endLimit": _format_minutes(end_limit, "待定"),
+                "durationOptions": options,
+                "reserveAfterMinutes": reserve_after_minutes,
+            }
+        chosen = max(fitting)
+        preferred_fitting = [minutes for minutes in fitting if minutes >= preferred]
+        if preferred_fitting:
+            chosen = min(preferred_fitting, key=lambda minutes: abs(minutes - preferred))
+    meta = {
+        "durationMinutes": chosen,
+        "preferredDurationMinutes": preferred,
+        "compressed": chosen < preferred,
+        "durationOptions": options,
+    }
+    return chosen, meta
+
+
+def _restaurant_duration_note(meta: dict[str, Any] | None) -> str:
+    if not meta:
+        return ""
+    duration = int(meta.get("durationMinutes") or 0)
+    preferred = int(meta.get("preferredDurationMinutes") or duration)
+    if duration < preferred:
+        return f" 这顿先留 {duration} 分钟，更适合吃得清爽利落一点；如果想坐着慢慢聊，建议少安排一站或把结束时间往后放一点。"
+    return f" 这顿留 {duration} 分钟，基本够正常吃完。"
 
 
 def _add_step(
@@ -479,6 +1010,37 @@ def _add_step(
         }
     )
     return end
+
+
+def _step_minutes(step: dict[str, Any]) -> int:
+    return timeline_quality.step_minutes(step)
+
+
+def _is_idle_step(step: dict[str, Any]) -> bool:
+    return timeline_quality.is_idle_step(step)
+
+
+def _is_experience_step(step: dict[str, Any]) -> bool:
+    return timeline_quality.is_experience_step(step)
+
+
+def _timeline_quality_metrics(
+    demand: dict[str, Any],
+    timeline: list[dict[str, Any]],
+    cursor: int | None,
+) -> dict[str, Any]:
+    start, end_limit = _time_window_bounds(demand)
+    return timeline_quality.metrics(timeline=timeline, window_start=start, window_end=end_limit, cursor=cursor)
+
+
+def _timeline_quality_rejection(demand: dict[str, Any], metrics: dict[str, Any], has_restaurant: bool) -> dict[str, Any] | None:
+    policy = _planning_policy(demand)
+    return timeline_quality.rejection(
+        metrics_value=metrics,
+        max_idle_minutes=int(policy.get("maxIdleMinutes") or DEFAULT_MAX_IDLE_MINUTES),
+        target_experience_blocks=int(policy.get("targetExperienceBlocks") or 0),
+        has_restaurant=has_restaurant,
+    )
 
 
 def _restaurant_available_slot_minutes(restaurant: dict[str, Any] | None) -> list[int]:
@@ -515,7 +1077,7 @@ def _align_restaurant_start(
         is_dinner_buffer = "晚餐前" in str(timeline[-1].get("title") or "")
         timeline[-1]["end"] = _format_minutes(aligned, "待定")
         if not is_dinner_buffer:
-            timeline[-1]["title"] = "预约时段等位/节奏缓冲"
+            timeline[-1]["title"] = "到店前留点余量"
             timeline[-1]["description"] = (
                 f"餐厅只开放整点/半点预约，已把到店时间吸附到 {timeline[-1]['end']}，中间用于等人、取号或从已选具体 POI 转场。"
             )
@@ -606,6 +1168,29 @@ def _reason_badges(
     return result[:4]
 
 
+def _commercial_meta(demand: dict[str, Any], selected_nodes: list[dict[str, Any] | None], total_cost: float) -> dict[str, Any]:
+    expected_platform_revenue = sum(
+        float((item or {}).get("businessMetrics", {}).get("expectedPlatformRevenue") or 0)
+        for item in selected_nodes
+    )
+    budget_limit = _budget_limit(demand)
+    budget_utilization = total_cost / budget_limit if budget_limit and budget_limit > 0 else None
+    if _is_low_cost_intent(demand):
+        business_score = -total_cost / 20.0
+    else:
+        utilization_score = (
+            max(0.0, 1.0 - abs(TARGET_BUDGET_UTILIZATION - min(budget_utilization, 1.2))) * 10.0
+            if budget_utilization is not None
+            else 0.0
+        )
+        business_score = expected_platform_revenue * 0.7 + utilization_score * 0.3
+    return {
+        "expectedPlatformRevenue": round(expected_platform_revenue, 3),
+        "budgetUtilization": round(budget_utilization, 4) if budget_utilization is not None else None,
+        "businessScore": round(business_score, 3),
+    }
+
+
 def _build_candidate_plan(
     demand: dict[str, Any],
     supply: dict[str, Any],
@@ -641,7 +1226,7 @@ def _build_candidate_plan(
     if _requires_inbound_route(demand) and selected_area and not first_route:
         return None, {"reason": "跨城出行缺少到目标商圈的入城路线", "areaId": selected_area}
     if first_route and first_route.get("type") != "multi_origin_fairness" and not (
-        first_route.get("isCrossCityInbound") or first_route.get("routeType") == "origin_to_area"
+        first_route.get("isCrossCityInbound") or first_route.get("routeType") in {"origin_to_area", "estimated_origin_to_area"}
     ):
         first_route = None
     if first_route:
@@ -665,17 +1250,20 @@ def _build_candidate_plan(
         cursor, align_error = _align_restaurant_start(timeline, restaurant, cursor)
         if align_error:
             return None, align_error
-        if not _poi_open_for_interval(restaurant, demand, cursor, _restaurant_minutes(restaurant)):
+        restaurant_minutes, restaurant_duration_meta = _fit_restaurant_minutes(restaurant, demand, cursor, end_limit)
+        if restaurant_duration_meta and restaurant_duration_meta.get("reason"):
+            return None, restaurant_duration_meta
+        if not _poi_open_for_interval(restaurant, demand, cursor, restaurant_minutes):
             return None, {
                 "reason": "餐厅具体到店时间不在营业时间内",
                 "restaurant": restaurant.get("name"),
                 "start": _format_minutes(cursor, "待定"),
             }
-        description = _restaurant_description(restaurant)
+        description = _restaurant_description(restaurant) + _restaurant_duration_note(restaurant_duration_meta)
         cursor = _add_step(
             timeline,
             cursor=cursor,
-            minutes=_restaurant_minutes(restaurant),
+            minutes=restaurant_minutes,
             item_type="restaurant",
             title=restaurant.get("name", "吃饭地点"),
             description=description,
@@ -708,14 +1296,38 @@ def _build_candidate_plan(
                 minutes=BUFFER_MINUTES,
                 item_type="buffer",
                 title="缓冲时间",
-                description="预留找路、等人和调整节奏的时间。",
+                description="预留找路、等人和现场小变化的时间。",
             )
 
     if activity:
-        cursor, align_error = _align_activity_start(timeline, activity, cursor)
+        cursor, align_error = _align_activity_start(timeline, activity, cursor, demand)
         if align_error:
             return None, align_error
-        if not _poi_open_for_interval(activity, demand, cursor, _activity_minutes(activity)):
+        activity_reserve_after_minutes = 0
+        if restaurant and not meal_first:
+            if activity.get("areaId") != restaurant.get("areaId"):
+                route_after_activity = _route_between(supply, activity.get("areaId"), restaurant.get("areaId"))
+                if route_after_activity:
+                    activity_reserve_after_minutes += int(route_after_activity.get("minutes", 0))
+            activity_reserve_after_minutes += BUFFER_MINUTES + _restaurant_duration_bounds(restaurant, demand)[0]
+            if _should_include_return_route(demand):
+                return_after_restaurant = _reverse_origin_route(supply, restaurant.get("areaId"))
+                if return_after_restaurant:
+                    activity_reserve_after_minutes += int(return_after_restaurant.get("minutes", 0))
+        elif _should_include_return_route(demand):
+            return_after_activity = _reverse_origin_route(supply, activity.get("areaId"))
+            if return_after_activity:
+                activity_reserve_after_minutes += int(return_after_activity.get("minutes", 0))
+        activity_minutes, activity_duration_meta = _fit_activity_minutes(
+            activity,
+            demand,
+            cursor,
+            end_limit,
+            reserve_after_minutes=activity_reserve_after_minutes,
+        )
+        if activity_duration_meta and activity_duration_meta.get("reason"):
+            return None, activity_duration_meta
+        if not _poi_open_for_interval(activity, demand, cursor, activity_minutes):
             return None, {
                 "reason": "活动具体开始时间不在营业时间内",
                 "activity": activity.get("name"),
@@ -734,10 +1346,11 @@ def _build_candidate_plan(
                 f" 余票 {availability.get('bestTicketLeft')}，"
                 f"排队约 {availability.get('minQueueMinutes')} 分钟。"
             )
+        description += _activity_duration_note(activity_duration_meta)
         cursor = _add_step(
             timeline,
             cursor=cursor,
-            minutes=_activity_minutes(activity),
+            minutes=activity_minutes,
             item_type="activity",
             title=activity.get("name", "活动"),
             description=description,
@@ -775,7 +1388,7 @@ def _build_candidate_plan(
                 minutes=BUFFER_MINUTES,
                 item_type="buffer",
                 title="缓冲时间",
-                description="预留找路、等人和调整节奏的时间。",
+                description="预留找路、等人和现场小变化的时间。",
             )
 
     if restaurant and not meal_first:
@@ -797,17 +1410,32 @@ def _build_candidate_plan(
         cursor, align_error = _align_restaurant_start(timeline, restaurant, cursor)
         if align_error:
             return None, align_error
-        if not _poi_open_for_interval(restaurant, demand, cursor, _restaurant_minutes(restaurant)):
+        return_reserve_minutes = 0
+        if _should_include_return_route(demand):
+            return_route = _reverse_origin_route(supply, restaurant.get("areaId"))
+            if not return_route:
+                return None, {"reason": "用户要求返程，但缺少返程路线估算", "areaId": restaurant.get("areaId")}
+            return_reserve_minutes = int(return_route.get("minutes", 0))
+        restaurant_minutes, restaurant_duration_meta = _fit_restaurant_minutes(
+            restaurant,
+            demand,
+            cursor,
+            end_limit,
+            reserve_after_minutes=return_reserve_minutes,
+        )
+        if restaurant_duration_meta and restaurant_duration_meta.get("reason"):
+            return None, restaurant_duration_meta
+        if not _poi_open_for_interval(restaurant, demand, cursor, restaurant_minutes):
             return None, {
                 "reason": "餐厅具体到店时间不在营业时间内",
                 "restaurant": restaurant.get("name"),
                 "start": _format_minutes(cursor, "待定"),
             }
-        description = _restaurant_description(restaurant)
+        description = _restaurant_description(restaurant) + _restaurant_duration_note(restaurant_duration_meta)
         cursor = _add_step(
             timeline,
             cursor=cursor,
-            minutes=_restaurant_minutes(restaurant),
+            minutes=restaurant_minutes,
             item_type="restaurant",
             title=restaurant.get("name", "吃饭地点"),
             description=description,
@@ -818,7 +1446,7 @@ def _build_candidate_plan(
 
     last_area = (activity or restaurant or {}).get("areaId")
     if _should_include_return_route(demand):
-        return_route = _reverse_origin_route(supply, last_area)
+        return_route = return_route or _reverse_origin_route(supply, last_area)
         if not return_route:
             return None, {"reason": "用户要求返程，但缺少返程路线估算", "areaId": last_area}
         cursor = _add_step(
@@ -851,6 +1479,10 @@ def _build_candidate_plan(
             "requiredAnchorAreas": sorted(required_anchor_areas),
             "selectedAreas": sorted(selected_area_ids),
         }
+    quality_metrics = _timeline_quality_metrics(demand, timeline, cursor)
+    quality_rejection = _timeline_quality_rejection(demand, quality_metrics, bool(restaurant))
+    if quality_rejection:
+        return None, quality_rejection
 
     selected_items: list[dict[str, Any]] = []
     for route in (first_route, transfer_route, return_route):
@@ -935,41 +1567,630 @@ def _build_candidate_plan(
         "riskTips": ["确认前还会再次检查余票、座位、排队和路线变化。"],
         "tradeoffs": tradeoffs,
         "rawPlannerNotes": "Generated by constraint scheduler.",
+        "qualityMetrics": quality_metrics,
     }
     experience_score = _score_plan(demand, activity, restaurant, first_route, transfer_route, total_cost, cursor)
-    expected_platform_revenue = sum(
-        float((item or {}).get("businessMetrics", {}).get("expectedPlatformRevenue") or 0)
-        for item in (activity, restaurant)
-    )
-    budget_limit = _budget_limit(demand)
-    budget_utilization = total_cost / budget_limit if budget_limit and budget_limit > 0 else None
-    low_cost_intent = any(
-        keyword in _demand_text(demand)
-        for keyword in ("不想花钱", "少花钱", "低成本", "省钱", "便宜", "预算越低")
-    )
-    if low_cost_intent:
-        business_score = -total_cost / 20.0
-    else:
-        utilization_score = (
-            max(0.0, 1.0 - abs(0.92 - min(budget_utilization, 1.2))) * 10.0
-            if budget_utilization is not None
-            else 0.0
-        )
-        business_score = expected_platform_revenue * 0.7 + utilization_score * 0.3
+    commercial = _commercial_meta(demand, [activity, restaurant], total_cost)
     plan["commercialEstimate"] = {
-        "expectedPlatformRevenue": round(expected_platform_revenue, 3),
-        "budgetUtilization": round(budget_utilization, 4) if budget_utilization is not None else None,
+        "expectedPlatformRevenue": commercial["expectedPlatformRevenue"],
+        "budgetUtilization": commercial["budgetUtilization"],
         "qualityGateApplied": True,
     }
     return plan, {
         "score": experience_score,
         "experienceScore": experience_score,
-        "businessScore": round(business_score, 3),
-        "expectedPlatformRevenue": round(expected_platform_revenue, 3),
-        "budgetUtilization": round(budget_utilization, 4) if budget_utilization is not None else None,
+        "businessScore": commercial["businessScore"],
+        "expectedPlatformRevenue": commercial["expectedPlatformRevenue"],
+        "budgetUtilization": commercial["budgetUtilization"],
+        "qualityMetrics": quality_metrics,
         "activity": activity.get("name") if activity else None,
         "restaurant": restaurant.get("name") if restaurant else None,
     }
+
+
+def _supplemental_candidates(
+    activities: list[dict[str, Any]],
+    fillers: list[dict[str, Any]],
+    primary: dict[str, Any] | None,
+    restaurant: dict[str, Any] | None,
+    demand: dict[str, Any],
+    limit: int,
+) -> list[dict[str, Any]]:
+    excluded = {str((primary or {}).get("poiId") or ""), str((restaurant or {}).get("poiId") or "")}
+    excluded_names = {
+        _poi_name_key(item)
+        for item in (primary, restaurant)
+        if item and _poi_name_key(item)
+    }
+    policy = _planning_policy(demand)
+    target_area = (restaurant or primary or {}).get("areaId")
+    target_areas = _target_area_ids(demand)
+
+    def is_micro_activity(item: dict[str, Any]) -> bool:
+        if item.get("isFiller"):
+            return True
+        duration = _activity_minutes(item)
+        text = " ".join(
+            [
+                str(item.get("name") or ""),
+                str(item.get("category") or ""),
+                " ".join(str(tag) for tag in item.get("vibeTags", [])),
+                " ".join(str(tag) for tag in item.get("behaviorTags", [])),
+                " ".join(str(tag) for tag in item.get("matchedReasons", [])),
+            ]
+        )
+        return duration <= 75 or any(keyword in text for keyword in ("轻", "短", "citywalk", "书店", "茶", "小吃", "广场", "免费", "商场"))
+
+    pool: list[dict[str, Any]] = []
+    for item in [*fillers, *activities]:
+        poi_id = str(item.get("poiId") or "")
+        if not poi_id or poi_id in excluded:
+            continue
+        if _poi_name_key(item) in excluded_names:
+            continue
+        if item.get("isFiller") or is_micro_activity(item):
+            pool.append(item)
+
+    def score(item: dict[str, Any]) -> tuple[float, float, float, str]:
+        area = item.get("areaId")
+        route_bonus = 0.0
+        if area == target_area:
+            route_bonus += 8
+        elif area in target_areas:
+            route_bonus += 4
+        elif policy.get("allowCrossAreaTransfer"):
+            route_bonus += 1
+        filler_bonus = 4 if item.get("isFiller") else 0
+        duration_fit = -abs(_activity_minutes(item) - 55) / 10
+        return (
+            float(item.get("score") or 0) + route_bonus + filler_bonus + duration_fit,
+            -float(item.get("estimatedCost") or 0),
+            -float(_activity_minutes(item)),
+            str(item.get("name") or ""),
+        )
+
+    return sorted(pool, key=score, reverse=True)[:limit]
+
+
+def _can_transfer_between(
+    demand: dict[str, Any],
+    route: dict[str, Any] | None,
+    *,
+    gap_context_minutes: int = 0,
+) -> bool:
+    if not route:
+        return False
+    policy = _planning_policy(demand)
+    minutes = int(route.get("minutes") or 0)
+    if not policy.get("allowCrossAreaTransfer"):
+        return False
+    if minutes <= int(policy.get("maxTransferMinutes") or 30):
+        return True
+    if policy.get("allowCrossAreaTransfer") and gap_context_minutes >= LONG_IDLE_MINUTES and minutes <= 35:
+        return True
+    return False
+
+
+def _add_activity_like_step(
+    timeline: list[dict[str, Any]],
+    demand: dict[str, Any],
+    item: dict[str, Any],
+    cursor: int | None,
+    *,
+    item_type: str,
+    title_prefix: str | None = None,
+    end_limit: int | None = None,
+    reserve_after_minutes: int = 0,
+) -> tuple[int | None, dict[str, Any] | None]:
+    cursor, align_error = _align_activity_start(timeline, item, cursor, demand)
+    if align_error:
+        return cursor, align_error
+    minutes, duration_meta = _fit_activity_minutes(
+        item,
+        demand,
+        cursor,
+        end_limit,
+        reserve_after_minutes=reserve_after_minutes,
+    )
+    if duration_meta and duration_meta.get("reason"):
+        return cursor, duration_meta
+    if not _poi_open_for_interval(item, demand, cursor, minutes):
+        return cursor, {
+            "reason": "补充体验具体开始时间不在营业时间内",
+            "activity": item.get("name"),
+            "start": _format_minutes(cursor, "待定"),
+        }
+    if not _activity_has_slot_at(item, cursor):
+        return cursor, {
+            "reason": "补充体验开始时间未命中可用余票时段",
+            "activity": item.get("name"),
+            "start": _format_minutes(cursor, "待定"),
+        }
+    availability = item.get("availability", {})
+    description = _candidate_reason_summary(item, fallback="作为本次时间窗内的补充体验节点。")
+    if item.get("isFiller"):
+        _, description = _filler_experience_label(item)
+    elif availability:
+        description += (
+            f" 余票 {availability.get('bestTicketLeft')}，"
+            f"排队约 {availability.get('minQueueMinutes')} 分钟。"
+        )
+    description += _activity_duration_note(duration_meta)
+    title = item.get("name", "补充体验")
+    if title_prefix:
+        title = f"{title_prefix}{title}"
+    return (
+        _add_step(
+            timeline,
+            cursor=cursor,
+            minutes=minutes,
+            item_type=item_type,
+            title=title,
+            description=description,
+            cost=float(item.get("estimatedCost", 0)),
+            poi_id=item.get("poiId"),
+            area_id=item.get("areaId"),
+        ),
+        None,
+    )
+
+
+def _minimum_multi_node_tail_minutes(
+    demand: dict[str, Any],
+    supply: dict[str, Any],
+    current_area: str | None,
+    remaining_nodes: list[dict[str, Any]],
+    restaurant: dict[str, Any] | None,
+) -> int:
+    minutes = 0
+    previous_area = current_area
+    for node in remaining_nodes:
+        node_area = node.get("areaId")
+        if previous_area and node_area and previous_area != node_area:
+            route = _route_between(supply, previous_area, node_area)
+            if route:
+                minutes += int(route.get("minutes", 0))
+        elif previous_area and node_area:
+            minutes += 10
+        minutes += _activity_duration_bounds(node)[0]
+        previous_area = node_area
+    if restaurant:
+        restaurant_area = restaurant.get("areaId")
+        if previous_area and restaurant_area and previous_area != restaurant_area:
+            route = _route_between(supply, previous_area, restaurant_area)
+            if route:
+                minutes += int(route.get("minutes", 0))
+        elif previous_area and restaurant_area:
+            minutes += 10
+        minutes += _restaurant_duration_bounds(restaurant, demand)[0]
+        if _should_include_return_route(demand):
+            return_route = _reverse_origin_route(supply, restaurant_area)
+            if return_route:
+                minutes += int(return_route.get("minutes", 0))
+    return minutes
+
+
+def _build_multi_node_candidate_plan(
+    demand: dict[str, Any],
+    supply: dict[str, Any],
+    primary: dict[str, Any] | None,
+    supplemental: dict[str, Any] | list[dict[str, Any]] | None,
+    restaurant: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    supplemental_nodes = supplemental if isinstance(supplemental, list) else [supplemental] if supplemental else []
+    if not primary or not restaurant or not supplemental_nodes:
+        return None, {"reason": "多节点规划需要主活动、补充体验和餐饮"}
+    node_ids = [str(primary.get("poiId") or ""), *[str(item.get("poiId") or "") for item in supplemental_nodes]]
+    if len(node_ids) != len(set(node_ids)):
+        return None, {"reason": "多节点体验不能复用同一个 POI", "poiIds": node_ids}
+    if _meal_first(demand):
+        return None, {"reason": "当前请求要求先吃饭，多节点晚饭前补位不适用"}
+
+    policy = _planning_policy(demand)
+    start, end_limit = _time_window_bounds(demand)
+    cursor = start
+    timeline: list[dict[str, Any]] = []
+    route_cost = 0.0
+    route_refs: list[dict[str, Any]] = []
+
+    selected_area = primary.get("areaId")
+    first_route = None
+    if policy.get("includeOutboundRoute"):
+        first_route = _multi_origin_route_for_area(supply, selected_area) if _has_multi_origin(demand) else _route_for_area(supply, selected_area)
+        if _has_multi_origin(demand) and selected_area and not first_route:
+            return None, {"reason": "多人公平集合缺少完整出发点路线矩阵", "areaId": selected_area}
+        if _requires_inbound_route(demand) and selected_area and not first_route:
+            return None, {"reason": "跨城出行缺少到目标商圈的入城路线", "areaId": selected_area}
+    if first_route and first_route.get("type") != "multi_origin_fairness" and not (
+        first_route.get("isCrossCityInbound") or first_route.get("routeType") in {"origin_to_area", "estimated_origin_to_area"}
+    ):
+        first_route = None
+    if first_route:
+        is_multi_origin_route = first_route.get("type") == "multi_origin_fairness"
+        cost = float(first_route.get("estimatedCostTotal", 0))
+        minutes = int(first_route.get("maxMinutes") if is_multi_origin_route else first_route.get("minutes", 0))
+        route_cost += cost
+        route_refs.append(first_route)
+        cursor = _add_step(
+            timeline,
+            cursor=cursor,
+            minutes=minutes,
+            item_type="multi_origin_route" if is_multi_origin_route else "route",
+            title="多人公平集合到目标商圈" if is_multi_origin_route else "出发去目标商圈",
+            description=_multi_origin_route_description(first_route) if is_multi_origin_route else _route_name(first_route),
+            cost=cost,
+            route_ref=_multi_origin_route_ref(first_route) if is_multi_origin_route else _route_ref(first_route),
+            area_id=selected_area,
+        )
+
+    cursor, error = _add_activity_like_step(
+        timeline,
+        demand,
+        primary,
+        cursor,
+        item_type="activity",
+        end_limit=end_limit,
+        reserve_after_minutes=_minimum_multi_node_tail_minutes(
+            demand,
+            supply,
+            primary.get("areaId"),
+            supplemental_nodes,
+            restaurant,
+        ),
+    )
+    if error:
+        return None, error
+
+    previous = primary
+    for index, node in enumerate(supplemental_nodes, start=1):
+        if previous.get("areaId") != node.get("areaId"):
+            route = _route_between(supply, previous.get("areaId"), node.get("areaId"))
+            if not _can_transfer_between(demand, route):
+                return None, {
+                    "reason": "体验节点之间缺少可接受路线",
+                    "from": previous.get("name"),
+                    "to": node.get("name"),
+                }
+            cost = float(route.get("estimatedCostTotal", 0))
+            route_cost += cost
+            route_refs.append(route)
+            cursor = _add_step(
+                timeline,
+                cursor=cursor,
+                minutes=int(route.get("minutes", 0)),
+                item_type="route",
+                title=f"去第 {index + 1} 个体验点",
+                description=_route_name(route),
+                cost=cost,
+                route_ref=_route_ref(route),
+            )
+        else:
+            cursor = _add_step(
+                timeline,
+                cursor=cursor,
+                minutes=10,
+                item_type="buffer",
+                title="同商圈找路缓冲",
+                description="预留相邻体验点之间的找路、等人和现场小变化时间。",
+            )
+
+        supplemental_type = "filler" if node.get("isFiller") else "micro_activity"
+        remaining_nodes = supplemental_nodes[index:]
+        cursor, error = _add_activity_like_step(
+            timeline,
+            demand,
+            node,
+            cursor,
+            item_type=supplemental_type,
+            title_prefix="补充体验：" if supplemental_type == "micro_activity" else None,
+            end_limit=end_limit,
+            reserve_after_minutes=_minimum_multi_node_tail_minutes(
+                demand,
+                supply,
+                node.get("areaId"),
+                remaining_nodes,
+                restaurant,
+            ),
+        )
+        if error:
+            return None, error
+        previous = node
+
+    last_area = previous.get("areaId")
+    transfer_route = None
+    if last_area != restaurant.get("areaId"):
+        transfer_route = _route_between(supply, last_area, restaurant.get("areaId"))
+        if not _can_transfer_between(demand, transfer_route):
+            return None, {
+                "reason": "补充体验到餐厅缺少可接受路线",
+            "supplemental": previous.get("name"),
+            "restaurant": restaurant.get("name"),
+        }
+        cost = float(transfer_route.get("estimatedCostTotal", 0))
+        route_cost += cost
+        route_refs.append(transfer_route)
+        cursor = _add_step(
+            timeline,
+            cursor=cursor,
+            minutes=int(transfer_route.get("minutes", 0)),
+            item_type="route",
+            title="去晚饭地点",
+            description=_route_name(transfer_route),
+            cost=cost,
+            route_ref=_route_ref(transfer_route),
+        )
+    else:
+        cursor = _add_step(
+            timeline,
+            cursor=cursor,
+            minutes=10,
+            item_type="buffer",
+            title="晚饭前找路缓冲",
+            description="预留从补充体验点到餐厅的同商圈找路和等人时间。",
+        )
+
+    dinner_earliest = _dinner_earliest_minutes(demand)
+    if _requires_dinner_anchor(demand) and cursor is not None and cursor < dinner_earliest:
+        gap_minutes = dinner_earliest - cursor
+        cursor = _add_step(
+            timeline,
+            cursor=cursor,
+            minutes=gap_minutes,
+            item_type="buffer",
+            title="晚餐前短缓冲",
+            description="晚餐默认不早于 17:30；这段只保留必要的找路、取号和到店余量。",
+        )
+
+    cursor, align_error = _align_restaurant_start(timeline, restaurant, cursor)
+    if align_error:
+        return None, align_error
+    return_route = None
+    return_reserve_minutes = 0
+    if _should_include_return_route(demand):
+        return_route = _reverse_origin_route(supply, restaurant.get("areaId"))
+        if not return_route:
+            return None, {"reason": "用户要求返程，但缺少返程路线估算", "areaId": restaurant.get("areaId")}
+        return_reserve_minutes = int(return_route.get("minutes", 0))
+    restaurant_minutes, restaurant_duration_meta = _fit_restaurant_minutes(
+        restaurant,
+        demand,
+        cursor,
+        end_limit,
+        reserve_after_minutes=return_reserve_minutes,
+    )
+    if restaurant_duration_meta and restaurant_duration_meta.get("reason"):
+        return None, restaurant_duration_meta
+    if not _poi_open_for_interval(restaurant, demand, cursor, restaurant_minutes):
+        return None, {
+            "reason": "餐厅具体到店时间不在营业时间内",
+            "restaurant": restaurant.get("name"),
+            "start": _format_minutes(cursor, "待定"),
+        }
+    cursor = _add_step(
+        timeline,
+        cursor=cursor,
+        minutes=restaurant_minutes,
+        item_type="restaurant",
+        title=restaurant.get("name", "吃饭地点"),
+        description=_restaurant_description(restaurant) + _restaurant_duration_note(restaurant_duration_meta),
+        cost=float(restaurant.get("estimatedCost", 0)),
+        poi_id=restaurant.get("poiId"),
+        area_id=restaurant.get("areaId"),
+    )
+
+    if _should_include_return_route(demand):
+        route_refs.append(return_route)
+        cursor = _add_step(
+            timeline,
+            cursor=cursor,
+            minutes=int(return_route.get("minutes", 0)),
+            item_type="route",
+            title="返程预留",
+            description=return_route.get("routeSummary") or _route_name(return_route),
+            cost=0,
+            route_ref=None,
+        )
+
+    if end_limit is not None and cursor is not None and cursor > end_limit:
+        return None, {"reason": "超过时间窗口", "end": _format_minutes(cursor, "待定")}
+
+    activity_nodes = [primary, *supplemental_nodes]
+    activity_cost = sum(float(item.get("estimatedCost", 0)) for item in activity_nodes)
+    restaurant_cost = float(restaurant.get("estimatedCost", 0))
+    total_cost = activity_cost + restaurant_cost + route_cost
+    budget_limit = _budget_limit(demand)
+    if _budget_is_strict(demand) and budget_limit is not None and total_cost > budget_limit:
+        return None, {"reason": "超过严格预算", "totalCost": total_cost, "budgetLimit": budget_limit}
+
+    selected_area_ids = {item.get("areaId") for item in (*activity_nodes, restaurant) if item and item.get("areaId")}
+    required_anchor_areas = demand_profile.required_area_ids(demand)
+    if required_anchor_areas and not required_anchor_areas.issubset(selected_area_ids):
+        return None, {
+            "reason": "组合没有覆盖用户明确点名的目的地区域",
+            "requiredAnchorAreas": sorted(required_anchor_areas),
+            "selectedAreas": sorted(selected_area_ids),
+        }
+
+    quality_metrics = _timeline_quality_metrics(demand, timeline, cursor)
+    quality_rejection = _timeline_quality_rejection(demand, quality_metrics, True)
+    if quality_rejection:
+        return None, quality_rejection
+
+    people_total = _people_total(demand)
+    selected_items: list[dict[str, Any]] = []
+    for route in route_refs:
+        selected_items.append(
+            {
+                "kind": "route",
+                "poiId": None,
+                "name": _multi_origin_route_description(route) if route.get("type") == "multi_origin_fairness" else _route_name(route),
+                "reason": "用于估算多人集合通勤公平性。" if route.get("type") == "multi_origin_fairness" else "用于估算转场时间。",
+            }
+        )
+    for item in activity_nodes:
+        selected_items.append(
+            {
+                "kind": "activity" if not item.get("isFiller") else "filler",
+                "poiId": item.get("poiId"),
+                "name": item.get("name"),
+                "reason": _candidate_reason_summary(item, fallback="通过时间、预算和供给约束。"),
+                "recallSources": item.get("recallSources", []),
+            }
+        )
+    selected_items.append(
+        {
+            "kind": "restaurant",
+            "poiId": restaurant.get("poiId"),
+            "name": restaurant.get("name"),
+            "reason": _candidate_reason_summary(restaurant, fallback="通过时间、预算和供给约束。"),
+            "recallSources": restaurant.get("recallSources", []),
+        }
+    )
+
+    route_count = len([step for step in timeline if step.get("type") in {"route", "multi_origin_route"}])
+    area_labels = "、".join(AREA_LABELS.get(area_id, area_id) for area_id in sorted(selected_area_ids))
+    summary = (
+        f"安排 {primary.get('name')}，中段补充 {'、'.join(str(item.get('name')) for item in supplemental_nodes)}，"
+        f"再去 {restaurant.get('name')}，覆盖 {area_labels}，"
+        f"预估总价 {total_cost:.0f} 元，人均 {total_cost / people_total:.0f} 元。"
+    )
+    tradeoffs = _tradeoff_notes(demand)
+    if route_count > 1:
+        tradeoffs.append("这版把晚饭前的空档换成了一个可逛的点；如果你更想少折腾，可以让它改成同商圈慢一点的版本。")
+    else:
+        tradeoffs.append("这版把茶饮、书店或短逛作为正式节点参与排程，避免提前到商圈空等。")
+
+    plan = {
+        "status": "ok",
+        "summary": summary,
+        "timeline": timeline,
+        "selectedItems": selected_items,
+        "reasonBadges": _reason_badges(demand, primary, restaurant, first_route, transfer_route, total_cost),
+        "budgetEstimate": {
+            "activityCost": round(activity_cost, 2),
+            "restaurantCost": round(restaurant_cost, 2),
+            "routeCost": round(route_cost, 2),
+            "totalCost": round(total_cost, 2),
+            "perPersonCost": round(total_cost / people_total, 2),
+            "currency": "CNY",
+            "notes": ["费用来自候选供给，不代表真实交易价格。"],
+        },
+        "recommendationReasons": [
+            f"主活动选择 {primary.get('name')}：{_candidate_reason_summary(primary, fallback='通过时间、预算和供给约束。')}",
+            f"补充体验选择 {'、'.join(str(item.get('name')) for item in supplemental_nodes)}：用于填补时间窗，避免长时间等待。",
+            f"吃饭选择 {restaurant.get('name')}：{_candidate_reason_summary(restaurant, fallback='通过时间、预算和供给约束。')}",
+            "时间轴由多节点时间窗调度器按路线、预算、排队、空窗阈值和晚饭锚点计算生成。",
+        ],
+        "riskTips": ["确认前还会再次检查余票、座位、排队和路线变化。"],
+        "tradeoffs": tradeoffs,
+        "rawPlannerNotes": "Generated by multi-node constraint scheduler.",
+        "qualityMetrics": quality_metrics,
+        "planningPolicyApplied": policy,
+    }
+
+    route_penalty = sum(
+        float(route.get("maxMinutes") or route.get("minutes") or 0)
+        for route in route_refs
+    )
+    score = (
+        sum(float(item.get("score", 0)) * 2.4 for item in activity_nodes)
+        + float(restaurant.get("score", 0)) * 3
+        + quality_metrics["activeTimeUtilization"] * 22
+        + min(18, quality_metrics["experienceBlockCount"] * 7)
+        - quality_metrics["idleMinutes"] / 4
+        - route_penalty / 7
+    )
+    if quality_metrics["experienceBlockCount"] >= int(policy.get("targetExperienceBlocks") or 0):
+        score += 10
+    if len(selected_area_ids) > 1 and policy.get("allowCrossAreaTransfer"):
+        score += 4
+    if _has_meal_constraint(demand):
+        score += 10
+    if _requires_activity(demand):
+        score += 12
+    if budget_limit is not None:
+        utilization = total_cost / max(budget_limit, 1)
+        score += max(0.0, 1.0 - abs(TARGET_BUDGET_UTILIZATION - utilization)) * 8.0
+
+    commercial = _commercial_meta(demand, [primary, *supplemental_nodes, restaurant], total_cost)
+    plan["commercialEstimate"] = {
+        "expectedPlatformRevenue": commercial["expectedPlatformRevenue"],
+        "budgetUtilization": commercial["budgetUtilization"],
+        "qualityGateApplied": True,
+    }
+    return plan, {
+        "score": round(score, 3),
+        "experienceScore": round(score, 3),
+        "businessScore": commercial["businessScore"],
+        "expectedPlatformRevenue": commercial["expectedPlatformRevenue"],
+        "budgetUtilization": commercial["budgetUtilization"],
+        "qualityMetrics": quality_metrics,
+        "activity": primary.get("name"),
+        "supplemental": "、".join(str(item.get("name")) for item in supplemental_nodes),
+        "restaurant": restaurant.get("name"),
+        "mode": "multi_node",
+    }
+
+
+def _multi_node_candidate_plans(
+    demand: dict[str, Any],
+    supply: dict[str, Any],
+    activities: list[dict[str, Any]],
+    fillers: list[dict[str, Any]],
+    restaurants: list[dict[str, Any]],
+    *,
+    top_k: int,
+) -> tuple[list[tuple[float, dict[str, Any], dict[str, Any]]], list[dict[str, Any]]]:
+    policy = _planning_policy(demand)
+    if int(policy.get("targetExperienceBlocks") or 0) < 2:
+        return [], []
+    if _meal_first(demand) or not activities or not restaurants:
+        return [], []
+    feasible: list[tuple[float, dict[str, Any], dict[str, Any]]] = []
+    rejected: list[dict[str, Any]] = []
+    for primary in activities[:top_k]:
+        supplemental_options = _supplemental_candidates(activities[: top_k + 4], fillers[: top_k + 6], primary, None, demand, limit=top_k)
+        for supplemental in supplemental_options:
+            second_options: list[dict[str, Any] | None] = [None]
+            if int(policy.get("targetExperienceBlocks") or 0) >= 3:
+                second_options.extend(
+                    item
+                    for item in supplemental_options[:top_k]
+                    if item.get("poiId") not in {primary.get("poiId"), supplemental.get("poiId")}
+                    and _poi_name_key(item) not in {_poi_name_key(primary), _poi_name_key(supplemental)}
+                )
+            for second in second_options:
+                supplemental_nodes = [supplemental, *([second] if second else [])]
+                for restaurant in restaurants[:top_k]:
+                    if any(node.get("poiId") == restaurant.get("poiId") for node in supplemental_nodes):
+                        continue
+                    plan, meta = _build_multi_node_candidate_plan(demand, supply, primary, supplemental_nodes, restaurant)
+                    if plan is None:
+                        rejected.append(meta)
+                        continue
+                    feasible.append((float(meta["score"]), plan, meta))
+    return feasible, rejected
+
+
+def _filler_experience_label(filler: dict[str, Any]) -> tuple[str, str]:
+    name = str(filler.get("name") or "附近补充体验")
+    text = " ".join(
+        [
+            name,
+            str(filler.get("category") or ""),
+            " ".join(str(tag) for tag in filler.get("tags", [])),
+            " ".join(str(tag) for tag in filler.get("behaviorTags", [])),
+        ]
+    )
+    if any(keyword in text for keyword in ("书店", "看书", "选书")):
+        return f"{name} 书店轻逛", "具体补充体验：书店轻逛、选书或坐下聊一会，把晚饭前时间变成可执行内容。"
+    if any(keyword in text for keyword in ("茶", "咖啡", "饮品", "奶茶")):
+        return f"{name} 茶歇", "具体补充体验：点杯茶饮或咖啡坐下聊一会，不把这段时间伪装成原地等待。"
+    if any(keyword in text for keyword in ("街", "步行", "小吃", "商街", "citywalk")):
+        return f"{name} 短逛", "具体补充体验：沿街区短逛、拍照或买点小吃，作为晚饭前的轻量体验。"
+    if any(keyword in text for keyword in ("商场", "潮玩", "集合店")):
+        return f"{name} 店铺轻逛", "具体补充体验：商场或店铺轻逛，控制体力和预算。"
+    return f"{name} 轻逛", "具体补充体验：附近轻逛或拍照打卡，避免把时间轴写成空等。"
 
 
 def _insert_filler_if_needed(
@@ -1030,8 +2251,25 @@ def _insert_filler_if_needed(
     budget_limit = _budget_limit(demand)
     current_total = float(budget.get("totalCost") or 0)
     strict = _budget_is_strict(demand)
-    same_area_fillers = [item for item in fillers if item.get("areaId") == preferred_area]
+    existing_poi_ids = {
+        str(step.get("poiId"))
+        for step in timeline
+        if step.get("poiId")
+    }
+    existing_names = {
+        _poi_name_key(step)
+        for step in timeline
+        if _poi_name_key(step)
+    }
+    same_area_fillers = [
+        item
+        for item in fillers
+        if item.get("areaId") == preferred_area
+        and str(item.get("poiId") or "") not in existing_poi_ids
+        and _poi_name_key(item) not in existing_names
+    ]
     if not same_area_fillers:
+        plan.setdefault("riskTips", []).append("晚饭前空档没有找到未重复的同商圈具体补充点，已保留为必要转场/取号缓冲。")
         return plan, None
     affordable = [
         item
@@ -1039,12 +2277,13 @@ def _insert_filler_if_needed(
         if not strict or budget_limit is None or current_total + float(item.get("estimatedCost") or 0) <= budget_limit
     ]
     if not affordable:
+        plan.setdefault("riskTips", []).append("晚饭前有可补充的茶饮、书店或短逛点，但当前严格预算不足以加入；建议换更低价餐厅或提高预算。")
         return plan, None
 
     filler = sorted(
         affordable,
         key=lambda item: (
-            0 if any(word in str(item.get("name") or "") for word in ("茶", "奶茶", "小吃", "回民街")) else 1,
+            0 if any(word in str(item.get("name") or "") for word in ("书店", "茶", "咖啡", "奶茶", "小吃", "步行街", "商场")) else 1,
             float(item.get("estimatedCost") or 0),
             -float(item.get("score") or 0),
             item.get("name", ""),
@@ -1060,12 +2299,13 @@ def _insert_filler_if_needed(
     else:
         filler_minutes = min(FILLER_TARGET_MINUTES, max(30, gap_minutes))
     filler_cost = float(filler.get("estimatedCost") or 0)
+    title, description = _filler_experience_label(filler)
     filler_step = {
         "start": _format_minutes(start, "待定"),
         "end": _format_minutes(start + filler_minutes, "待定"),
         "type": "filler",
-        "title": f"建议在 {filler.get('name', '已选具体店铺')} 等位休息",
-        "description": "实体补位节点：可坐下喝杯咖啡/茶饮、商场休息或附近轻逛，避免活动后过早吃晚饭。",
+        "title": title,
+        "description": description,
         "poiId": filler.get("poiId"),
         "routeRef": None,
         "estimatedCost": filler_cost,
@@ -1079,7 +2319,7 @@ def _insert_filler_if_needed(
                 **timeline[buffer_index],
                 "start": _format_minutes(start + filler_minutes, "待定"),
                 "end": _format_minutes(end, "待定"),
-                "description": "预留从该具体 POI 到晚餐地点的等位和转场余量。",
+                "description": "预留从该具体 POI 到晚餐地点的取号、找路和转场余量。",
             }
         )
     plan["timeline"] = [*timeline[:buffer_index], *replacement, *timeline[buffer_index + 1 :]]
@@ -1092,11 +2332,11 @@ def _insert_filler_if_needed(
             "kind": "filler",
             "poiId": filler.get("poiId"),
             "name": filler.get("name"),
-            "reason": "晚餐锚点前的同商圈实体休息/等位 filler，不参与主组合穷举。",
+            "reason": "晚餐锚点前的同商圈具体补充体验，用于替代原地空等。",
         }
     )
     plan.setdefault("recommendationReasons", []).append(
-        f"晚餐不早于 17:30，空档用 {filler.get('name')} 作为同商圈具体 POI 补位。"
+        f"晚餐不早于 17:30，空档用 {filler.get('name')} 作为同商圈补充体验，而不是原地等待。"
     )
     return plan, filler
 
@@ -1172,10 +2412,12 @@ def _score_plan(
     budget_limit = _budget_limit(demand)
     if budget_limit is not None:
         utilization = total_cost / max(budget_limit, 1)
-        score += max(0.0, 1.0 - abs(0.92 - utilization)) * 8.0
-    end_limit = _parse_minutes(demand.get("timeWindow", {}).get("endTime"))
-    if cursor is not None and end_limit is not None:
-        score += max(0, end_limit - cursor) / 60
+        score += max(0.0, 1.0 - abs(TARGET_BUDGET_UTILIZATION - utilization)) * 8.0
+    if cursor is not None:
+        start, end_limit = _time_window_bounds(demand)
+        window = max(1, end_limit - start)
+        used = max(0, min(cursor, end_limit) - start)
+        score += min(1.0, used / window) * 8.0
     return score
 
 
@@ -1183,8 +2425,10 @@ def schedule_timeline(
     structured_demand: dict[str, Any],
     mock_supply: dict[str, Any],
     *,
-    top_k: int = 8,
+    top_k: int = SCHEDULER_MIN_TOP_K,
+    _with_decision_options: bool = True,
 ) -> dict[str, Any]:
+    top_k = max(SCHEDULER_MIN_TOP_K, top_k)
     if mock_supply.get("supplyStatus", {}).get("status") == "failed":
         return {
             "status": "failed",
@@ -1202,13 +2446,17 @@ def schedule_timeline(
         if item
     } if isinstance(plan_control.get("excludedPoiIds"), list) else set()
     all_activities = mock_supply.get("activityCandidates", [])
-    fillers = [item for item in all_activities if item.get("isFiller")]
-    activities = [
+    fillers = [
+        item for item in all_activities if item.get("isFiller") and item.get("poiId") not in excluded_poi_ids
+    ][: top_k + 8]
+    ranked_activities = [
         item for item in all_activities if not item.get("isFiller") and item.get("poiId") not in excluded_poi_ids
-    ][:top_k]
-    restaurants = [
+    ]
+    ranked_restaurants = [
         item for item in mock_supply.get("restaurantCandidates", []) if item.get("poiId") not in excluded_poi_ids
-    ][:top_k]
+    ]
+    activities = _scheduler_candidate_pool(ranked_activities, structured_demand, kind="activity", top_k=top_k)
+    restaurants = _scheduler_candidate_pool(ranked_restaurants, structured_demand, kind="restaurant", top_k=top_k)
     if locks.get("activityPoiId"):
         locked = [item for item in all_activities if item.get("poiId") == locks.get("activityPoiId") and not item.get("isFiller")]
         if locked:
@@ -1237,6 +2485,16 @@ def schedule_timeline(
 
     feasible: list[tuple[float, dict[str, Any], dict[str, Any]]] = []
     rejected: list[dict[str, Any]] = []
+    multi_feasible, multi_rejected = _multi_node_candidate_plans(
+        structured_demand,
+        mock_supply,
+        activities,
+        fillers,
+        restaurants,
+        top_k=top_k,
+    )
+    feasible.extend(multi_feasible)
+    rejected.extend(multi_rejected)
     for activity in activity_options:
         for restaurant in restaurant_options:
             if activity is None and restaurant is None:
@@ -1256,22 +2514,30 @@ def schedule_timeline(
             feasible.append((float(meta["score"]) - 5, plan, meta))
 
     if not feasible:
-        return {
+        result = {
             "status": "failed",
             "timelinePlan": _failed_plan(mock_supply, rejected),
             "rejectedCombinations": rejected[:20],
             "selectedCombination": None,
             "strategy": "top_k_constraint_search",
         }
+        if _with_decision_options:
+            result = _attach_meal_timing_decision(result, structured_demand, mock_supply, top_k=top_k)
+        return result
 
-    best_experience_score = max(float(item[2].get("experienceScore") or item[0]) for item in feasible)
+    policy = _planning_policy(structured_demand)
+    selection_pool = feasible
+    if multi_feasible and int(policy.get("targetExperienceBlocks") or 0) >= 2 and not _allow_single_node_itinerary(structured_demand):
+        selection_pool = multi_feasible
+
+    best_experience_score = max(float(item[2].get("experienceScore") or item[0]) for item in selection_pool)
     quality_threshold = max(
         best_experience_score - 8.0,
         min(75.0, best_experience_score),
     )
     quality_qualified = [
         item
-        for item in feasible
+        for item in selection_pool
         if float(item[2].get("experienceScore") or item[0]) >= quality_threshold
     ]
     quality_qualified.sort(
@@ -1285,19 +2551,29 @@ def schedule_timeline(
     best_plan, filler = _insert_filler_if_needed(structured_demand, best_plan, fillers)
     if filler:
         best_meta["filler"] = filler.get("name")
-    return {
+        best_plan["qualityMetrics"] = _timeline_quality_metrics(
+            structured_demand,
+            best_plan.get("timeline", []),
+            _parse_minutes((best_plan.get("timeline") or [{}])[-1].get("end")) if best_plan.get("timeline") else None,
+        )
+    result = {
         "status": "ok",
         "timelinePlan": best_plan,
         "rejectedCombinations": rejected[:20],
         "selectedCombination": {**best_meta, "score": round(best_score, 3)},
-        "strategy": "top_k_constraint_search_with_greedy_filler",
+        "strategy": "multi_node_time_window_search_with_legacy_fallback",
         "evaluatedCombinationCount": len(feasible) + len(rejected),
         "feasibleCombinationCount": len(feasible),
+        "multiNodeFeasibleCombinationCount": len(multi_feasible),
+        "selectionPool": "multi_node_only" if selection_pool is multi_feasible else "all_feasible",
         "qualityQualifiedCombinationCount": len(quality_qualified),
         "qualityThreshold": round(quality_threshold, 3),
         "fillerInsertion": {"inserted": bool(filler), "poiId": filler.get("poiId") if filler else None},
         "locks": locks,
     }
+    if _with_decision_options:
+        result = _attach_meal_timing_decision(result, structured_demand, mock_supply, top_k=top_k)
+    return result
 
 
 def _failure_suggestions(rejected: list[dict[str, Any]] | None) -> list[str]:

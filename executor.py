@@ -397,7 +397,7 @@ def _route_runtime_check(
         _runtime_issue(
             "RUNTIME_ROUTE_DELAYED",
             action,
-            f"确认前路线耗时增加 {delay} 分钟，需要更新出发提醒或重新压缩时间轴。",
+            f"确认前路线多花 {delay} 分钟，需要早点出发，或者少安排一站，给后面留出正常体验时间。",
             blocking=True,
             expected=f"delay < {RUNTIME_ROUTE_DELAY_MINUTES}",
             actual=delay,
@@ -642,6 +642,39 @@ def _replacement_summary(
     }
 
 
+def _meal_timing_from_existing_plan(timeline_plan: dict[str, Any]) -> str | None:
+    for step in timeline_plan.get("timeline", []):
+        if not isinstance(step, dict) or step.get("type") != "restaurant":
+            continue
+        start = _parse_minutes(step.get("start"))
+        if start is not None and start < 17 * 60 + 30:
+            return "earlier"
+    return None
+
+
+def _runtime_replan_demand(structured_demand: dict[str, Any], timeline_plan: dict[str, Any]) -> dict[str, Any]:
+    demand = deepcopy(structured_demand)
+    timing = _meal_timing_from_existing_plan(timeline_plan)
+    if timing != "earlier":
+        return demand
+    plan_control = demand.setdefault("planControl", {})
+    if not isinstance(plan_control, dict):
+        plan_control = {}
+        demand["planControl"] = plan_control
+    patch = plan_control.setdefault("constraintsPatch", {})
+    if not isinstance(patch, dict):
+        patch = {}
+        plan_control["constraintsPatch"] = patch
+    patch["mealTiming"] = "earlier"
+    patch["targetExperienceBlocks"] = 1
+    policy = demand.setdefault("planningPolicy", {})
+    if not isinstance(policy, dict):
+        policy = {}
+        demand["planningPolicy"] = policy
+    policy["targetExperienceBlocks"] = 1
+    return demand
+
+
 def _runtime_replan(
     *,
     structured_demand: dict[str, Any] | None,
@@ -654,20 +687,21 @@ def _runtime_replan(
     if not structured_demand or not timeline_plan or not mock_supply:
         return None
 
+    replan_demand = _runtime_replan_demand(structured_demand, timeline_plan)
     runtime_supply, recall_strategy = _refresh_supply_for_runtime_replan(
-        structured_demand,
+        replan_demand,
         mock_supply,
         runtime_status,
     )
     replanned_timeline_plan = planner.plan_timeline(
-        structured_demand,
+        replan_demand,
         runtime_supply,
         use_llm=planner_llm,
         fallback_on_error=True,
         limit=16,
     )
     replanned_stage5 = validator.validate_and_replan(
-        structured_demand,
+        replan_demand,
         runtime_supply,
         replanned_timeline_plan,
     )
@@ -715,7 +749,8 @@ def build_execution_draft(
         timeline_plan, validation_result, replan_result
     )
     validation_status = final_validation.get("status")
-    blocked = validation_status == "failed" or final_plan.get("status") == "failed"
+    decision_required = bool(final_plan.get("decisionRequired") or final_plan.get("decisionOptions"))
+    blocked = validation_status == "failed" or final_plan.get("status") == "failed" or decision_required
     draft_status = "blocked" if blocked else "warning" if validation_status == "warning" else "ready"
 
     pending_actions = [] if blocked else _pending_actions(final_plan, mock_supply)
@@ -732,6 +767,8 @@ def build_execution_draft(
         "blockedReason": (
             "Timeline planning failed; execution is not allowed."
             if final_plan.get("status") == "failed"
+            else "这版方案还有需要用户拍板的走法，先在前端选定后再确认执行。"
+            if decision_required
             else "Stage 5 validation failed; execution is not allowed."
             if blocked
             else None
@@ -873,7 +910,7 @@ def confirm_execution(
                 "availableAlternativeCandidates": available_alternatives,
                 "suggestedActions": [
                     "用 availableAlternativeCandidates 中仍可用的同类候选替换受影响 POI",
-                    "若路线耗时变长，优先压缩活动时长或改用同商圈候选",
+                    "若路线耗时变长，优先少安排一站，或换成同商圈里更顺路的候选",
                     "若团购售罄，只更新预算提示，不自动购买团购",
                 ],
             },
