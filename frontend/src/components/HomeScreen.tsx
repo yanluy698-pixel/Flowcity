@@ -10,9 +10,11 @@ type Props = {
 };
 
 const examples = [
-  "周六下午2点到6点，我从曲江池附近出发，带5岁孩子和老婆，老婆最近减脂，别太远，总预算400。",
-  "今晚6点半我们4个人在钟楼地铁站集合，想citywalk加小吃，别走太多路，最后找个地方坐下来聊。",
-  "周天1点到7点，我们3个男生从咸阳秦都站附近出发，坐地铁去西安市区玩，人均100以内。"
+  "周六下午2点到6点，我从曲江池附近出发，带5岁孩子和老婆出去玩，老婆最近减脂，别太远，总预算400，最好6点前能回到家附近。",
+  "今晚6点半我们4个人在钟楼地铁站集合，2男2女，想citywalk加小吃，但别走太多路，最后找个地方坐下来聊，10点前结束。",
+  "周天1点到7点，我们3个男生从咸阳秦都站附近出发，坐地铁去西安市区玩，人均100以内。",
+  "我们4个大学生周六中午想出来玩，分别从长安大学、西安交大、西北大学和陕师大出发，最低预算的同学只能接受人均80，希望找个对大家都公平的地方集合，再安排吃和玩。",
+  "周六下午2点到6点，我从长安大学渭水校区出发，想去市区和喜欢的女生玩，她最近减肥，吃的要好吃但别油腻，总预算200以内，别安排得太正式。"
 ];
 
 export function HomeScreen({ onSubmit, onNewSession, disabled }: Props) {
@@ -57,6 +59,7 @@ export function HomeScreen({ onSubmit, onNewSession, disabled }: Props) {
           onSubmit={onSubmit}
           disabled={disabled}
           draft={draftText ? { label: "示例", suggestion: draftText, systemPrompt: "" } : undefined}
+          showDraftPreview={false}
           onClearDraft={() => setDraftText("")}
         />
       </section>

@@ -7,9 +7,10 @@ type Props = {
   placeholder?: string;
   draft?: ModifyDraft;
   onClearDraft?: () => void;
+  showDraftPreview?: boolean;
 };
 
-export function ChatInput({ onSubmit, disabled, placeholder, draft, onClearDraft }: Props) {
+export function ChatInput({ onSubmit, disabled, placeholder, draft, onClearDraft, showDraftPreview = true }: Props) {
   const [value, setValue] = useState("");
 
   useEffect(() => {
@@ -29,7 +30,7 @@ export function ChatInput({ onSubmit, disabled, placeholder, draft, onClearDraft
 
   return (
     <div className="chat-input-wrap">
-      {draft && (
+      {draft && showDraftPreview && (
         <div className="draft-chip">
           <span className="draft-pill">{draft.label}</span>
           <p>{draft.suggestion}</p>

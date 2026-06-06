@@ -334,9 +334,10 @@ export function AdminConsole() {
             <input
               value={token}
               onChange={(event) => persistToken(event.target.value)}
-              placeholder="填写 FLOWCITY_ADMIN_TOKEN"
+              placeholder="本地演示 Token：flowcity-admin-demo"
               type="password"
             />
+            <span className="admin-token-hint">本地演示用：flowcity-admin-demo</span>
           </label>
           <button type="button" onClick={() => loadAdminData()} disabled={isLoading}>
             <RefreshCw size={15} /> 刷新后台数据
