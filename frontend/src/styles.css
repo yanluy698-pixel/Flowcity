@@ -1095,6 +1095,48 @@ button {
   margin-bottom: 10px;
 }
 
+.dataset-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.dataset-summary-grid article {
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+  border: 1px solid #e5dfce;
+  border-radius: 7px;
+  background: #fffdf7;
+}
+
+.dataset-summary-grid span {
+  color: #756f65;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dataset-summary-grid strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #201b12;
+  font-size: 12px;
+}
+
+.dataset-note {
+  margin-bottom: 10px;
+  padding: 9px 10px;
+  border: 1px solid #e7dfc9;
+  border-radius: 7px;
+  background: #fffdf6;
+  color: #5c554a;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .collection-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1110,6 +1152,21 @@ button {
 .admin-search {
   width: 100%;
   margin-bottom: 10px;
+}
+
+.field-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.field-cloud span {
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: #f1eadb;
+  color: #5b4a2e;
+  font-size: 11px;
 }
 
 .record-editor-grid {
@@ -1394,6 +1451,7 @@ button {
   }
 
   .admin-kpi-grid,
+  .dataset-summary-grid,
   .field-grid {
     grid-template-columns: 1fr;
   }

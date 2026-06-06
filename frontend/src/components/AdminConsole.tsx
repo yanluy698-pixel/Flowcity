@@ -35,6 +35,10 @@ type AdminDataset = {
   label: string;
   filename: string;
   description: string;
+  version?: string;
+  city?: string;
+  dataType?: string;
+  note?: string;
   updatedAt?: string;
   collections: AdminCollection[];
 };
@@ -453,6 +457,25 @@ export function AdminConsole() {
                   <strong>{activeDataset.filename}</strong>
                   <span>{activeDataset.description}</span>
                 </div>
+                <div className="dataset-summary-grid">
+                  <article>
+                    <span>文件</span>
+                    <strong>{activeDataset.filename}</strong>
+                  </article>
+                  <article>
+                    <span>类型</span>
+                    <strong>{activeDataset.dataType ?? "-"}</strong>
+                  </article>
+                  <article>
+                    <span>城市</span>
+                    <strong>{activeDataset.city ?? "-"}</strong>
+                  </article>
+                  <article>
+                    <span>更新时间</span>
+                    <strong>{activeDataset.updatedAt ?? "-"}</strong>
+                  </article>
+                </div>
+                {activeDataset.note && <div className="dataset-note">{activeDataset.note}</div>}
                 <div className="collection-tabs">
                   {activeDataset.collections.map((collection) => (
                     <button
@@ -474,6 +497,13 @@ export function AdminConsole() {
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="搜索名称、标签、商圈、菜系"
                 />
+                {activeCollection && (
+                  <div className="field-cloud">
+                    {activeCollection.fields.map((field) => (
+                      <span key={field}>{field}</span>
+                    ))}
+                  </div>
+                )}
                 <div className="record-editor-grid">
                   <div className="record-list">
                     {filteredRecords.map(({ record, index }) => (
