@@ -218,6 +218,7 @@ def _coverage_payload() -> dict[str, Any]:
     activities = _read_dataset("activities").get("activities", [])
     restaurants = _read_dataset("restaurants").get("restaurants", [])
     runtime_data = _read_dataset("runtime_status")
+    runtime_status = _runtime_ratio(runtime_data)
     area_rows: list[dict[str, Any]] = []
     for area in areas:
         area_id = str(area.get("areaId") or "")
@@ -256,8 +257,19 @@ def _coverage_payload() -> dict[str, Any]:
     return {
         "principles": POI_SUPPLY_PRINCIPLES,
         "priceBuckets": [{"key": key, "label": label, "min": minimum, "max": maximum} for key, label, minimum, maximum in PRICE_BUCKETS],
+        "kpis": {
+            "areaCount": len(areas),
+            "activityCount": len(activities),
+            "restaurantCount": len(restaurants),
+            "poiCount": len(activities) + len(restaurants),
+            "fillerCount": sum(1 for item in activities if item.get("isFiller")),
+            "poiRuntimeTotal": runtime_status["total"],
+            "poiRuntimeChanged": runtime_status["abnormal"],
+            "extensionRuntimeTotal": runtime_status["extensionRuntimeTotal"],
+            "extensionRuntimeChanged": runtime_status["extensionRuntimeChanged"],
+        },
         "areas": area_rows,
-        "runtimeStatus": _runtime_ratio(runtime_data),
+        "runtimeStatus": runtime_status,
     }
 
 

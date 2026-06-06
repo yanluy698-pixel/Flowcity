@@ -82,6 +82,17 @@ type CoverageArea = {
 
 type CoverageReport = {
   principles?: string[];
+  kpis?: {
+    areaCount: number;
+    activityCount: number;
+    restaurantCount: number;
+    poiCount: number;
+    fillerCount: number;
+    poiRuntimeTotal: number;
+    poiRuntimeChanged: number;
+    extensionRuntimeTotal: number;
+    extensionRuntimeChanged: number;
+  };
   areas?: CoverageArea[];
   runtimeStatus?: {
     total: number;
@@ -129,6 +140,27 @@ function getProposal(row: LearningProposalRow): LearningProposalPayload {
   return row.payload ?? { proposalId: row.proposal_id, status: row.status };
 }
 
+function formatFieldValue(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => (typeof item === "string" || typeof item === "number" ? String(item) : JSON.stringify(item))).join("\n");
+  }
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value, null, 2);
+  }
+  return String(value ?? "");
+}
+
+function parseArrayField(text: string, originalValue: unknown[]) {
+  const hasComplexItem = originalValue.some((item) => typeof item === "object" && item !== null);
+  if (hasComplexItem) {
+    return JSON.parse(text);
+  }
+  return text
+    .split(/[\n,，]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export function AdminConsole() {
   const [token, setToken] = useState(() => window.localStorage.getItem(ADMIN_TOKEN_KEY) ?? "");
   const [datasets, setDatasets] = useState<AdminDataset[]>([]);
@@ -148,6 +180,13 @@ export function AdminConsole() {
   const activeCollection = activeDataset?.collections.find((item) => item.key === selectedCollection);
   const records = activeCollection?.records ?? [];
   const activeRecord = records[selectedIndex];
+  const parsedEditor = useMemo(() => {
+    try {
+      return { record: JSON.parse(editorText) as AdminRecord, error: "" };
+    } catch {
+      return { record: null, error: "JSON 暂时不合法，字段表单会等你修好后再同步。" };
+    }
+  }, [editorText]);
 
   const filteredRecords = useMemo(
     () =>
@@ -264,6 +303,11 @@ export function AdminConsole() {
     }
   }
 
+  function updateEditorField(key: string, value: unknown) {
+    const base = parsedEditor.record ?? activeRecord ?? {};
+    setEditorText(JSON.stringify({ ...base, [key]: value }, null, 2));
+  }
+
   return (
     <main className="admin-page">
       <section className="admin-shell">
@@ -310,6 +354,34 @@ export function AdminConsole() {
             </div>
 
             <div className="coverage-panel">
+              {coverage.kpis && (
+                <div className="admin-kpi-grid">
+                  <article>
+                    <span>总 POI</span>
+                    <strong>{coverage.kpis.poiCount}</strong>
+                    <em>活动 {coverage.kpis.activityCount} / 餐厅 {coverage.kpis.restaurantCount}</em>
+                  </article>
+                  <article>
+                    <span>正式商圈</span>
+                    <strong>{coverage.kpis.areaCount}</strong>
+                    <em>补位点 {coverage.kpis.fillerCount}</em>
+                  </article>
+                  <article>
+                    <span>POI 影子表</span>
+                    <strong>
+                      {coverage.kpis.poiRuntimeChanged}/{coverage.kpis.poiRuntimeTotal}
+                    </strong>
+                    <em>一对一动态校验</em>
+                  </article>
+                  <article>
+                    <span>扩展动态</span>
+                    <strong>
+                      {coverage.kpis.extensionRuntimeChanged}/{coverage.kpis.extensionRuntimeTotal}
+                    </strong>
+                    <em>路线/团购券另算</em>
+                  </article>
+                </div>
+              )}
               <div className="coverage-principles">
                 {(coverage.principles ?? []).slice(0, 6).map((principle) => (
                   <span key={principle}>{principle}</span>
@@ -431,6 +503,72 @@ export function AdminConsole() {
                         </button>
                       </div>
                     </div>
+                    {parsedEditor.error && <div className="field-editor-warning">{parsedEditor.error}</div>}
+                    {parsedEditor.record && (
+                      <div className="field-editor">
+                        <div className="field-editor-head">
+                          <strong>字段表单</strong>
+                          <span>常用字段可直接改，复杂对象仍可在下方 JSON 精修</span>
+                        </div>
+                        <div className="field-grid">
+                          {Object.entries(parsedEditor.record).map(([key, value]) => {
+                            const isArray = Array.isArray(value);
+                            const isObject = typeof value === "object" && value !== null && !isArray;
+                            return (
+                              <label className={isArray || isObject ? "field-row wide" : "field-row"} key={key}>
+                                <span>{key}</span>
+                                {typeof value === "boolean" ? (
+                                  <select
+                                    value={value ? "true" : "false"}
+                                    onChange={(event) => updateEditorField(key, event.target.value === "true")}
+                                  >
+                                    <option value="true">true</option>
+                                    <option value="false">false</option>
+                                  </select>
+                                ) : typeof value === "number" ? (
+                                  <input
+                                    type="number"
+                                    value={Number.isFinite(value) ? value : 0}
+                                    onChange={(event) => updateEditorField(key, Number(event.target.value))}
+                                  />
+                                ) : isArray ? (
+                                  <textarea
+                                    defaultValue={formatFieldValue(value)}
+                                    key={`${selectedSlug}-${selectedCollection}-${selectedIndex}-${key}`}
+                                    onBlur={(event) => {
+                                      try {
+                                        updateEditorField(key, parseArrayField(event.target.value, value));
+                                        setError("");
+                                      } catch {
+                                        setError(`${key} 不是合法 JSON 数组。`);
+                                      }
+                                    }}
+                                  />
+                                ) : isObject ? (
+                                  <textarea
+                                    defaultValue={formatFieldValue(value)}
+                                    key={`${selectedSlug}-${selectedCollection}-${selectedIndex}-${key}`}
+                                    onBlur={(event) => {
+                                      try {
+                                        updateEditorField(key, JSON.parse(event.target.value));
+                                        setError("");
+                                      } catch {
+                                        setError(`${key} 不是合法 JSON 对象。`);
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <input
+                                    value={formatFieldValue(value)}
+                                    onChange={(event) => updateEditorField(key, event.target.value)}
+                                  />
+                                )}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     <textarea
                       value={editorText}
                       onChange={(event) => setEditorText(event.target.value)}
@@ -463,6 +601,16 @@ export function AdminConsole() {
                 <strong>{proposals.length}</strong>
                 <span>待/已审核候选</span>
               </div>
+            </div>
+
+            <div className="learning-proof">
+              <strong>比赛展示时可以这样讲</strong>
+              <ol>
+                <li>用户点击、删除、修改、确认都会变成匿名学习事件。</li>
+                <li>系统把相似开放假设聚成候选画像，不直接污染正式标签库。</li>
+                <li>运营在这里批准或拒绝，批准后才参与下一轮召回。</li>
+                <li>负向样本和分歧样本会阻断误晋升，所以不是无脑自增长。</li>
+              </ol>
             </div>
 
             <div className="proposal-list">

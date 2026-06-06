@@ -928,6 +928,39 @@ button {
   background: #fffdf3;
 }
 
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-kpi-grid article {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid #eadb9b;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-kpi-grid span {
+  color: #746d5f;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-kpi-grid strong {
+  color: #111;
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+.admin-kpi-grid em {
+  color: #7b725f;
+  font-size: 11px;
+  font-style: normal;
+}
+
 .coverage-principles {
   display: flex;
   flex-wrap: wrap;
@@ -1106,7 +1139,7 @@ button {
 .json-editor {
   min-width: 0;
   display: grid;
-  grid-template-rows: auto minmax(440px, 1fr);
+  grid-template-rows: auto auto minmax(280px, 1fr);
   gap: 8px;
 }
 
@@ -1134,6 +1167,82 @@ button {
 .json-editor-toolbar button.primary {
   background: #ffd100;
   border-color: #e0b900;
+}
+
+.field-editor {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e7dfc9;
+  border-radius: 8px;
+  background: #fffdf6;
+}
+
+.field-editor-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.field-editor-head strong {
+  font-size: 13px;
+}
+
+.field-editor-head span {
+  color: #756f65;
+  font-size: 11px;
+}
+
+.field-editor-warning {
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: #fff0e0;
+  color: #8a4c00;
+  font-size: 12px;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.field-row {
+  display: grid;
+  gap: 5px;
+}
+
+.field-row.wide {
+  grid-column: 1 / -1;
+}
+
+.field-row span {
+  color: #6a6256;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.field-row input,
+.field-row select,
+.field-row textarea {
+  width: 100%;
+  border: 1px solid #d9d1bf;
+  border-radius: 7px;
+  background: #fff;
+  color: #222;
+  padding: 8px 9px;
+  font-size: 12px;
+}
+
+.field-row textarea {
+  min-height: 74px;
+  resize: vertical;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  line-height: 1.45;
 }
 
 .json-editor textarea {
@@ -1171,6 +1280,30 @@ button {
 .learning-summary span {
   color: #6e675b;
   font-size: 11px;
+}
+
+.learning-proof {
+  margin-bottom: 12px;
+  padding: 11px 12px;
+  border: 1px solid #eadb9b;
+  border-radius: 8px;
+  background: #fffdf3;
+}
+
+.learning-proof strong {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+}
+
+.learning-proof ol {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: #514a40;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .proposal-list,
@@ -1257,6 +1390,11 @@ button {
   .admin-grid,
   .record-editor-grid,
   .admin-auth {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-kpi-grid,
+  .field-grid {
     grid-template-columns: 1fr;
   }
 
