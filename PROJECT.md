@@ -232,7 +232,9 @@ budgetFlex=strict/flexible
 - `refinement.py`：会话内二次修改补丁，支持早饭/晚饭时间、少走路、只吃饭不活动等边界。
 - `mock_api.py`：语义矩阵打分、基础质量分、约束分、路线提示分。
 - `planning_policy.py`：出行语义策略，统一处理集合后开始、门到门出行、返程、体验块和空窗阈值。
+- `route_identity.py`：路线身份模型，统一 `routeId`、`legacyRouteRef` 和旧运行时引用兼容。
 - `scheduler.py`：多节点时间窗调度、弹性活动/餐饮时长、长空窗淘汰、饭点分支、失败人话建议。
+- `supply_governance.py`：POI 治理派生层，加载时补齐来源、置信度、验证时间和事实/约束标签。
 - `timeline_quality.py`：时间利用率、空窗、路线和体验块质量度量。
 - `subarea_supply.py`：二级商圈 open-access 供给导入与字段校验。
 - `temporal_utils.py`：周六/周日/周天/周末等共享时间语义。
@@ -254,6 +256,7 @@ Python AST 检查：通过
 test_examples.py：13 个离线样例通过
 frontend npm run build：通过
 test_architecture_v5.py：通过
+2026-06-06 本轮新增回归：routeId/缺引用、open-access 二级商圈、POI 治理派生、结构化 mealTiming、low_cost 少走路
 run_llm_capability_eval.py --limit 12：21/21，通过 7 个能力 x 3 条用例，首页 5 个案例全通过
 10 组多轮真实 LLM 自测：PASSED=10/10
 自进化专项验收：通过
@@ -465,15 +468,19 @@ POI 动态异常：57 条，约 40.1%
 路线/团购券扩展动态：149 条，单独用于模拟拥堵和库存变化
 ```
 
-Mock 是比赛允许的工具层实现方式，但 Mock 不能像临时假数据。路线、区域、动态供给、治理字段和管理台健康检查都要能自洽。后续治理优先级：
+Mock 是比赛允许的工具层实现方式，但 Mock 不能像临时假数据。路线、区域、动态供给、治理字段和管理台健康检查都要能自洽。本轮已落地的治理项：
 
 ```text
-1. 路线补 routeId，并补齐 from/to 引用的 origin/area。
-2. 管理台明确展示二级商圈是 open_access，不是缺库存。
-3. schema/prompt/后端 normalization 对 planningPolicy 保持一致。
-4. 饭点选择按钮直接传结构化 mealTiming 补丁。
-5. 前端和管理台避免暴露 mockBasis 这类补库痕迹。
+1. mock_routes.json 补齐 routeId、routeRef、legacyRouteRef，并补齐 origin_xianyang_downtown 起点实体。
+2. route_identity.py 统一 Planner、Scheduler、Validator、Executor 的路线身份和旧 routeRef 兼容。
+3. 管理台明确展示二级商圈是 open_access，不是缺库存。
+4. schema/prompt/后端 normalization 对 planningPolicy 保持一致。
+5. 饭点选择按钮直接传结构化 mealTiming 补丁。
+6. supply_governance.py 在加载时派生 sourceType、confidence、lastVerifiedAt、factTags、constraintTags，不把原始 POI JSON 堆成标签墙。
+7. budget.flexibility 新增 low_cost，表达“不想花钱/少花钱”是低成本偏好，不等于强制 0 元。
 ```
+
+仍保留的长期治理项：前端和管理台的原始 JSON 编辑器会看到 `mockBasis`，这是运营调试字段；普通用户方案、分享文案和推荐理由不展示它。后续如果要做正式运营台，可以把内部字段默认折叠。
 
 ## 18. 会话与模拟执行边界
 

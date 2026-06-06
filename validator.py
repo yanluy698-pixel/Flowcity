@@ -18,6 +18,7 @@ import temporal_utils
 
 import mock_api
 import planner
+import route_identity
 
 
 ROOT = Path(__file__).resolve().parent
@@ -100,30 +101,22 @@ def _poi_details_by_id(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def _route_ref(route: dict[str, Any] | None) -> str | None:
-    if not route:
-        return None
-    from_area = route.get("fromAreaId")
-    to_area = route.get("toAreaId")
-    if not from_area or not to_area:
-        return None
-    return f"{from_area}->{to_area}"
+    return route_identity.route_ref(route)
 
 
 def _route_by_ref(mock_supply: dict[str, Any]) -> dict[str, dict[str, Any]]:
     routes: dict[str, dict[str, Any]] = {}
     for route in mock_supply.get("routeCandidates", []):
-        ref = _route_ref(route)
-        if not ref:
-            continue
-        existing = routes.get(ref)
-        if existing is None or (
-            float(route.get("estimatedCostTotal") or 0),
-            float(route.get("minutes") or 999),
-        ) < (
-            float(existing.get("estimatedCostTotal") or 0),
-            float(existing.get("minutes") or 999),
-        ):
-            routes[ref] = route
+        for ref in route_identity.route_record_keys(route):
+            existing = routes.get(ref)
+            if existing is None or (
+                float(route.get("estimatedCostTotal") or 0),
+                float(route.get("minutes") or 999),
+            ) < (
+                float(existing.get("estimatedCostTotal") or 0),
+                float(existing.get("minutes") or 999),
+            ):
+                routes[ref] = route
     return routes
 
 

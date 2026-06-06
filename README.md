@@ -31,7 +31,10 @@ FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型
 - 长空窗约束：连续无意义等待超过策略阈值会淘汰；供给不足时明确说明，而不是把两小时等待包装成合理休息。
 - 弹性时长：开放街区、商场、书店、茶饮、博物馆等按可弹性时长排布；电影、演出、剧本杀等固定场次保持固定时长。
 - 饭点分支：晚饭默认 17:30 后，但当用户明确早结束时，前端展示“正常晚饭”和“提前轻松吃一顿”两个可执行走法，不偷偷替用户改饭点。
+- 结构化选择：饭点分支按钮会把 `constraintsPatch.mealTiming=normal/earlier` 直接传给后端，自然语言只做解释，不再靠系统提示词猜用户选项。
 - 二级商圈供给：`data/mock_subareas.json` 用开放街区/商场/步行街补足大商圈内部可逛空间，作为 `open_access` 节点参与规划，不需要库存影子表。
+- 路线身份治理：`mock_routes.json` 已补 `routeId`、`routeRef` 和 `legacyRouteRef`，运行层通过 `route_identity.py` 兼容旧 `from->to` 引用，支持同一 from/to 下公交、打车等多交通方式共存。
+- 低成本偏好：`budget.flexibility=low_cost` 用于表达“不想花钱/少花钱/预算越低越好”，不是 0 元硬约束；调度层会优先少转场、少打车、低总价。
 - 显式偏好保真：用户明确改成火锅、烤肉、大排档时，系统要么命中真实品类，要么进入引导协商，不能拿相近氛围糊弄。
 - 受控自进化：长尾模糊需求作为开放假设进入向量召回，用户删除、修改、确认、模拟执行形成匿名反馈；稳定后只生成待审提案，不会自动改正式画像库。
 
@@ -52,7 +55,9 @@ Flowcity/
   extractor.py             # LLM 需求抽取和结构化归一
   mock_api.py              # Stage 3 供给过滤、矩阵打分、Top-K 海选
   planning_policy.py       # 出行语义策略：时间窗含义、出发/返程、体验块、空窗和转场策略
+  route_identity.py        # 路线身份模型：routeId、legacyRouteRef 和运行时兼容索引
   scheduler.py             # 多节点时间窗调度：主活动、补充体验、二级商圈、餐饮、路线和缓冲
+  supply_governance.py     # POI 治理派生层：sourceType、confidence、factTags、constraintTags
   timeline_quality.py      # 时间利用率、空窗、路线和体验块质量度量
   subarea_supply.py        # 二级商圈 open-access 供给导入与校验
   temporal_utils.py        # 周末/周天等时间语义工具
@@ -113,6 +118,8 @@ DeepSeek Chat API 用于结构化理解。本地向量召回使用轻量中文 E
 - POI 标签只写稳定事实画像：人群、体力、噪声、可坐下、室内外、预约、排队、消费层级；不要把“老婆减脂/想放松一下”这类用户故事写成正式标签。
 - 每个正式商圈都要覆盖活动、餐厅和过渡补位点，并尽量有免费/低价/中价/高价层，避免预算变化后系统无解。
 - 二级商圈是开放街区/开放商场节点，使用 `poiLevel=sub_area` 和 `open_access` 动态供给，不进入正式 POI 库存和运行时影子表；管理台和数据健康检查要把它识别为“开放供给”，不能当成缺库存。
+- 路线数据必须使用 `routeId` 做稳定身份；`legacyRouteRef=from->to` 只做兼容，不再作为唯一主键，避免同一组商圈下公交和打车互相覆盖。
+- POI 治理字段由 `supply_governance.py` 在加载时派生补齐：`sourceType`、`confidence`、`lastVerifiedAt`、`factTags`、`constraintTags`。原始 mock JSON 保持轻量，但管理台和健康检查能审计覆盖率。
 - 动态异常放在 `mock_runtime_status.json`。活动和餐厅是一对一 POI 运行时影子表，当前 142 个 POI 对应 142 条运行时状态，其中约 40% 变化；路线和团购券是额外动态对象，不参与 POI 异常比例。
 - 新长尾需求先进入开放假设和学习提案，只有经过后台审核后才参与后续召回，不自动改正式 taxonomy。
 
@@ -248,6 +255,7 @@ http://localhost:5173/#admin
 - `test_examples.py`：13 个离线样例通过。
 - `frontend npm run build`：通过。
 - `test_architecture_v5.py`：v5 架构回归通过。
+- 2026-06-06 本轮治理回归新增覆盖：路线 `routeId`/缺引用检查、open-access 二级商圈不要求库存、POI 治理派生字段、饭点按钮结构化 `mealTiming`、低成本少走路方案。
 - `run_llm_capability_eval.py --limit 12`：21/21 通过；7 个能力每个 3 条用例通过；首页 5 个案例全部通过。
 - 10 组多轮真实 LLM 自测：`PASSED=10/10`，最大单轮 19.298 秒。
 - 自进化专项验收：通过。未审批前正向模式召回率 0%；审批后留出集规范化假设召回率 100%；负向和分歧模式误晋升均为 0%。

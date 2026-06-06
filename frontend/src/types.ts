@@ -36,6 +36,7 @@ export type ModifyDraft = {
   label: string;
   suggestion: string;
   systemPrompt: string;
+  constraintsPatch?: Record<string, unknown>;
 };
 
 export type TimelineItem = {

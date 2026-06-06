@@ -16,6 +16,8 @@ FLOWCITY_ROOT = Path(__file__).resolve().parents[3]
 if str(FLOWCITY_ROOT) not in sys.path:
     sys.path.insert(0, str(FLOWCITY_ROOT))
 
+import supply_governance  # noqa: E402
+
 
 router = APIRouter()
 
@@ -39,6 +41,12 @@ DATASETS: dict[str, dict[str, Any]] = {
         "filename": "mock_restaurants.json",
         "collections": ["restaurants"],
         "description": "餐厅、菜系、人均、氛围、行为和人群画像标签。",
+    },
+    "subareas": {
+        "label": "二级商圈",
+        "filename": "mock_subareas.json",
+        "collections": ["subareas"],
+        "description": "开放可进入的步行街、商场、店铺带等时间窗补充节点，属于 open-access 供给，不要求座位或余票库存。",
     },
     "routes": {
         "label": "路线成本",
@@ -215,15 +223,18 @@ def _runtime_ratio(runtime_data: dict[str, Any]) -> dict[str, Any]:
 
 def _coverage_payload() -> dict[str, Any]:
     areas = [area for area in _read_dataset("areas").get("areas", []) if not str(area.get("areaId", "")).startswith("origin_")]
-    activities = _read_dataset("activities").get("activities", [])
-    restaurants = _read_dataset("restaurants").get("restaurants", [])
+    activities = supply_governance.enrich_many(_read_dataset("activities").get("activities", []), source_type="mock_curated")
+    restaurants = supply_governance.enrich_many(_read_dataset("restaurants").get("restaurants", []), source_type="mock_curated")
+    subareas = supply_governance.enrich_many(_read_dataset("subareas").get("subareas", []), source_type="mock_open_access_subarea")
     runtime_data = _read_dataset("runtime_status")
     runtime_status = _runtime_ratio(runtime_data)
+    governance_coverage = supply_governance.coverage([*activities, *restaurants, *subareas])
     area_rows: list[dict[str, Any]] = []
     for area in areas:
         area_id = str(area.get("areaId") or "")
         area_activities = [item for item in activities if item.get("areaId") == area_id]
         area_restaurants = [item for item in restaurants if item.get("areaId") == area_id]
+        area_subareas = [item for item in subareas if item.get("areaId") == area_id]
         activity_buckets = _bucket_counts(area_activities, "pricePerPerson")
         restaurant_buckets = _bucket_counts(area_restaurants, "avgPricePerPerson")
         filler_count = sum(1 for item in area_activities if item.get("isFiller"))
@@ -232,7 +243,7 @@ def _coverage_payload() -> dict[str, Any]:
             gaps.append("活动候选偏少")
         if len(area_restaurants) < 8:
             gaps.append("餐厅候选偏少")
-        if filler_count < 2:
+        if filler_count + len(area_subareas) < 2:
             gaps.append("过渡补位点不足")
         if not (activity_buckets["free"] or activity_buckets["low"]):
             gaps.append("活动缺免费/低价层")
@@ -247,6 +258,8 @@ def _coverage_payload() -> dict[str, Any]:
                 "activityCount": len(area_activities),
                 "restaurantCount": len(area_restaurants),
                 "fillerCount": filler_count,
+                "subareaCount": len(area_subareas),
+                "openAccessStatus": "open_access_not_inventory",
                 "activityPriceBuckets": activity_buckets,
                 "restaurantPriceBuckets": restaurant_buckets,
                 "activityAudienceTags": _tag_counts(area_activities, "audienceTags"),
@@ -261,6 +274,8 @@ def _coverage_payload() -> dict[str, Any]:
             "areaCount": len(areas),
             "activityCount": len(activities),
             "restaurantCount": len(restaurants),
+            "subareaCount": len(subareas),
+            "openAccessCount": len(subareas),
             "poiCount": len(activities) + len(restaurants),
             "fillerCount": sum(1 for item in activities if item.get("isFiller")),
             "poiRuntimeTotal": runtime_status["total"],
@@ -268,6 +283,7 @@ def _coverage_payload() -> dict[str, Any]:
             "extensionRuntimeTotal": runtime_status["extensionRuntimeTotal"],
             "extensionRuntimeChanged": runtime_status["extensionRuntimeChanged"],
         },
+        "governanceCoverage": governance_coverage,
         "areas": area_rows,
         "runtimeStatus": runtime_status,
     }

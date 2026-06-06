@@ -14,6 +14,7 @@
     "people",
     "budget",
     "location",
+    "planningPolicy",
     "preferences",
     "constraints",
     "potentialConflicts",
@@ -344,7 +345,7 @@
         },
         "flexibility": {
           "type": "string",
-          "enum": ["strict", "flexible", "unknown"],
+          "enum": ["strict", "flexible", "low_cost", "unknown"],
           "description": "预算是否严格。"
         }
       }

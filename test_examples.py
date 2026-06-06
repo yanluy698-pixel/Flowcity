@@ -454,8 +454,8 @@ def check_stage2_normalization() -> list[str]:
     normalized = extractor.normalize_structured_demand(result)
     if normalized["budget"]["maxTotal"] is not None:
         errors.append("low-cost normalization: maxTotal should be null, not 0")
-    if normalized["budget"]["flexibility"] != "flexible":
-        errors.append("low-cost normalization: flexibility should become flexible")
+    if normalized["budget"]["flexibility"] != "low_cost":
+        errors.append("low-cost normalization: flexibility should become low_cost")
     if "低成本" not in normalized["preferences"]["experienceTags"]:
         errors.append("low-cost normalization: missing low-cost experience tag")
     if any("不花钱" in item or "低成本" in item for item in normalized["constraints"]["hard"]):
@@ -864,11 +864,14 @@ def check_mock_density() -> list[str]:
     }
     activity_counts = Counter(item.get("areaId") for item in data.get("activities", []))
     restaurant_counts = Counter(item.get("areaId") for item in data.get("restaurants", []))
+    subarea_counts = Counter(item.get("areaId") for item in data.get("activities", []) if item.get("poiLevel") == "sub_area")
     for area_id in sorted(core_areas):
         if activity_counts[area_id] < 8:
             errors.append(f"mock_density: {area_id} should have at least 8 activities")
         if restaurant_counts[area_id] < 8:
             errors.append(f"mock_density: {area_id} should have at least 8 restaurants")
+        if subarea_counts[area_id] < 2:
+            errors.append(f"mock_density: {area_id} should have at least 2 open-access subareas")
 
     activity_availability = {item.get("poiId") for item in data.get("activityAvailability", [])}
     restaurant_availability = {item.get("poiId") for item in data.get("restaurantAvailability", [])}
@@ -884,6 +887,40 @@ def check_mock_density() -> list[str]:
         errors.append(f"mock_density: activities missing availability {missing_activities[:5]}")
     if missing_restaurants:
         errors.append(f"mock_density: restaurants missing availability {missing_restaurants[:5]}")
+
+    restaurant_availability_keys = Counter(
+        (item.get("poiId"), item.get("dateText"))
+        for item in data.get("restaurantAvailability", [])
+        if isinstance(item, dict)
+    )
+    duplicate_availability = [key for key, count in restaurant_availability_keys.items() if count > 1]
+    if duplicate_availability:
+        errors.append(f"mock_density: duplicate restaurant availability keys {duplicate_availability[:5]}")
+
+    routes = data.get("routes", [])
+    area_ids = {item.get("areaId") for item in data.get("areas", [])}
+    route_ids = [route.get("routeId") for route in routes]
+    if any(not route_id for route_id in route_ids):
+        errors.append("mock_density: every route must have a routeId")
+    if len(route_ids) != len(set(route_ids)):
+        errors.append("mock_density: routeId must be unique")
+    missing_route_refs = [
+        (route.get("routeId"), key, route.get(key))
+        for route in routes
+        for key in ("fromAreaId", "toAreaId")
+        if route.get(key) not in area_ids
+    ]
+    if missing_route_refs:
+        errors.append(f"mock_density: routes reference missing areas {missing_route_refs[:5]}")
+
+    governed_items = [*data.get("activities", []), *data.get("restaurants", [])]
+    missing_governance = [
+        item.get("id")
+        for item in governed_items
+        if not all(item.get(key) for key in ("sourceType", "confidence", "lastVerifiedAt", "factTags", "constraintTags"))
+    ]
+    if missing_governance:
+        errors.append(f"mock_density: POIs missing governance fields {missing_governance[:5]}")
     return errors
 
 

@@ -108,7 +108,8 @@ function decisionDraft(option: Record<string, any>): ModifyDraft {
   return {
     label,
     suggestion,
-    systemPrompt: `用户选择了这个走法：${label}。请按这个方向重新规划，保留原始时间、预算和人数约束；如果会牺牲吃饭、路程或游玩体验，要说明清楚。`
+    systemPrompt: `用户选择了这个走法：${label}。请按这个方向重新规划，保留原始时间、预算和人数约束；如果会牺牲吃饭、路程或游玩体验，要说明清楚。`,
+    constraintsPatch: option.constraintsPatch
   };
 }
 
@@ -121,6 +122,11 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
   const recommendationReasons = Array.isArray(plan.recommendationReasons)
     ? plan.recommendationReasons.slice(0, 3)
     : [];
+  const activeHypotheses = (
+    (payload.structuredDemand?.demandProfile?.openHypotheses ?? []) as Array<Record<string, any>>
+  )
+    .filter((item) => item?.hypothesisId && item?.text && item?.status !== "user_rejected")
+    .slice(0, 2);
   const mealTimingDecision = plan.mealTimingDecision;
   const decisionOptions = Array.isArray(plan.decisionOptions) ? plan.decisionOptions.slice(0, 3) : [];
   const executionResult = payload.executionResult;
@@ -175,6 +181,30 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {activeHypotheses.length > 0 && (
+        <div className="hypothesis-list" aria-label="可修正的隐性需求猜测">
+          {activeHypotheses.map((item) => (
+            <div className="hypothesis-item" key={String(item.hypothesisId)}>
+              <span>{userText(String(item.text))}</span>
+              <button
+                type="button"
+                aria-label="这个猜测不对"
+                onClick={() =>
+                  onHypothesisFeedback({
+                    action: "hypothesis_rejected",
+                    hypothesisId: item.hypothesisId,
+                    clusterKey: item.key,
+                    text: item.text
+                  })
+                }
+              >
+                ×
+              </button>
+            </div>
+          ))}
         </div>
       )}
 

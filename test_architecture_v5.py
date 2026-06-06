@@ -151,6 +151,22 @@ def run() -> list[str]:
     if any(item.get("kind") == "activity" for item in unknown_plan.get("selectedItems", [])):
         errors.append("requested components: a clear meal-only request must not invent an activity")
 
+    low_cost_nearby = demand_from_text("周六下午在钟楼附近，不想花钱，少走路，简单逛逛吃饭。")
+    low_cost_supply = mock_api.search_supply(low_cost_nearby)
+    low_cost_plan = planner.plan_timeline(low_cost_nearby, low_cost_supply, use_llm=False, limit=8)
+    low_cost_budget = low_cost_plan.get("budgetEstimate", {})
+    low_cost_area_ids = {
+        step.get("areaId")
+        for step in low_cost_plan.get("timeline", [])
+        if step.get("areaId")
+    }
+    if low_cost_nearby.get("budget", {}).get("flexibility") != "low_cost":
+        errors.append("low cost: no explicit amount should still become a low-cost preference")
+    if float(low_cost_budget.get("routeCost") or 0) > 0 or float(low_cost_budget.get("totalCost") or 0) > 80:
+        errors.append("low cost: nearby simple trip should avoid paid transfers and stay genuinely cheap")
+    if low_cost_area_ids and low_cost_area_ids != {"area_xa_zhonglou"}:
+        errors.append("low cost: nearby simple trip should stay in the requested area")
+
     tight_meal = mock_api.load_example_demand("pursuing_date_low_budget")
     tight_meal_supply = mock_api.search_supply(tight_meal)
     tight_meal_plan = planner.plan_timeline(tight_meal, tight_meal_supply, use_llm=False, limit=8)
@@ -165,6 +181,11 @@ def run() -> list[str]:
     previews = [option.get("previewPlan") for option in decision_options]
     if not all(preview and preview.get("timeline") for preview in previews):
         errors.append("meal timing: each decision option should include a timeline preview for frontend selection")
+    patches = {option.get("id"): option.get("constraintsPatch", {}) for option in decision_options}
+    if patches.get("early_simple_meal", {}).get("mealTiming") != "earlier":
+        errors.append("meal timing: early option must carry structured mealTiming=earlier patch")
+    if patches.get("normal_dinner", {}).get("mealTiming") != "normal":
+        errors.append("meal timing: normal option must carry structured mealTiming=normal patch")
 
     hotpot = demand_from_text("周六下午两人去高新，改成吃火锅，人均120。")
     hotpot_supply = mock_api.search_supply(hotpot)

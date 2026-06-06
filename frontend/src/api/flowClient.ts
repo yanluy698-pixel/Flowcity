@@ -13,6 +13,7 @@ export async function runFlowStream(
     interactionMode?: "auto" | "new_plan" | "refine";
     previousPlanId?: string;
     hypothesisFeedback?: Record<string, unknown>;
+    constraintsPatch?: Record<string, unknown>;
   }
 ) {
   const response = await fetch(`${API_BASE}/api/flow/run-stream`, {
@@ -26,7 +27,8 @@ export async function runFlowStream(
       sessionId: options?.sessionId,
       interactionMode: options?.interactionMode ?? "auto",
       previousPlanId: options?.previousPlanId,
-      hypothesisFeedback: options?.hypothesisFeedback
+      hypothesisFeedback: options?.hypothesisFeedback,
+      constraintsPatch: options?.constraintsPatch
     })
   });
 

@@ -14,6 +14,7 @@ from typing import Any
 
 import demand_profile
 import planning_policy
+import route_identity
 import temporal_utils
 import timeline_quality
 
@@ -287,6 +288,10 @@ def _meal_timing_option(
 ) -> dict[str, Any]:
     plan = result.get("timelinePlan", {}) if isinstance(result, dict) else {}
     ok = result.get("status") == "ok" and isinstance(plan, dict) and plan.get("status") != "failed"
+    constraints_patch = {
+        "mealTiming": "earlier" if option_id == "early_simple_meal" else "normal",
+        "targetExperienceBlocksMin": 1 if option_id == "early_simple_meal" else 2,
+    }
     return {
         "id": option_id,
         "label": label,
@@ -295,6 +300,7 @@ def _meal_timing_option(
         "tradeoff": tradeoff,
         "previewPlan": _compact_decision_plan(plan),
         "userPrompt": user_prompt,
+        "constraintsPatch": constraints_patch,
     }
 
 
@@ -412,13 +418,7 @@ def _requires_activity(demand: dict[str, Any]) -> bool:
 
 
 def _route_ref(route: dict[str, Any] | None) -> str | None:
-    if not route:
-        return None
-    start = route.get("fromAreaId")
-    end = route.get("toAreaId")
-    if not start or not end:
-        return None
-    return f"{start}->{end}"
+    return route_identity.route_ref(route)
 
 
 def _route_name(route: dict[str, Any] | None) -> str:
@@ -598,7 +598,7 @@ def _reverse_origin_route(supply: dict[str, Any], area_id: str | None) -> dict[s
     if not origin_routes:
         return None
     inbound = sorted(origin_routes, key=lambda item: (item.get("minutes", 999), item.get("estimatedCostTotal", 999)))[0]
-    return {
+    reversed_route = {
         **inbound,
         "fromAreaId": inbound.get("toAreaId"),
         "toAreaId": inbound.get("fromAreaId"),
@@ -606,6 +606,9 @@ def _reverse_origin_route(supply: dict[str, Any], area_id: str | None) -> dict[s
         "isCrossCityInbound": False,
         "routeSummary": f"返程预留：{AREA_LABELS.get(str(inbound.get('toAreaId')), str(inbound.get('toAreaId')))}回到{AREA_LABELS.get(str(inbound.get('fromAreaId')), str(inbound.get('fromAreaId')))}，按来程反向约{inbound.get('minutes')}分钟",
     }
+    for key in ("routeId", "routeRef", "legacyRouteRef"):
+        reversed_route.pop(key, None)
+    return route_identity.with_route_identity(reversed_route)
 
 
 def _should_include_return_route(demand: dict[str, Any]) -> bool:
@@ -2110,7 +2113,17 @@ def _build_multi_node_candidate_plan(
         score += 12
     if budget_limit is not None:
         utilization = total_cost / max(budget_limit, 1)
-        score += max(0.0, 1.0 - abs(TARGET_BUDGET_UTILIZATION - utilization)) * 8.0
+        if _is_low_cost_intent(demand):
+            score -= utilization * 16.0
+        else:
+            score += max(0.0, 1.0 - abs(TARGET_BUDGET_UTILIZATION - utilization)) * 8.0
+    if _is_low_cost_intent(demand):
+        taxi_count = sum(1 for route in route_refs if route.get("transport") == "taxi")
+        cross_area_count = sum(1 for route in route_refs if route.get("fromAreaId") != route.get("toAreaId"))
+        score -= taxi_count * 18
+        score -= max(0, len(selected_area_ids) - 1) * 10
+        score -= cross_area_count * 5
+        score -= route_cost / 12
 
     commercial = _commercial_meta(demand, [primary, *supplemental_nodes, restaurant], total_cost)
     plan["commercialEstimate"] = {
@@ -2412,7 +2425,18 @@ def _score_plan(
     budget_limit = _budget_limit(demand)
     if budget_limit is not None:
         utilization = total_cost / max(budget_limit, 1)
-        score += max(0.0, 1.0 - abs(TARGET_BUDGET_UTILIZATION - utilization)) * 8.0
+        if _is_low_cost_intent(demand):
+            score -= utilization * 14.0
+        else:
+            score += max(0.0, 1.0 - abs(TARGET_BUDGET_UTILIZATION - utilization)) * 8.0
+    if _is_low_cost_intent(demand):
+        routes = [route for route in (first_route, transfer_route) if isinstance(route, dict)]
+        taxi_count = sum(1 for route in routes if route.get("transport") == "taxi")
+        cross_area_count = sum(1 for route in routes if route.get("fromAreaId") != route.get("toAreaId"))
+        route_cost = sum(float(route.get("estimatedCostTotal") or 0) for route in routes)
+        score -= taxi_count * 18
+        score -= cross_area_count * 8
+        score -= route_cost / 12
     if cursor is not None:
         start, end_limit = _time_window_bounds(demand)
         window = max(1, end_limit - start)

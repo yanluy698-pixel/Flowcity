@@ -15,6 +15,7 @@ class FlowRunRequest(BaseModel):
     interactionMode: Literal["auto", "new_plan", "refine"] = "auto"
     previousPlanId: str | None = None
     hypothesisFeedback: dict[str, Any] | None = None
+    constraintsPatch: dict[str, Any] | None = None
 
 
 class ExecuteRequest(BaseModel):

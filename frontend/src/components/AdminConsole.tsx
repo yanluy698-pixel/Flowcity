@@ -79,6 +79,8 @@ type CoverageArea = {
   activityCount: number;
   restaurantCount: number;
   fillerCount: number;
+  subareaCount?: number;
+  openAccessStatus?: string;
   activityPriceBuckets: Record<string, number>;
   restaurantPriceBuckets: Record<string, number>;
   gaps: string[];
@@ -90,12 +92,22 @@ type CoverageReport = {
     areaCount: number;
     activityCount: number;
     restaurantCount: number;
+    subareaCount?: number;
+    openAccessCount?: number;
     poiCount: number;
     fillerCount: number;
     poiRuntimeTotal: number;
     poiRuntimeChanged: number;
     extensionRuntimeTotal: number;
     extensionRuntimeChanged: number;
+  };
+  governanceCoverage?: {
+    total: number;
+    sourceType: number;
+    confidence: number;
+    lastVerifiedAt: number;
+    factTags: number;
+    constraintTags: number;
   };
   areas?: CoverageArea[];
   runtimeStatus?: {
@@ -372,6 +384,11 @@ export function AdminConsole() {
                     <em>补位点 {coverage.kpis.fillerCount}</em>
                   </article>
                   <article>
+                    <span>开放二级商圈</span>
+                    <strong>{coverage.kpis.openAccessCount ?? 0}</strong>
+                    <em>不按座位/余票库存校验</em>
+                  </article>
+                  <article>
                     <span>POI 影子表</span>
                     <strong>
                       {coverage.kpis.poiRuntimeChanged}/{coverage.kpis.poiRuntimeTotal}
@@ -407,6 +424,16 @@ export function AdminConsole() {
                   </em>
                 </div>
               )}
+              {coverage.governanceCoverage && (
+                <div className="runtime-ratio ok">
+                  <strong>{coverage.governanceCoverage.factTags}/{coverage.governanceCoverage.total}</strong>
+                  <span>POI 治理派生覆盖：来源、置信度、事实标签和约束标签在加载时统一补齐</span>
+                  <em>
+                    source {coverage.governanceCoverage.sourceType} / confidence {coverage.governanceCoverage.confidence} /
+                    constraints {coverage.governanceCoverage.constraintTags}
+                  </em>
+                </div>
+              )}
               <div className="coverage-grid">
                 {(coverage.areas ?? []).map((area) => (
                   <article className={area.gaps.length ? "coverage-card warn" : "coverage-card"} key={area.areaId}>
@@ -415,7 +442,8 @@ export function AdminConsole() {
                       <span>{area.areaId}</span>
                     </div>
                     <p>
-                      活动 {area.activityCount} / 餐饮 {area.restaurantCount} / 补位 {area.fillerCount}
+                      活动 {area.activityCount} / 餐饮 {area.restaurantCount} / 补位 {area.fillerCount} / 开放二级{" "}
+                      {area.subareaCount ?? 0}
                     </p>
                     <p>
                       活动价层 F{area.activityPriceBuckets.free ?? 0} L{area.activityPriceBuckets.low ?? 0} M

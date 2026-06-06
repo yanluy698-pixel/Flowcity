@@ -219,7 +219,8 @@ export default function App() {
           sessionId,
           interactionMode: shouldOptimizePrevious ? "refine" : "auto",
           previousPlanId: lastTurn?.finalPayload?.planId,
-          hypothesisFeedback
+          hypothesisFeedback,
+          constraintsPatch: activeDraft?.constraintsPatch
         }
       );
     } catch (error) {

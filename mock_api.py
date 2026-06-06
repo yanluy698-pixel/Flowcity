@@ -19,7 +19,9 @@ from typing import Any
 import area_retrieval
 import demand_profile
 import intent_taxonomy
+import route_identity
 import subarea_supply
+import supply_governance
 import temporal_utils
 from poi_profiles import build_poi_profile
 from semantic_retrieval import RETRIEVER
@@ -172,13 +174,24 @@ def load_json(path: Path) -> dict[str, Any]:
 
 def load_mock_data(data_dir: Path = DATA_DIR) -> dict[str, Any]:
     """Load all stage-3 mock data files."""
-    activities = load_json(data_dir / "mock_activities.json")["activities"]
-    activities = [*activities, *subarea_supply.load_subarea_activities(data_dir / "mock_subareas.json")]
+    activities = supply_governance.enrich_many(
+        load_json(data_dir / "mock_activities.json")["activities"],
+        source_type="mock_curated",
+    )
+    subarea_activities = supply_governance.enrich_many(
+        subarea_supply.load_subarea_activities(data_dir / "mock_subareas.json"),
+        source_type="mock_open_access_subarea",
+    )
+    activities = [*activities, *subarea_activities]
+    restaurants = supply_governance.enrich_many(
+        load_json(data_dir / "mock_restaurants.json")["restaurants"],
+        source_type="mock_curated",
+    )
     return {
         "areas": load_json(data_dir / "mock_areas.json")["areas"],
         "activities": activities,
-        "restaurants": load_json(data_dir / "mock_restaurants.json")["restaurants"],
-        "routes": load_json(data_dir / "mock_routes.json")["routes"],
+        "restaurants": restaurants,
+        "routes": [route_identity.with_route_identity(route) for route in load_json(data_dir / "mock_routes.json")["routes"]],
         "activityAvailability": load_json(data_dir / "mock_availability.json")[
             "activityAvailability"
         ],
@@ -234,11 +247,19 @@ def find_runtime_restaurant_status(
 
 
 def find_runtime_route_status(
-    route_ref: str,
+    route_ref: str | None,
     runtime_status: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
+    if not route_ref:
+        return None
     runtime_status = runtime_status or load_runtime_status()
-    return _runtime_records_by_key(runtime_status.get("routeRuntimeStatus", []), "routeRef").get(route_ref)
+    records: dict[str, dict[str, Any]] = {}
+    for status in runtime_status.get("routeRuntimeStatus", []):
+        if not isinstance(status, dict):
+            continue
+        for key in route_identity.route_record_keys(status):
+            records[key] = status
+    return records.get(route_ref)
 
 
 def find_runtime_deal_status(
@@ -1418,13 +1439,7 @@ def search_restaurants(
 
 
 def _route_with_cost(route: dict[str, Any], people_total: int) -> dict[str, Any]:
-    enriched = dict(route)
-    if "routeType" not in enriched:
-        enriched["routeType"] = (
-            "same_area"
-            if route.get("fromAreaId") == route.get("toAreaId")
-            else "area_to_area"
-        )
+    enriched = route_identity.with_route_identity(route)
     if "estimatedCostPerPerson" not in enriched:
         transport = route.get("transport")
         if transport == "walk":
@@ -1559,7 +1574,8 @@ def _route_fairness_by_area(
                     "displayName": origin["displayName"],
                     "minutes": route.get("minutes"),
                     "estimatedCostPerPerson": route.get("estimatedCostPerPerson", 0),
-                    "routeRef": f"{route.get('fromAreaId')}->{route.get('toAreaId')}",
+                    "routeRef": route_identity.route_ref(route),
+                    "legacyRouteRef": route.get("legacyRouteRef") or route_identity.legacy_route_ref(route),
                     "summary": _route_summary(route, data),
                     "estimated": bool(route.get("estimated")),
                 }

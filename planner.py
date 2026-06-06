@@ -19,6 +19,7 @@ from typing import Any
 
 import extractor
 import mock_api
+import route_identity
 import scheduler
 
 
@@ -244,11 +245,9 @@ def _candidate_by_id(mock_supply: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def _route_refs(mock_supply: dict[str, Any]) -> set[str]:
-    refs = {
-        _route_ref(route)
-        for route in mock_supply.get("routeCandidates", [])
-        if route.get("fromAreaId") and route.get("toAreaId")
-    }
+    refs: set[str] = set()
+    for route in mock_supply.get("routeCandidates", []):
+        refs.update(route_identity.route_record_keys(route))
     refs.update(
         f"multi_origin->{area_id}"
         for area_id, aggregate in (mock_supply.get("routeFairnessByArea") or {}).items()
@@ -258,30 +257,22 @@ def _route_refs(mock_supply: dict[str, Any]) -> set[str]:
 
 
 def _route_ref(route: dict[str, Any] | None) -> str | None:
-    if not route:
-        return None
-    from_area = route.get("fromAreaId")
-    to_area = route.get("toAreaId")
-    if not from_area or not to_area:
-        return None
-    return f"{from_area}->{to_area}"
+    return route_identity.route_ref(route)
 
 
 def _route_by_ref(mock_supply: dict[str, Any]) -> dict[str, dict[str, Any]]:
     routes: dict[str, dict[str, Any]] = {}
     for route in mock_supply.get("routeCandidates", []):
-        ref = _route_ref(route)
-        if not ref:
-            continue
-        existing = routes.get(ref)
-        if existing is None or (
-            float(route.get("estimatedCostTotal") or 0),
-            float(route.get("minutes") or 999),
-        ) < (
-            float(existing.get("estimatedCostTotal") or 0),
-            float(existing.get("minutes") or 999),
-        ):
-            routes[ref] = route
+        for ref in route_identity.route_record_keys(route):
+            existing = routes.get(ref)
+            if existing is None or (
+                float(route.get("estimatedCostTotal") or 0),
+                float(route.get("minutes") or 999),
+            ) < (
+                float(existing.get("estimatedCostTotal") or 0),
+                float(existing.get("minutes") or 999),
+            ):
+                routes[ref] = route
     return routes
 
 

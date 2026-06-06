@@ -19,6 +19,7 @@ from typing import Any
 
 import mock_api
 import planner
+import route_identity
 import validator
 
 
@@ -88,21 +89,15 @@ def _timeline_minutes(item: dict[str, Any]) -> int | None:
 
 
 def _route_ref(route: dict[str, Any] | None) -> str | None:
-    if not route:
-        return None
-    from_area = route.get("fromAreaId")
-    to_area = route.get("toAreaId")
-    if not from_area or not to_area:
-        return None
-    return f"{from_area}->{to_area}"
+    return route_identity.route_ref(route)
 
 
 def _route_by_ref(mock_supply: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    return {
-        ref: route
-        for route in mock_supply.get("routeCandidates", [])
-        if (ref := _route_ref(route))
-    }
+    routes: dict[str, dict[str, Any]] = {}
+    for route in mock_supply.get("routeCandidates", []):
+        for ref in route_identity.route_record_keys(route):
+            routes[ref] = route
+    return routes
 
 
 def _alternative_candidates(
@@ -221,15 +216,18 @@ def _pending_actions(final_plan: dict[str, Any], mock_supply: dict[str, Any]) ->
         elif item_type == "route":
             route_ref = item.get("routeRef")
             route = routes.get(route_ref)
+            legacy_route_ref = route.get("legacyRouteRef") if isinstance(route, dict) else None
             actions.append(
                 {
                     **base,
                     "actionType": "route_reminder",
                     "routeRef": route_ref,
+                    "legacyRouteRef": legacy_route_ref,
                     "plannedRouteMinutes": route.get("minutes") if route else _timeline_minutes(item),
                     "runtimeLookup": {
                         "kind": "route",
                         "routeRef": route_ref,
+                        "legacyRouteRef": legacy_route_ref,
                     },
                     "description": "路线只生成出发提醒，不生成订单。",
                 }
@@ -383,6 +381,8 @@ def _route_runtime_check(
     if not route_ref:
         return None, []
     status = mock_api.find_runtime_route_status(route_ref, runtime_status)
+    if not status:
+        status = mock_api.find_runtime_route_status(lookup.get("legacyRouteRef") or action.get("legacyRouteRef"), runtime_status)
     if not status:
         return None, []
 
@@ -546,15 +546,19 @@ def _apply_runtime_to_supply(
             }
         restaurants.append(item)
 
-    route_status_by_ref = {
-        status.get("routeRef"): status
-        for status in runtime_status.get("routeRuntimeStatus", [])
-        if status.get("routeRef")
-    }
+    route_status_by_ref: dict[str, dict[str, Any]] = {}
+    for status in runtime_status.get("routeRuntimeStatus", []):
+        if not isinstance(status, dict):
+            continue
+        for key in route_identity.route_record_keys(status):
+            route_status_by_ref[key] = status
     routes: list[dict[str, Any]] = []
     for route in runtime_supply.get("routeCandidates", []):
-        ref = _route_ref(route)
-        status = route_status_by_ref.get(ref)
+        status = None
+        for ref in route_identity.route_record_keys(route):
+            status = route_status_by_ref.get(ref)
+            if status:
+                break
         if status and isinstance(status.get("minutes"), int):
             route["originalMinutes"] = route.get("minutes")
             route["minutes"] = status["minutes"]

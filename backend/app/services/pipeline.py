@@ -74,13 +74,6 @@ def _record_profile_learning_events(session_id: str, structured_demand: dict[str
             cluster_key=cluster_key,
             payload=payload,
         )
-        _record_learning_event(
-            "hypothesis_shown",
-            session_id=session_id,
-            hypothesis_id=hypothesis_id,
-            cluster_key=cluster_key,
-            payload={"text": item.get("text")},
-        )
 
 
 def _record_supply_learning_events(session_id: str, mock_supply: dict[str, Any]) -> None:
@@ -784,6 +777,23 @@ def _merge_router_patches(local_patch: dict[str, Any], llm_patch: dict[str, Any]
     return patch
 
 
+def _merge_request_constraints_patch(
+    router_result: dict[str, Any],
+    request: FlowRunRequest,
+) -> dict[str, Any]:
+    request_patch = request.constraintsPatch if isinstance(request.constraintsPatch, dict) else {}
+    if not request_patch:
+        return router_result
+    result = deepcopy(router_result)
+    result["constraintsPatch"] = _merge_router_patches(
+        result.get("constraintsPatch", {}),
+        request_patch,
+    )
+    result.setdefault("actionFlags", {})
+    result["clientConstraintsPatch"] = deepcopy(request_patch)
+    return result
+
+
 def _router_result_from_llm(
     *,
     llm_data: dict[str, Any],
@@ -1213,6 +1223,7 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
             session=session,
         )
         router_result = _maybe_route_followup_with_llm(request, session, router_result)
+        router_result = _merge_request_constraints_patch(router_result, request)
 
         if _should_start_refinement_dialogue(request, router_result, session):
             assistant_message = _start_refinement_dialogue(session_id, request, router_result, session)

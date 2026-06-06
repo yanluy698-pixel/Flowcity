@@ -915,7 +915,7 @@ def _normalize_required_schema_defaults(result: dict[str, Any]) -> None:
     budget.setdefault("maxTotal", None)
     budget.setdefault("perPerson", None)
     budget["currency"] = "CNY"
-    if budget.get("flexibility") not in {"strict", "flexible", "unknown"}:
+    if budget.get("flexibility") not in {"strict", "flexible", "low_cost", "unknown"}:
         budget["flexibility"] = "unknown"
 
     location = result.setdefault("location", {})
@@ -1033,7 +1033,7 @@ def normalize_structured_demand(result: dict[str, Any], fallback_raw_input: str 
     if budget.get("perPerson") == 0:
         budget["perPerson"] = None
     if budget.get("maxTotal") is None and budget.get("perPerson") is None:
-        budget["flexibility"] = "flexible"
+        budget["flexibility"] = "low_cost"
 
     preferences = result.get("preferences")
     if isinstance(preferences, dict):

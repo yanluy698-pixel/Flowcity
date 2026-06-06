@@ -95,6 +95,16 @@
       "mockDescription": "画像三咸阳到西安跨城低预算出行的起点。"
     },
     {
+      "areaId": "origin_xianyang_downtown",
+      "name": "咸阳市区",
+      "district": "咸阳",
+      "landmarks": ["咸阳市区", "白马河", "秦都站"],
+      "tags": ["跨城出发点", "咸阳", "公共交通", "低预算"],
+      "defaultTransport": ["public_transport"],
+      "suitableScenes": ["friends", "family", "couple"],
+      "mockDescription": "咸阳市区出发锚点，用于跨城公共交通到西安市区商圈的演示路线。"
+    },
+    {
       "areaId": "origin_xa_changan_university",
       "name": "长安大学",
       "district": "碑林区/未央区",
