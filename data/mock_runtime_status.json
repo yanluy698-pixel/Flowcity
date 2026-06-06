@@ -4,7 +4,9 @@
   "dataType": "runtime_status_pool",
   "normalShare": 0.6,
   "abnormalShare": 0.4,
-  "note": "确认/下单阶段使用的 Mock 异常池；多数记录保持原状态，少数记录模拟余票、座位、排队、路线和库存变化。",
+  "note": "确认/模拟执行阶段使用的 Mock 运行时影子表；活动和餐厅按 POI 一对一覆盖，其中约 40% 记录模拟确认前无票、无座或排队变长。路线和券为扩展动态状态，不参与 POI 异常比例。",
+  "poiRuntimeShareNote": "activityRuntimeStatus + restaurantRuntimeStatus 与 POI 一对一；abnormalShare 只按这两类计算。",
+  "extensionRuntimeShareNote": "routeRuntimeStatus 与 dealRuntimeStatus 用于模拟路线拥堵和套餐库存变化，是额外动态对象。",
   "activityRuntimeStatus": [
     {
       "poiId": "act_xa_001",
@@ -1524,26 +1526,180 @@
       ]
     },
     {
+      "poiId": "act_xa_064",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:00", "ticketLeft": 40, "queueMinutes": 26, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 35, "queueMinutes": 30, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "喜茶(小寨赛格店)确认前排队变长，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_065",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:00", "ticketLeft": 45, "queueMinutes": 30, "crowdLevel": "high" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 38, "queueMinutes": 30, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "茶话弄(钟楼开元店)确认前排队变长，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_066",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:00", "ticketLeft": 40, "queueMinutes": 34, "crowdLevel": "high" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 34, "queueMinutes": 34, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "星巴克(高新大都荟店)确认前排队变长，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_067",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "13:00", "end": "18:00", "ticketLeft": 80, "queueMinutes": 26, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 70, "queueMinutes": 26, "crowdLevel": "medium" }
+      ],
+      "runtimeMessage": "西西弗书店(小寨赛格店)确认前客流变大，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_068",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:00", "ticketLeft": 45, "queueMinutes": 30, "crowdLevel": "high" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 36, "queueMinutes": 30, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "奈雪的茶(曲江大悦城店)确认前排队变长，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_069",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:30", "ticketLeft": 120, "queueMinutes": 34, "crowdLevel": "high" },
+        { "start": "18:30", "end": "22:30", "ticketLeft": 120, "queueMinutes": 34, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "大唐不夜城北广场确认前客流变大，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_070",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:00", "ticketLeft": 40, "queueMinutes": 26, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 30, "queueMinutes": 26, "crowdLevel": "medium" }
+      ],
+      "runtimeMessage": "奈雪的茶(大明宫万达店)确认前排队变长，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_071",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "13:00", "end": "18:00", "ticketLeft": 80, "queueMinutes": 30, "crowdLevel": "high" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 70, "queueMinutes": 30, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "西西弗书店(熙地港店)确认前客流变大，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_072",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "14:00", "end": "18:00", "ticketLeft": 35, "queueMinutes": 34, "crowdLevel": "high" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 28, "queueMinutes": 34, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "西西弗书店(钟楼开元店)确认前客流变大，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_073",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "13:00", "end": "18:00", "ticketLeft": 80, "queueMinutes": 26, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "21:30", "ticketLeft": 70, "queueMinutes": 26, "crowdLevel": "medium" }
+      ],
+      "runtimeMessage": "M Stand咖啡(高新大都荟店)确认前排队变长，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_074",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "10:00", "end": "18:00", "ticketLeft": 120, "queueMinutes": 30, "crowdLevel": "high" },
+        { "start": "18:00", "end": "22:00", "ticketLeft": 100, "queueMinutes": 30, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "TOP TOY潮玩集合店(熙地港店)确认前客流变大，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_075",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "10:00", "end": "18:00", "ticketLeft": 100, "queueMinutes": 34, "crowdLevel": "high" },
+        { "start": "18:00", "end": "22:00", "ticketLeft": 80, "queueMinutes": 34, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "霸王茶姬(熙地港店)确认前排队变长，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_076",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "10:00", "end": "18:00", "ticketLeft": 120, "queueMinutes": 26, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "23:00", "ticketLeft": 90, "queueMinutes": 26, "crowdLevel": "medium" }
+      ],
+      "runtimeMessage": "茶话弄(回民街路口店)确认前排队变长，仍可执行但建议预留时间。"
+    },
+    {
+      "poiId": "act_xa_077",
+      "dateText": "周末",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "timeSlots": [
+        { "start": "12:00", "end": "18:00", "ticketLeft": 200, "queueMinutes": 30, "crowdLevel": "high" },
+        { "start": "18:00", "end": "23:30", "ticketLeft": 200, "queueMinutes": 30, "crowdLevel": "high" }
+      ],
+      "runtimeMessage": "北院门风情街确认前客流变大，仍可执行但建议预留时间。"
+    },
+    {
       "poiId": "act_xa_078",
       "dateText": "周末",
-      "runtimeState": "unchanged",
-      "eventType": "none",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
       "timeSlots": [
-        { "start": "12:00", "end": "18:00", "ticketLeft": 300, "queueMinutes": 0, "crowdLevel": "medium" },
-        { "start": "18:00", "end": "23:30", "ticketLeft": 300, "queueMinutes": 0, "crowdLevel": "high" }
+        { "start": "12:00", "end": "18:00", "ticketLeft": 300, "queueMinutes": 26, "crowdLevel": "medium" },
+        { "start": "18:00", "end": "23:30", "ticketLeft": 300, "queueMinutes": 26, "crowdLevel": "high" }
       ],
-      "runtimeMessage": "钟鼓楼广场确认前状态未变化。"
+      "runtimeMessage": "钟鼓楼广场确认前客流变大，仍可执行但建议预留时间。"
     },
     {
       "poiId": "act_xa_079",
       "dateText": "周末",
-      "runtimeState": "unchanged",
-      "eventType": "none",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
       "timeSlots": [
-        { "start": "10:00", "end": "18:00", "ticketLeft": 180, "queueMinutes": 0, "crowdLevel": "medium" },
-        { "start": "18:00", "end": "22:30", "ticketLeft": 150, "queueMinutes": 0, "crowdLevel": "medium" }
+        { "start": "10:00", "end": "18:00", "ticketLeft": 180, "queueMinutes": 30, "crowdLevel": "high" },
+        { "start": "18:00", "end": "22:30", "ticketLeft": 150, "queueMinutes": 30, "crowdLevel": "high" }
       ],
-      "runtimeMessage": "高新大都荟确认前状态未变化。"
+      "runtimeMessage": "高新大都荟确认前客流变大，仍可执行但建议预留时间。"
     },
     {
       "poiId": "act_xa_080",
@@ -1559,13 +1715,13 @@
     {
       "poiId": "act_xa_081",
       "dateText": "周末",
-      "runtimeState": "unchanged",
-      "eventType": "none",
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
       "timeSlots": [
-        { "start": "10:00", "end": "18:00", "ticketLeft": 100, "queueMinutes": 0, "crowdLevel": "medium" },
-        { "start": "18:00", "end": "22:30", "ticketLeft": 80, "queueMinutes": 4, "crowdLevel": "medium" }
+        { "start": "10:00", "end": "18:00", "ticketLeft": 100, "queueMinutes": 34, "crowdLevel": "high" },
+        { "start": "18:00", "end": "22:30", "ticketLeft": 80, "queueMinutes": 34, "crowdLevel": "high" }
       ],
-      "runtimeMessage": "霸王茶姬(大明宫万达店)确认前状态未变化。"
+      "runtimeMessage": "霸王茶姬(大明宫万达店)确认前排队变长，仍可执行但建议预留时间。"
     },
     {
       "poiId": "act_xa_082",
@@ -2207,11 +2363,12 @@
     {
       "poiId": "res_xa_056",
       "dateText": "周末",
-      "runtimeState": "unchanged",
-      "eventType": "none",
-      "queueMinutes": 10,
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 31,
       "tableAvailable": true,
-      "availableSlots": []
+      "availableSlots": [],
+      "runtimeMessage": "老米家泡馍小炒(北院门店)确认前排队变长，仍可预约但建议预留时间。"
     },
     {
       "poiId": "res_xa_057",
@@ -2235,11 +2392,12 @@
     {
       "poiId": "res_xa_059",
       "dateText": "周末",
-      "runtimeState": "unchanged",
-      "eventType": "none",
-      "queueMinutes": 12,
+      "runtimeState": "changed",
+      "eventType": "queue_extended",
+      "queueMinutes": 34,
       "tableAvailable": true,
-      "availableSlots": ["16:30", "17:00", "17:30", "18:00", "19:00"]
+      "availableSlots": ["16:30", "17:00", "17:30", "18:00", "19:00"],
+      "runtimeMessage": "西贝莜面村(熙地港店)确认前排队变长，仍可预约但建议预留时间。"
     },
     {
       "poiId": "res_xa_060",

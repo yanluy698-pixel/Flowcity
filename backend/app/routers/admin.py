@@ -59,7 +59,7 @@ DATASETS: dict[str, dict[str, Any]] = {
         "description": "团购套餐、价格、库存、适用人数和有效时段。",
     },
     "runtime_status": {
-        "label": "执行异常池",
+        "label": "运行时影子表",
         "filename": "mock_runtime_status.json",
         "collections": [
             "activityRuntimeStatus",
@@ -67,7 +67,7 @@ DATASETS: dict[str, dict[str, Any]] = {
             "routeRuntimeStatus",
             "dealRuntimeStatus",
         ],
-        "description": "确认模拟执行时的无票、无座、路线拥堵等动态异常。",
+        "description": "确认模拟执行时的 POI 一对一运行时状态，以及路线拥堵、团购库存等扩展动态状态。",
     },
 }
 
@@ -84,7 +84,7 @@ POI_SUPPLY_PRINCIPLES = [
     "POI 标签优先写事实画像：人群、体力、噪声、可坐下、室内外、预约/排队、消费层级；不要把某个用户故事写成标签。",
     "补位点只作为空窗、等位、短休息节点，不和主活动混为一谈。",
     "点名目的地区域必须保留进入下一轮；探索区域才参与粗排淘汰。",
-    "动态异常池整体维持约 40% 变化，用于验证确认前校验和异常重规划。",
+    "POI 运行时影子表与活动/餐厅一对一覆盖，其中约 40% 变化，用于验证确认前校验和异常重规划。",
 ]
 
 
@@ -176,20 +176,27 @@ def _tag_counts(records: list[dict[str, Any]], key: str) -> dict[str, int]:
     return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:10])
 
 
+def _runtime_record_changed(record: dict[str, Any]) -> bool:
+    return record.get("runtimeState") == "changed" or record.get("eventType") not in (None, "none", "unchanged")
+
+
 def _runtime_ratio(runtime_data: dict[str, Any]) -> dict[str, Any]:
-    rows = [
+    poi_rows = [
         record
-        for value in runtime_data.values()
-        if isinstance(value, list)
-        for record in value
+        for key in ("activityRuntimeStatus", "restaurantRuntimeStatus")
+        for record in runtime_data.get(key, [])
         if isinstance(record, dict)
     ]
+    extension_rows = [
+        record
+        for key in ("routeRuntimeStatus", "dealRuntimeStatus")
+        for record in runtime_data.get(key, [])
+        if isinstance(record, dict)
+    ]
+    rows = poi_rows
     total = len(rows)
-    abnormal = sum(
-        1
-        for record in rows
-        if record.get("runtimeState") != "unchanged" or record.get("eventType") not in (None, "none")
-    )
+    abnormal = sum(1 for record in rows if _runtime_record_changed(record))
+    extension_changed = sum(1 for record in extension_rows if _runtime_record_changed(record))
     ratio = abnormal / total if total else 0.0
     return {
         "total": total,
@@ -198,6 +205,11 @@ def _runtime_ratio(runtime_data: dict[str, Any]) -> dict[str, Any]:
         "abnormalRatio": round(ratio, 3),
         "targetAbnormalRatio": float(runtime_data.get("abnormalShare", 0.4)),
         "withinTolerance": abs(ratio - float(runtime_data.get("abnormalShare", 0.4))) <= 0.08,
+        "scope": "activityRuntimeStatus + restaurantRuntimeStatus",
+        "activityRuntimeTotal": len(runtime_data.get("activityRuntimeStatus", [])),
+        "restaurantRuntimeTotal": len(runtime_data.get("restaurantRuntimeStatus", [])),
+        "extensionRuntimeTotal": len(extension_rows),
+        "extensionRuntimeChanged": extension_changed,
     }
 
 

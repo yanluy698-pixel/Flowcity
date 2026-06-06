@@ -947,6 +947,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 8px 10px;
   border-radius: 7px;
@@ -964,6 +965,14 @@ button {
 .runtime-ratio span {
   color: #5f5a4f;
   font-size: 12px;
+  text-align: right;
+}
+
+.runtime-ratio em {
+  flex-basis: 100%;
+  color: #746d5f;
+  font-size: 11px;
+  font-style: normal;
   text-align: right;
 }
 

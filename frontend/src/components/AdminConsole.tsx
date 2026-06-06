@@ -90,6 +90,11 @@ type CoverageReport = {
     abnormalRatio: number;
     targetAbnormalRatio: number;
     withinTolerance: boolean;
+    scope?: string;
+    activityRuntimeTotal?: number;
+    restaurantRuntimeTotal?: number;
+    extensionRuntimeTotal?: number;
+    extensionRuntimeChanged?: number;
   };
 };
 
@@ -314,9 +319,15 @@ export function AdminConsole() {
                 <div className={`runtime-ratio ${coverage.runtimeStatus.withinTolerance ? "ok" : "warn"}`}>
                   <strong>{Math.round(coverage.runtimeStatus.abnormalRatio * 100)}%</strong>
                   <span>
-                    动态异常池，目标 {Math.round(coverage.runtimeStatus.targetAbnormalRatio * 100)}%，
-                    {coverage.runtimeStatus.abnormal}/{coverage.runtimeStatus.total} 条变化
+                    POI 运行时影子表，目标 {Math.round(coverage.runtimeStatus.targetAbnormalRatio * 100)}%，
+                    {coverage.runtimeStatus.abnormal}/{coverage.runtimeStatus.total} 个 POI 变化
                   </span>
+                  <em>
+                    活动 {coverage.runtimeStatus.activityRuntimeTotal ?? "-"} / 餐厅{" "}
+                    {coverage.runtimeStatus.restaurantRuntimeTotal ?? "-"}；路线/券扩展状态{" "}
+                    {coverage.runtimeStatus.extensionRuntimeChanged ?? "-"}/
+                    {coverage.runtimeStatus.extensionRuntimeTotal ?? "-"} 条另算
+                  </em>
                 </div>
               )}
               <div className="coverage-grid">

@@ -828,17 +828,31 @@ def check_mock_density() -> list[str]:
 def check_runtime_status_pool() -> list[str]:
     errors: list[str] = []
     runtime_status = mock_api.load_runtime_status()
-    all_records = [
+    mock_data = mock_api.load_mock_data()
+    activity_ids = {item.get("id") for item in mock_data.get("activities", [])}
+    restaurant_ids = {item.get("id") for item in mock_data.get("restaurants", [])}
+    activity_records = runtime_status.get("activityRuntimeStatus", [])
+    restaurant_records = runtime_status.get("restaurantRuntimeStatus", [])
+    activity_runtime_ids = {record.get("poiId") for record in activity_records}
+    restaurant_runtime_ids = {record.get("poiId") for record in restaurant_records}
+    if activity_runtime_ids != activity_ids:
+        errors.append("runtime_status: activity shadow table should be one-to-one with activity POIs")
+    if restaurant_runtime_ids != restaurant_ids:
+        errors.append("runtime_status: restaurant shadow table should be one-to-one with restaurant POIs")
+
+    poi_records = [
         *runtime_status.get("activityRuntimeStatus", []),
         *runtime_status.get("restaurantRuntimeStatus", []),
-        *runtime_status.get("routeRuntimeStatus", []),
-        *runtime_status.get("dealRuntimeStatus", []),
     ]
-    changed = [record for record in all_records if record.get("runtimeState") == "changed"]
-    if not all_records:
+    changed = [
+        record
+        for record in poi_records
+        if record.get("runtimeState") == "changed" or record.get("eventType") not in (None, "none", "unchanged")
+    ]
+    if not poi_records:
         errors.append("runtime_status: expected records")
-    elif not 0.3 <= len(changed) / len(all_records) <= 0.5:
-        errors.append("runtime_status: changed records should be roughly 40%")
+    elif not 0.35 <= len(changed) / len(poi_records) <= 0.45:
+        errors.append("runtime_status: POI changed records should be roughly 40%")
 
     normal_draft = {
         "draftStatus": "ready",
