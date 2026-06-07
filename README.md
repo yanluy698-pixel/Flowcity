@@ -1,55 +1,49 @@
 # FlowCity
 
-FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型。
-
-它不是普通搜索推荐，也不是写死场景的聊天机器人。用户用一句自然语言说出目标后，系统会完成：
+FlowCity 是一个面向周末本地生活短时出行的 AI 执行 Agent。用户只需要用一句自然语言说出时间、地点、人群、预算和偏好，系统会把需求拆成可执行的本地生活计划，并在确认前检查时间、路线、预算、余票、座位、排队和运行时风险。
 
 ```text
-自然语言输入 -> LLM 需求抽取 -> 语义画像补全 -> 本地供给召回打分 -> Scheduler 组合时间轴 -> Validator 校验 -> 执行草案 -> 交互式修改
+自然语言输入
+-> LLM 需求抽取
+-> demandProfile / planningPolicy 归一
+-> 区域与 POI 渐进式召回
+-> 多节点时间窗 Scheduler
+-> Validator 履约校验
+-> Execution Draft
+-> 确认、分享和模拟执行
 ```
 
-当前进度：**语义画像桥 v5 + 出行语义 planningPolicy + 多节点时间窗 Scheduler + 二级商圈 open-access 供给 + 受控自进化审核链路 + Web Demo 交互式修改已跑通**。
+## 系统能力
 
-## 当前能力
-
-- 一句话规划：识别时间、人群、预算、出发地、关系、饮食、儿童/老人、跨城和潜在冲突。
-- 语义画像桥：LLM 只输出 `primary/subScenario/显式偏好`，后端用 `intent_taxonomy.py` 补全默认画像和权重。
-- 证据门控：宽泛场景默认落到中性 `general`；`初次约会/儿童放电/地标打卡/桌游破冰` 等具体剧本必须能在用户原话中找到证据。
-- 标签作用域：餐饮、活动和通用氛围标签按候选类型参与打分，避免“减脂/清淡”误给活动加分。
-- 约束隔离：距离、预算、时间、交通、排队等操作约束不进入 vibe 矩阵，由对应约束与调度模块处理。
-- 理由溯源：推荐理由区分“用户明确偏好 / 画像辅助参考 / 可执行依据”，不会把被推荐的项目类型反推成用户隐含需求。
-- 矩阵打分：活动/餐厅候选用 `baseQualityScore + semanticScoreDelta + constraintFitScore + routeHintScore` 综合排序，避免只靠 JSON 顺序取 Top-K。
-- 显式偏好优先：用户明确喜欢的标签会击穿默认避雷；用户明确避开的标签会击穿默认偏好。
-- Unknown 降级：`unknown/casual_meetup` 且无显式偏好时不补默认画像，让语义分为 0，候选回到评分、预算、商圈、排队、座位和路线等基础分。
-- 交互式修改：前端时间轴每个节点可点“修改”，输入框会带上对应的隐藏上下文提示词，后端按餐厅、活动、路线、过渡点、整体大改分别处理。
-- 自由追问路由：用户不点击卡片、只说“这个吃的地方不太行”这类自然追问时，会先由轻量 LLM Router 判断修改餐厅、活动、路线还是整体方案；本地关键词规则只作为失败兜底。
-- 人话确认：当用户追问“晚饭早一点”“早点回家”“只吃饭不安排活动”等可能冲突的需求时，系统会先给可执行选项，而不是直接报错。
-- Mock 执行：默认只生成执行草案；用户显式确认后才生成 Mock 票码、预约号、取号号或路线提醒。
-- 固定渐进式召回：所有请求都先粗排商圈/景点圈，点名目的地永远保留；探索区域才参与淘汰。
-- 出行语义策略：`planningPolicy` 统一判断时间窗是集合后开始还是门到门出行、是否计算出发/返程、目标体验块数、最大空窗、跨商圈转场上限。
-- 多节点时间窗：Scheduler 不再只拼 `1 个活动 + 1 个餐厅`，而是在主活动、补充体验、二级商圈、茶饮休息、餐饮和路线中组合可变长度时间轴。
-- 长空窗约束：连续无意义等待超过策略阈值会淘汰；供给不足时明确说明，而不是把两小时等待包装成合理休息。
-- 弹性时长：开放街区、商场、书店、茶饮、博物馆等按可弹性时长排布；电影、演出、剧本杀等固定场次保持固定时长。
-- 饭点分支：晚饭默认 17:30 后，但当用户明确早结束时，前端展示“正常晚饭”和“提前轻松吃一顿”两个可执行走法，不偷偷替用户改饭点。
-- 结构化选择：饭点分支按钮会把 `constraintsPatch.mealTiming=normal/earlier` 直接传给后端，自然语言只做解释，不再靠系统提示词猜用户选项。
-- 二级商圈供给：`data/mock_subareas.json` 用开放街区/商场/步行街补足大商圈内部可逛空间，作为 `open_access` 节点参与规划，不需要库存影子表。
-- 路线身份治理：`mock_routes.json` 已补 `routeId`、`routeRef` 和 `legacyRouteRef`，运行层通过 `route_identity.py` 兼容旧 `from->to` 引用，支持同一 from/to 下公交、打车等多交通方式共存。
-- 低成本偏好：`budget.flexibility=low_cost` 用于表达“不想花钱/少花钱/预算越低越好”，不是 0 元硬约束；调度层会优先少转场、少打车、低总价。
-- 显式偏好保真：用户明确改成火锅、烤肉、大排档时，系统要么命中真实品类，要么进入引导协商，不能拿相近氛围糊弄。
-- 受控自进化：长尾模糊需求作为开放假设进入向量召回，用户删除、修改、确认、模拟执行形成匿名反馈；稳定后只生成待审提案，不会自动改正式画像库。
+- 一句话规划：识别时间窗、人数、同行关系、预算、出发地、目的地、饮食偏好、儿童/老人、跨城和结束时间。
+- 语义画像桥：LLM 负责抽取结构化语义，后端将其归一为稳定的 `demandProfile`，包含事实、硬约束、底层需求维度、目的地锚点和开放假设。
+- 出行语义策略：`planningPolicy` 判断是集合后开始还是门到门出行，是否计算出发/返程，目标体验块数量、最大空窗和跨商圈转场上限。
+- 渐进式召回：先粗排商圈和景点圈，再展开活动、餐饮、二级商圈、茶饮休息和路线候选，点名目的地始终保留。
+- 多节点时间窗：Scheduler 不再固定拼接一个活动和一个餐厅，而是在主活动、补充体验、开放商圈、餐饮、路线和小缓冲里搜索完整时间轴。
+- 长空窗约束：连续无意义等待超过策略阈值会淘汰；供给不足时明确说明，不把长等待包装成合理休息。
+- 弹性时长：开放街区、商场、书店、茶饮、博物馆等可按时间窗压缩或拉长；电影、演出、剧本杀等固定场次保持固定时长。
+- 饭点分支：默认尊重正常正餐节奏；当结束时间与饭点冲突时，前端展示可选择的走法，选择会以结构化 `mealTiming` 进入后端。
+- 交互式修改：时间轴节点可单独修改，整体方案也可重排；前端传递结构化修改上下文，后端根据目标节点和用户补充重新规划。
+- 受控学习闭环：长尾模糊需求进入开放假设和匿名反馈，聚类后生成待审学习提案，只有人工批准后才参与新请求召回。
+- 模拟履约：默认生成执行草案；用户确认后生成模拟票码、预约号、取号号、路线提醒和分享卡片，不执行真实支付或真实下单。
 
 ## 目录结构
 
 ```text
 Flowcity/
-  backend/app/             # FastAPI API 层：流式规划、确认执行、后台管理接口
+  backend/app/             # FastAPI API 层：流式规划、会话、确认执行、后台接口
     routers/               # flow/admin/learning 路由
     schemas/               # HTTP 请求响应模型
     services/pipeline.py   # API 到核心规划引擎的编排适配层
-  frontend/src/            # Vite + React 移动端 Demo 和后台管理台
-  data/                    # 西安活动、餐厅、路线、动态状态、团购 Mock 数据
 
-  FlowCity Core            # 核心规划引擎，当前位于项目根目录，供 API/CLI/测试共同复用
+  frontend/src/            # Vite + React 用户端和后台管理台
+    components/            # 聊天、时间轴、分享、确认、后台组件
+    flowClient.ts          # 前后端 API 适配
+    modifyIntents.ts       # 节点修改上下文
+
+  data/                    # 西安活动、餐厅、路线、动态状态、团购与二级商圈数据
+
+  FlowCity Core            # 核心规划引擎，位于项目根目录，供 API、CLI 和测试复用
     extractor.py           # LLM 需求抽取、schema 校验和结构化归一
     demand_profile.py      # 事实、硬约束、底层维度、目的地锚点、开放假设
     planning_policy.py     # 时间窗含义、出发/返程、体验块、空窗和转场策略
@@ -57,36 +51,22 @@ Flowcity/
     mock_api.py            # 供给召回、矩阵打分、Top-K 海选
     scheduler.py           # 多节点时间窗调度
     validator.py           # 预算、营业、余票、座位、排队、路线风险校验
-    executor.py            # Mock 执行草案与确认后 Mock 执行
+    executor.py            # 模拟执行草案与确认后模拟执行
     router.py              # 多轮交互路由
-    refinement.py          # 会话内二次修改补丁
+    refinement.py          # 会话内二次修改
     *_identity.py          # POI/路线稳定身份
     *_supply.py / *_quality.py / *_governance.py
 
-  tests and tools
-    test_examples.py       # 离线业务样例回归
-    test_architecture_v5.py# 架构约束回归
-    run_flow.py            # 命令行完整链路调试
-    run_llm_capability_eval.py
   schema.json / prompt.md / planner_prompt.md
-  README.md / PROJECT.md
+  test_examples.py / test_architecture_v5.py
+  run_flow.py / run_llm_capability_eval.py
 ```
 
-说明：根目录 Python 模块不是临时脚本，而是 FlowCity Core 规划引擎。当前为了保持已验证的 CLI、测试和 FastAPI import 边界稳定，暂不做物理搬迁；后续正式部署时可以把这组模块整体收敛为 `flowcity_core/` 包，API 层只保留适配代码。
-
-自测产物不保存在项目目录内。本轮 v5 真实 LLM 自测保存在：
-
-```text
-D:\产品\美团\周末闲时活动规划\Flowcity_v5_eval_runs\20260605_224256
-D:\产品\美团\周末闲时活动规划\Flowcity_v5_eval_runs\20260606_120249
-D:\产品\美团\周末闲时活动规划\Flowcity_v5_eval_runs\evolution_20260606_120136
-```
-
-`20260605_224256` 是上一轮基线留档；`20260606_120249` 是本轮 10 组多轮产品链路最终验收；`evolution_20260606_120136` 是自进化专项验收报告。
+根目录 Python 模块是 FlowCity Core 领域层。它们承载需求理解、供给召回、调度、校验和执行边界；FastAPI 只负责 HTTP、会话和流式输出适配。
 
 ## 环境变量
 
-复制 `.env.example` 为 `.env`，填写自己的 DeepSeek API Key。
+复制 `.env.example` 为 `.env`，填写自己的模型 Key。
 
 ```env
 DEEPSEEK_API_KEY=你的真实key
@@ -107,57 +87,28 @@ FLOWCITY_SESSION_MAX_COUNT=500
 
 `.env` 包含真实 Key，不能提交到 Git。
 
-DeepSeek Chat API 用于结构化理解。本地向量召回使用轻量中文 Embedding 模型 `BAAI/bge-small-zh-v1.5`。当前主 POI 约 142 个，另有 18 个二级商圈 open-access 节点；启动时预计算向量，请求时只对开放假设生成向量并在内存里做余弦相似度，无需部署向量数据库。
-
-## POI 供给原则
-
-- 比赛允许并建议使用 Mock API。FlowCity 的 Mock 层模拟 POI 召回、路线、余票、座位、排队、团购、运行时异常和确认前重排；后续接真实平台时替换 Tool Adapter，需求画像、Scheduler、Validator 和 Executor 边界不变。
-- `name` 只写真实地点、门店或品牌名，例如 `钟楼`、`大雁塔北广场`、`北院门风情街`；不要把“散步线、短逛、休息点、等位”写进名字。
-- 动作和适用场景放进 `behaviorTags`、`vibeTags`、`audienceTags`、`mockBasis`，让算法理解它适合慢聊、低体力、补位或亲子，但不污染用户看到的地点名。
-- POI 标签只写稳定事实画像：人群、体力、噪声、可坐下、室内外、预约、排队、消费层级；不要把“老婆减脂/想放松一下”这类用户故事写成正式标签。
-- 每个正式商圈都要覆盖活动、餐厅和过渡补位点，并尽量有免费/低价/中价/高价层，避免预算变化后系统无解。
-- 二级商圈是开放街区/开放商场节点，使用 `poiLevel=sub_area` 和 `open_access` 动态供给，不进入正式 POI 库存和运行时影子表；管理台和数据健康检查要把它识别为“开放供给”，不能当成缺库存。
-- 路线数据必须使用 `routeId` 做稳定身份；`legacyRouteRef=from->to` 只做兼容，不再作为唯一主键，避免同一组商圈下公交和打车互相覆盖。
-- POI 治理字段由 `supply_governance.py` 在加载时派生补齐：`sourceType`、`confidence`、`lastVerifiedAt`、`factTags`、`constraintTags`。原始 mock JSON 保持轻量，但管理台和健康检查能审计覆盖率。
-- 动态异常放在 `mock_runtime_status.json`。活动和餐厅是一对一 POI 运行时影子表，当前 142 个 POI 对应 142 条运行时状态，其中约 40% 变化；路线和团购券是额外动态对象，不参与 POI 异常比例。
-- 新长尾需求先进入开放假设和学习提案，只有经过后台审核后才参与后续召回，不自动改正式 taxonomy。
-
 ## 本地运行
-
-进入项目：
-
-```powershell
-cd "D:\产品\美团\周末闲时活动规划\Flowcity"
-```
-
-安装前端依赖：
-
-```powershell
-cd "D:\产品\美团\周末闲时活动规划\Flowcity\frontend"
-npm install
-```
-
-启动后端：
 
 ```powershell
 cd "D:\产品\美团\周末闲时活动规划\Flowcity\backend"
 uvicorn app.main:app --reload --port 8010
 ```
 
-启动前端：
-
 ```powershell
 cd "D:\产品\美团\周末闲时活动规划\Flowcity\frontend"
+npm install
 npm run dev
 ```
 
-访问：
+用户端入口：
 
 ```text
 http://localhost:5173
 ```
 
 前端通过 Vite proxy 调用后端 `http://localhost:8010`。
+
+后台管理接口默认不挂载。配置 `FLOWCITY_ADMIN_TOKEN` 后，后台页面可通过 `http://localhost:5173/#admin` 查看 POI 覆盖、商圈供给、运行时影子表、自进化学习提案，并对 `data/*.json` 做受控编辑。
 
 ## 常用命令
 
@@ -173,7 +124,7 @@ http://localhost:5173
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' .\run_flow.py --input "周六下午2点到6点，我从曲江池附近出发，带5岁孩子和老婆，老婆最近减脂，别太远，总预算400。" --limit 3
 ```
 
-离线回归测试，不调用模型：
+离线回归测试：
 
 ```powershell
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' test_examples.py
@@ -187,108 +138,42 @@ cd "D:\产品\美团\周末闲时活动规划\Flowcity\frontend"
 npm run build
 ```
 
-10 组多轮真实 LLM 自测，产物保存到项目外：
-
-```powershell
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' "D:\产品\美团\周末闲时活动规划\Flowcity_v5_eval_runs\run_eval_v5.py"
-```
-
-当前能力覆盖回归：
+LLM 能力覆盖评估：
 
 ```powershell
 & 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -B run_llm_capability_eval.py --limit 12
 ```
 
-受控自进化专项验收：
+## POI 与数据原则
 
-```powershell
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' "D:\产品\美团\周末闲时活动规划\Flowcity_v5_eval_runs\run_evolution_acceptance.py"
-```
+- Mock API 是工具适配层，用于模拟 POI 召回、路线、余票、座位、排队、团购、运行时异常和确认前重排；接入真实平台时替换 Tool Adapter，需求画像、调度、校验和执行边界保持不变。
+- `name` 只写真实地点、门店或品牌名，例如 `钟楼`、`大雁塔北广场`、`北院门风情街`；动作和场景语义放入 `behaviorTags`、`vibeTags`、`audienceTags` 或 `mockBasis`。
+- POI 标签只保存稳定事实画像：人群、体力、噪声、可坐下、室内外、预约、排队、消费层级；用户故事不会写成正式标签。
+- 二级商圈使用 `poiLevel=sub_area` 和 `open_access` 动态供给，不进入正式 POI 库存和运行时影子表。
+- 路线数据使用 `routeId` 做稳定身份，允许同一组 from/to 下存在公交、打车等多种交通方式。
+- POI 治理字段由 `supply_governance.py` 在加载时派生补齐，包括 `sourceType`、`confidence`、`lastVerifiedAt`、`factTags`、`constraintTags`。
+- 新长尾需求先进入开放假设和学习提案，只有经过后台审核后才参与新请求召回。
 
-学习提案审核 CLI：
+## 会话与执行边界
 
-```powershell
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' ontology_evolution.py --list-proposals
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' ontology_evolution.py --approve proposal_xxx
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' ontology_evolution.py --reject proposal_xxx
-```
-
-供后台页面使用的管理 API：
-
-```text
-GET    /api/admin/datasets
-GET    /api/admin/coverage
-POST   /api/admin/datasets/{slug}/{collection_key}
-PUT    /api/admin/datasets/{slug}/{collection_key}/{record_index}
-DELETE /api/admin/datasets/{slug}/{collection_key}/{record_index}
-GET  /api/learning/analysis
-GET  /api/learning/proposals
-POST /api/learning/proposals/{proposal_id}/review
-```
-
-这些接口不应该放进普通用户聊天页面，只给开发者或运营审核使用。
-
-`/api/admin/*` 和 `/api/learning/*` 默认不挂载。只有配置 `FLOWCITY_ADMIN_TOKEN` 后才启用，并且请求必须携带：
-
-```text
-X-FlowCity-Admin-Token: 你的后台token
-```
-
-前端已有轻量后台页面：
-
-```text
-http://localhost:5173/#admin
-```
-
-这个页面可以查看当前 POI 覆盖 KPI、商圈供给缺口、POI 一对一运行时影子表比例，也可以用字段表单或 JSON 精修 `data/*.json` 里的 POI/商圈/路线/动态状态/团购数据，并审核自进化聚类、批准或拒绝学习提案。已有的 `D:\产品\美团\周末闲时活动规划\MockAPI数据管理台` 仍可作为旧版通用 JSON 编辑壳子参考，但不再是主项目的管理入口。
-
-多轮对话使用轻量会话隔离，不需要注册登录：
-
-- 前端默认把每次首页输入当作新规划；刷新页面不会静默继承上一轮 `sessionId`。
-- 最近 2 小时内的会话只进入首页“继续刚刚的规划”历史入口，用户点击某条历史后才恢复对应 `sessionId` 和聊天卡片。
+- 首页默认创建新规划，不静默复用历史 `sessionId`。
+- 最近 2 小时内的历史会话只通过历史入口显式恢复。
 - 点击“新规划”会生成新的 `sessionId` 并清空聊天。
-- 后端 `SESSION_STORE` 有 TTL 和容量上限，默认 2 小时、最多 500 个会话。
-- 确认模拟执行时，前端只传 `sessionId + planId`；后端从会话里取保存的执行草案，避免信任前端回传的完整方案。
+- 后端会话保存本次 `plan/demand/supply/executionDraft`，确认模拟执行时前端只传 `sessionId + planId`。
+- FlowCity 不做真实支付、订票、预约、排队取号或团购下单；真实执行停留在模拟草案和模拟确认结果。
 
-## 本轮验证结果
+## 质量验证
 
-- `test_examples.py`：13 个离线样例通过。
-- `frontend npm run build`：通过。
-- `test_architecture_v5.py`：v5 架构回归通过。
-- 2026-06-06 本轮治理回归新增覆盖：路线 `routeId`/缺引用检查、open-access 二级商圈不要求库存、POI 治理派生字段、饭点按钮结构化 `mealTiming`、低成本少走路方案。
-- `run_llm_capability_eval.py --limit 12`：21/21 通过；7 个能力每个 3 条用例通过；首页 5 个案例全部通过。
-- 10 组多轮真实 LLM 自测：`PASSED=10/10`，最大单轮 19.298 秒。
-- 自进化专项验收：通过。未审批前正向模式召回率 0%；审批后留出集规范化假设召回率 100%；负向和分歧模式误晋升均为 0%。
-- 速度口径按真实演示优先级验证：每组完整多轮端到端流程不超过 2 分钟；方案生成/重排目标压在 30 秒内。
+核心质量检查覆盖四层：
 
-本轮重点修复了两个真实自测暴露的问题：
-
-- 点击节点修改后，即使系统先追问确认，也会保留 `planControl.clickedModify`，不会丢失“用户改的是路线/餐厅/活动”的上下文。
-- 用户后续明确说“只吃饭、不安排活动”时，会覆盖第一次输入里的活动需求，不再让旧画像污染新约束。
-- 宽泛同行信息不再自动升级成具体体验目的，例如“带孩子”不会被自动解释成“儿童放电/自然观察”。
-- 整体大改会把原方案放进上下文并降低用户不满意目标的优先级；如果用户新要求其实已经被当前方案满足，会保护当前 POI，不会先排除再误报冲突。
-- POI 名称只保留真实地点、店铺或品牌名；“散步、短逛、等位、休息”等动作语义进入标签、供给依据或时间轴描述，不写进景点名字。
-- taxonomy 外且没有显式证据的 LLM 标签不会进入最终画像；餐饮标签也不会跨域污染活动分数。
-- 显式餐饮偏好新增结果保真检查：有真实供给就优先命中；没有供给时向用户解释“保留地点还是保留偏好”，不静默替换。
-- 自进化采用“匿名反馈 -> 聚类统计 -> 待审提案 -> 人工批准 -> 参与新请求召回”的闭环，不自动污染正式 taxonomy。
-
-## 明天前端怎么继续
-
-普通用户主界面建议只做三件事：
-
-- 时间轴更清晰：活动、餐厅、路线分别成为可点击节点，节点旁边保留“修改”入口。
-- 输入框上下文块更细：点击修改后显示“正在修改：餐厅/活动/路线/整体方案”，用户可一键删除上下文块。
-- 冲突确认更像产品：当后端返回 `assistantMessage.quickReplies` 时，渲染为可点选项，而不是普通报错。
-
-自进化审核不要放在普通用户页面。未来可做一个隐藏 Admin Review 页面：
-
-- 展示候选画像提案、样本原话、匿名会话数、确认率、删除率、语义聚合度、留出集效果。
-- 操作只有批准、拒绝、继续观察。
-- 批准后只是让该开放假设作为“已审核学习模式”参与召回；是否升级为正式底层维度或 taxonomy 别名，仍应离线评估后人工合并。
+- `test_examples.py`：离线业务样例回归。
+- `test_architecture_v5.py`：架构约束、后台开关、路线身份、二级商圈、饭点选择和低成本约束回归。
+- `npm run build`：前端 TypeScript 和构建检查。
+- `run_llm_capability_eval.py --limit 12`：真实 LLM 能力覆盖，包含首页案例、多轮修改、预算、饭点、路线和画像迁移。
 
 ## 设计边界
 
 - 不接真实美团 API。
-- 不做真实支付、订票、预约、排队取号或团购下单。
-- 真实执行只到 Mock 草案和 Mock 确认结果。
-- LLM Planner 默认关闭；默认链路保持 1 次 LLM 抽取，其余为本地画像补全、供给打分、Scheduler 组合和校验。
+- 不做真实交易、支付、订票、预约或排队取号。
+- 不把所有场景写成后端 if；新增业务倾向优先通过 taxonomy、稳定标签、数据治理和通用调度策略表达。
+- 不让开放假设自动污染正式画像库；学习结果必须经过审核。
