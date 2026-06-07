@@ -394,7 +394,7 @@ def _needs_sit_down_component(demand: dict[str, Any]) -> bool:
 
 
 def _prefers_light_or_early_meal(demand: dict[str, Any]) -> bool:
-    """Generic food preferences before an early end should not be forced into dinner."""
+    """Only explicit non-dinner/early-meal wording should bypass dinner anchoring."""
     raw_text = _raw_user_text(demand)
     if _explicit_dinner_requested(demand):
         return False
@@ -402,19 +402,20 @@ def _prefers_light_or_early_meal(demand: dict[str, Any]) -> bool:
     if end is None or end > 18 * 60:
         return False
     light_meal_terms = (
-        "吃的",
-        "好吃",
-        "别油腻",
-        "不油腻",
-        "清淡",
-        "低脂",
-        "减脂",
-        "减肥",
+        "早吃",
+        "早点吃",
+        "提前吃",
+        "先垫",
+        "垫一顿",
+        "垫一下",
         "轻食",
         "简餐",
         "下午茶",
         "奶茶",
         "咖啡",
+        "茶歇",
+        "喝点",
+        "喝杯",
     )
     return any(keyword in raw_text for keyword in light_meal_terms)
 
