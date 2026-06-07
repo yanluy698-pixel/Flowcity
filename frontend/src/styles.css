@@ -895,6 +895,24 @@ button {
   border: 1px dashed rgba(196, 158, 0, 0.45);
 }
 
+.share-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.share-preview-head button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 50%;
+  background: #fffaf0;
+  color: #6a5000;
+  line-height: 1;
+}
+
 .share-preview pre {
   margin: 0;
   max-height: 180px;
@@ -905,6 +923,18 @@ button {
   font: inherit;
   font-size: 11px;
   line-height: 1.55;
+}
+
+.share-copy-button {
+  width: 100%;
+  min-height: 32px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: #111;
+  color: #ffd100;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .order-card {
@@ -1666,6 +1696,11 @@ button {
   padding: 10px;
 }
 
+.proposal-card.sample {
+  border-color: #d8c477;
+  background: #fff8d8;
+}
+
 .proposal-heading {
   display: flex;
   align-items: flex-start;
@@ -1688,6 +1723,11 @@ button {
 .proposal-actions {
   display: flex;
   gap: 6px;
+}
+
+.proposal-actions button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 .proposal-metrics {

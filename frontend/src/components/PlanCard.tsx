@@ -128,10 +128,12 @@ function decisionDraft(option: Record<string, any>): ModifyDraft {
 export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, onHypothesisFeedback, totalDurationMs }: Props) {
   const [orderSubmitted, setOrderSubmitted] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [sharePreviewOpen, setSharePreviewOpen] = useState(false);
   const plan = finalPlan(payload);
   const draft = activeDraft(payload);
   const timeline = (plan.timeline ?? []) as TimelineItem[];
   const budget = plan.budgetEstimate ?? {};
+  const shareContent = shareText(payload, totalDurationMs);
   const mealTimingDecision = plan.mealTimingDecision;
   const decisionOptions = Array.isArray(plan.decisionOptions) ? plan.decisionOptions.slice(0, 3) : [];
   const executionResult = payload.executionResult;
@@ -152,7 +154,8 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
   const canRefreshByRuntime = canReplan && !hasRuntimePlan && !confirmed;
 
   function copyShare() {
-    navigator.clipboard?.writeText(shareText(payload, totalDurationMs));
+    void navigator.clipboard?.writeText(shareContent).catch(() => undefined);
+    setSharePreviewOpen(true);
     setShareCopied(true);
     window.setTimeout(() => setShareCopied(false), 1800);
   }
@@ -261,6 +264,21 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
             onClick={() => setOrderSubmitted(true)}
           >
             {orderSubmitted ? "已下单" : "一键下单"}
+          </button>
+        </div>
+      )}
+
+      {sharePreviewOpen && (
+        <div className="share-preview">
+          <div className="share-preview-head">
+            <strong>发给朋友可以这样说</strong>
+            <button type="button" onClick={() => setSharePreviewOpen(false)} aria-label="关闭分享预览">
+              ×
+            </button>
+          </div>
+          <pre>{shareContent}</pre>
+          <button type="button" className="share-copy-button" onClick={copyShare}>
+            {shareCopied ? "已复制" : "复制这段"}
           </button>
         </div>
       )}

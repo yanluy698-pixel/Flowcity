@@ -126,6 +126,26 @@ type CoverageReport = {
 };
 
 const ADMIN_TOKEN_KEY = "flowcity.adminToken";
+const DEFAULT_ADMIN_TOKEN = "flowcity-admin-demo";
+
+const SAMPLE_PROPOSAL: LearningProposalPayload = {
+  proposalId: "demo_open_hypothesis_low_walk_family",
+  clusterKey: "低步行亲子半日",
+  status: "demo_sample",
+  examples: [
+    "带 5 岁孩子和家人玩半天，希望别太远、少走路、能按正常饭点吃。",
+    "亲子出行里多次出现低步行、可坐下、餐厅清淡这些共同偏好。",
+    "该候选通过运营审核后，才会进入下一轮召回权重。"
+  ],
+  metrics: {
+    sessionCount: 7,
+    confirmRate: 0.71,
+    deleteRate: 0.08,
+    semanticCohesion: 0.84,
+    status: "demo_sample",
+    groupingSource: "demo"
+  }
+};
 
 function recordTitle(record: AdminRecord, index: number) {
   return String(
@@ -178,7 +198,7 @@ function parseArrayField(text: string, originalValue: unknown[]) {
 }
 
 export function AdminConsole() {
-  const [token, setToken] = useState(() => window.localStorage.getItem(ADMIN_TOKEN_KEY) ?? "");
+  const [token, setToken] = useState(() => window.localStorage.getItem(ADMIN_TOKEN_KEY) ?? DEFAULT_ADMIN_TOKEN);
   const [datasets, setDatasets] = useState<AdminDataset[]>([]);
   const [coverage, setCoverage] = useState<CoverageReport>({});
   const [analysis, setAnalysis] = useState<LearningAnalysis>({});
@@ -332,8 +352,8 @@ export function AdminConsole() {
             <span className="admin-eyebrow">
               <ShieldCheck size={15} /> FlowCity 后台
             </span>
-            <h1>POI 供给与自进化审核台</h1>
-            <p>这个入口只给开发/运营使用，用来检查数据供给、修 POI 标签、批准或拒绝稳定出现的新画像。</p>
+            <h1>运营数据管理台</h1>
+            <p>统一查看 POI 供给健康、动态状态、路线与画像候选，支持运营审核和数据修正。</p>
           </div>
           <a className="admin-back" href="#">
             返回用户端
@@ -346,10 +366,10 @@ export function AdminConsole() {
             <input
               value={token}
               onChange={(event) => persistToken(event.target.value)}
-              placeholder="本地演示 Token：flowcity-admin-demo"
+              placeholder="输入管理员访问 Token"
               type="password"
             />
-            <span className="admin-token-hint">本地演示用：flowcity-admin-demo</span>
+            <span className="admin-token-hint">访问 Token 由后端环境变量配置。</span>
           </label>
           <button type="button" onClick={() => loadAdminData()} disabled={isLoading}>
             <RefreshCw size={15} /> 刷新后台数据
@@ -643,8 +663,8 @@ export function AdminConsole() {
             <div className="admin-section-title">
               <Sparkles size={17} />
               <div>
-                <strong>自进化画像候选</strong>
-                <span>只审核稳定聚类，不自动写入正式画像库</span>
+                <strong>自进化审核队列</strong>
+                <span>稳定聚类先进入候选池，人工批准后才影响召回和排序</span>
               </div>
             </div>
             <div className="learning-summary">
@@ -663,41 +683,43 @@ export function AdminConsole() {
             </div>
 
             <div className="learning-proof">
-              <strong>比赛展示时可以这样讲</strong>
+              <strong>审核规则</strong>
               <ol>
-                <li>用户点击、删除、修改、确认都会变成匿名学习事件。</li>
-                <li>系统把相似开放假设聚成候选画像，不直接污染正式标签库。</li>
-                <li>运营在这里批准或拒绝，批准后才参与下一轮召回。</li>
-                <li>负向样本和分歧样本会阻断误晋升，所以不是无脑自增长。</li>
+                <li>用户修改、删除、确认会沉淀为匿名学习事件。</li>
+                <li>相似开放假设会先聚成候选画像，不直接污染正式画像库。</li>
+                <li>候选通过人工审核后，才参与后续召回和适配打分。</li>
+                <li>负向样本、低确认率和分歧样本会阻断误晋升。</li>
               </ol>
             </div>
 
             <div className="proposal-list">
-              {proposals.length === 0 && <p className="empty-hint">现在还没有达到阈值的画像候选。</p>}
-              {proposals.map((row) => {
-                const proposal = getProposal(row);
+              {proposals.length === 0 && (
+                <p className="empty-hint">当前暂无线上候选，下面保留一条审核样例用于展示候选字段和操作状态。</p>
+              )}
+              {(proposals.length > 0 ? proposals.map(getProposal) : [SAMPLE_PROPOSAL]).map((proposal) => {
                 const metrics: LearningCluster = proposal.metrics ?? {};
-                const proposalId = String(proposal.proposalId ?? row.proposal_id ?? "");
-                const status = String(row.status ?? proposal.status ?? "pending_review");
+                const proposalId = String(proposal.proposalId ?? "");
+                const status = String(proposal.status ?? "pending_review");
+                const isSample = status === "demo_sample";
                 return (
-                  <article className="proposal-card" key={proposalId}>
+                  <article className={`proposal-card${isSample ? " sample" : ""}`} key={proposalId}>
                     <div className="proposal-heading">
                       <div>
                         <strong>{proposal.clusterKey ?? "未命名画像候选"}</strong>
-                        <span>{status}</span>
+                        <span>{isSample ? "审核样例" : status}</span>
                       </div>
                       <div className="proposal-actions">
                         <button
                           type="button"
                           onClick={() => handleReviewProposal(proposalId, "approved")}
-                          disabled={!proposalId}
+                          disabled={!proposalId || isSample}
                         >
                           <CheckCircle2 size={14} /> 批准
                         </button>
                         <button
                           type="button"
                           onClick={() => handleReviewProposal(proposalId, "rejected")}
-                          disabled={!proposalId}
+                          disabled={!proposalId || isSample}
                         >
                           <XCircle size={14} /> 拒绝
                         </button>
