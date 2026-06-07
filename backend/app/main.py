@@ -29,13 +29,13 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(flow_router, prefix="/api/flow", tags=["flow"])
-    # Keep the hackathon demo admin console usable out of the box. Production can
-    # still override the token through FLOWCITY_ADMIN_TOKEN.
-    from app.routers.admin import router as admin_router
-    from app.routers.learning import router as learning_router
 
-    app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
-    app.include_router(learning_router, prefix="/api/learning", tags=["learning-admin"])
+    if os.getenv("FLOWCITY_ADMIN_TOKEN"):
+        from app.routers.admin import router as admin_router
+        from app.routers.learning import router as learning_router
+
+        app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+        app.include_router(learning_router, prefix="/api/learning", tags=["learning-admin"])
 
     @app.get("/health")
     def health() -> dict[str, str]:

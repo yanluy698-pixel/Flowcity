@@ -512,3 +512,12 @@ FLOWCITY_SESSION_MAX_COUNT=500
 这仍然不是接入真实美团交易。前端文案统一为“模拟执行”，避免把 Mock 票码、Mock 预约号说成真实下单。
 
 后台接口默认关闭。只有配置 `FLOWCITY_ADMIN_TOKEN` 才挂载 `/api/admin/*` 和 `/api/learning/*`，并且每次请求必须带 `X-FlowCity-Admin-Token`。普通用户聊天页不会看到后台入口，也不会携带管理员 Token。
+
+本地展示管理台时，先用 PowerShell 设置管理员 Token 再启动后端：
+
+```powershell
+$env:FLOWCITY_ADMIN_TOKEN="flowcity-admin-demo"
+uvicorn app.main:app --reload --port 8010
+```
+
+然后访问 `http://localhost:5173/#admin`，页面 Token 填同一个值。

@@ -145,6 +145,14 @@ cd "D:\产品\美团\周末闲时活动规划\Flowcity\backend"
 uvicorn app.main:app --reload --port 8010
 ```
 
+如果要展示后台管理台，启动后端前先设置管理员 Token：
+
+```powershell
+cd "D:\产品\美团\周末闲时活动规划\Flowcity\backend"
+$env:FLOWCITY_ADMIN_TOKEN="flowcity-admin-demo"
+uvicorn app.main:app --reload --port 8010
+```
+
 启动前端：
 
 ```powershell
@@ -240,6 +248,8 @@ X-FlowCity-Admin-Token: 你的后台token
 ```text
 http://localhost:5173/#admin
 ```
+
+管理台只有在后端配置 `FLOWCITY_ADMIN_TOKEN` 后才可用；页面里的 Token 填同一个值，例如本地演示可填 `flowcity-admin-demo`。
 
 这个页面可以查看当前 POI 覆盖 KPI、商圈供给缺口、POI 一对一运行时影子表比例，也可以用字段表单或 JSON 精修 `data/*.json` 里的 POI/商圈/路线/动态状态/团购数据，并审核自进化聚类、批准或拒绝学习提案。已有的 `D:\产品\美团\周末闲时活动规划\MockAPI数据管理台` 仍可作为旧版通用 JSON 编辑壳子参考，但不再是主项目的管理入口。
 
