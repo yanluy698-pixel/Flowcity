@@ -87,6 +87,7 @@ type CoverageArea = {
 };
 
 type CoverageReport = {
+  access?: "read" | "write";
   principles?: string[];
   kpis?: {
     areaCount: number;
@@ -198,6 +199,7 @@ function parseArrayField(text: string, originalValue: unknown[]) {
 
 export function AdminConsole() {
   const [token, setToken] = useState(() => window.localStorage.getItem(ADMIN_TOKEN_KEY) ?? "");
+  const [accessMode, setAccessMode] = useState<"read" | "write" | "">("");
   const [datasets, setDatasets] = useState<AdminDataset[]>([]);
   const [coverage, setCoverage] = useState<CoverageReport>({});
   const [analysis, setAnalysis] = useState<LearningAnalysis>({});
@@ -215,6 +217,7 @@ export function AdminConsole() {
   const activeCollection = activeDataset?.collections.find((item) => item.key === selectedCollection);
   const records = activeCollection?.records ?? [];
   const activeRecord = records[selectedIndex];
+  const isReadOnly = accessMode === "read";
   const parsedEditor = useMemo(() => {
     try {
       return { record: JSON.parse(editorText) as AdminRecord, error: "" };
@@ -238,7 +241,7 @@ export function AdminConsole() {
 
   async function loadAdminData(activeToken = token) {
     if (!activeToken.trim()) {
-      setError("先输入后端 FLOWCITY_ADMIN_TOKEN。");
+      setError("先输入管理访问 Token。");
       return;
     }
     setIsLoading(true);
@@ -255,13 +258,17 @@ export function AdminConsole() {
       setCoverage(coveragePayload as CoverageReport);
       setAnalysis(learningPayload as LearningAnalysis);
       setProposals((proposalPayload.proposals ?? []) as LearningProposalRow[]);
+      const nextAccess = String(
+        datasetPayload.access ?? coveragePayload.access ?? learningPayload.access ?? proposalPayload.access ?? ""
+      );
+      setAccessMode(nextAccess === "write" ? "write" : nextAccess === "read" ? "read" : "");
       const nextDataset = nextDatasets.find((item) => item.slug === selectedSlug) ?? nextDatasets[0];
       const nextCollection =
         nextDataset?.collections.find((item) => item.key === selectedCollection) ?? nextDataset?.collections[0];
       setSelectedSlug(nextDataset?.slug ?? "");
       setSelectedCollection(nextCollection?.key ?? "");
       setSelectedIndex(0);
-      setMessage("管理台已刷新。");
+      setMessage(nextAccess === "read" ? "只读视图已刷新，可查看 POI 和学习候选。" : "管理台已刷新。");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "管理台加载失败");
     } finally {
@@ -287,6 +294,10 @@ export function AdminConsole() {
 
   async function handleSaveRecord() {
     if (!activeDataset || !activeCollection) return;
+    if (isReadOnly) {
+      setError("只读 Token 只能查看，不能保存数据。");
+      return;
+    }
     try {
       const record = JSON.parse(editorText) as AdminRecord;
       const payload = await saveAdminRecord(token, activeDataset.slug, activeCollection.key, selectedIndex, record);
@@ -300,6 +311,10 @@ export function AdminConsole() {
 
   async function handleCloneRecord() {
     if (!activeDataset || !activeCollection || !activeRecord) return;
+    if (isReadOnly) {
+      setError("只读 Token 只能查看，不能新增数据。");
+      return;
+    }
     const clone = { ...activeRecord, id: `${recordTitle(activeRecord, selectedIndex)}_copy_${Date.now()}` };
     try {
       const payload = await createAdminRecord(token, activeDataset.slug, activeCollection.key, clone);
@@ -314,6 +329,10 @@ export function AdminConsole() {
 
   async function handleDeleteRecord() {
     if (!activeDataset || !activeCollection || !activeRecord) return;
+    if (isReadOnly) {
+      setError("只读 Token 只能查看，不能删除数据。");
+      return;
+    }
     const ok = window.confirm(`确认删除「${recordTitle(activeRecord, selectedIndex)}」吗？`);
     if (!ok) return;
     try {
@@ -328,6 +347,10 @@ export function AdminConsole() {
   }
 
   async function handleReviewProposal(proposalId: string, status: "approved" | "rejected") {
+    if (isReadOnly) {
+      setError("只读 Token 只能查看学习候选，不能审批。");
+      return;
+    }
     try {
       await reviewLearningProposal(token, proposalId, status);
       await loadAdminData(token);
@@ -361,14 +384,16 @@ export function AdminConsole() {
 
         <div className="admin-auth">
           <label>
-            管理员 Token
+            管理访问 Token
             <input
               value={token}
               onChange={(event) => persistToken(event.target.value)}
-              placeholder="输入管理员访问 Token"
+              placeholder="输入管理访问 Token"
               type="password"
             />
-            <span className="admin-token-hint">访问 Token 由后端环境变量配置。</span>
+            <span className="admin-token-hint">
+              评审只读 Token 可查看数据；写入和审批需要运营写权限 Token。
+            </span>
           </label>
           <button type="button" onClick={() => loadAdminData()} disabled={isLoading}>
             <RefreshCw size={15} /> 刷新后台数据
@@ -377,6 +402,9 @@ export function AdminConsole() {
 
         {(message || error) && (
           <div className={`admin-toast ${error ? "error" : ""}`}>{error || message}</div>
+        )}
+        {isReadOnly && (
+          <div className="admin-toast readonly">当前为只读视图：可查看 POI、路线、动态状态和学习候选，不能修改或审批。</div>
         )}
 
         <section className="admin-grid">
@@ -570,13 +598,13 @@ export function AdminConsole() {
                     <div className="json-editor-toolbar">
                       <span>{activeRecord ? recordTitle(activeRecord, selectedIndex) : "未选择记录"}</span>
                       <div>
-                        <button type="button" onClick={handleCloneRecord} disabled={!activeRecord}>
+                        <button type="button" onClick={handleCloneRecord} disabled={!activeRecord || isReadOnly}>
                           <Copy size={14} /> 复制
                         </button>
-                        <button type="button" onClick={handleDeleteRecord} disabled={!activeRecord}>
+                        <button type="button" onClick={handleDeleteRecord} disabled={!activeRecord || isReadOnly}>
                           <Trash2 size={14} /> 删除
                         </button>
-                        <button type="button" className="primary" onClick={handleSaveRecord} disabled={!activeRecord}>
+                        <button type="button" className="primary" onClick={handleSaveRecord} disabled={!activeRecord || isReadOnly}>
                           <Save size={14} /> 保存
                         </button>
                       </div>
@@ -599,6 +627,7 @@ export function AdminConsole() {
                                   <select
                                     value={value ? "true" : "false"}
                                     onChange={(event) => updateEditorField(key, event.target.value === "true")}
+                                    disabled={isReadOnly}
                                   >
                                     <option value="true">true</option>
                                     <option value="false">false</option>
@@ -608,12 +637,14 @@ export function AdminConsole() {
                                     type="number"
                                     value={Number.isFinite(value) ? value : 0}
                                     onChange={(event) => updateEditorField(key, Number(event.target.value))}
+                                    disabled={isReadOnly}
                                   />
                                 ) : isArray ? (
                                   <textarea
                                     defaultValue={formatFieldValue(value)}
                                     key={`${selectedSlug}-${selectedCollection}-${selectedIndex}-${key}`}
                                     onBlur={(event) => {
+                                      if (isReadOnly) return;
                                       try {
                                         updateEditorField(key, parseArrayField(event.target.value, value));
                                         setError("");
@@ -621,12 +652,14 @@ export function AdminConsole() {
                                         setError(`${key} 不是合法 JSON 数组。`);
                                       }
                                     }}
+                                    disabled={isReadOnly}
                                   />
                                 ) : isObject ? (
                                   <textarea
                                     defaultValue={formatFieldValue(value)}
                                     key={`${selectedSlug}-${selectedCollection}-${selectedIndex}-${key}`}
                                     onBlur={(event) => {
+                                      if (isReadOnly) return;
                                       try {
                                         updateEditorField(key, JSON.parse(event.target.value));
                                         setError("");
@@ -634,11 +667,13 @@ export function AdminConsole() {
                                         setError(`${key} 不是合法 JSON 对象。`);
                                       }
                                     }}
+                                    disabled={isReadOnly}
                                   />
                                 ) : (
                                   <input
                                     value={formatFieldValue(value)}
                                     onChange={(event) => updateEditorField(key, event.target.value)}
+                                    disabled={isReadOnly}
                                   />
                                 )}
                               </label>
@@ -650,6 +685,7 @@ export function AdminConsole() {
                     <textarea
                       value={editorText}
                       onChange={(event) => setEditorText(event.target.value)}
+                      readOnly={isReadOnly}
                       spellCheck={false}
                     />
                   </div>
@@ -711,14 +747,14 @@ export function AdminConsole() {
                         <button
                           type="button"
                           onClick={() => handleReviewProposal(proposalId, "approved")}
-                          disabled={!proposalId || isSample}
+                          disabled={!proposalId || isSample || isReadOnly}
                         >
                           <CheckCircle2 size={14} /> 批准
                         </button>
                         <button
                           type="button"
                           onClick={() => handleReviewProposal(proposalId, "rejected")}
-                          disabled={!proposalId || isSample}
+                          disabled={!proposalId || isSample || isReadOnly}
                         >
                           <XCircle size={14} /> 拒绝
                         </button>

@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.flow import router as flow_router
+from app.services.admin_auth import admin_routes_enabled
 
 
 def _cors_origins() -> list[str]:
@@ -30,7 +31,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(flow_router, prefix="/api/flow", tags=["flow"])
 
-    if os.getenv("FLOWCITY_ADMIN_TOKEN"):
+    if admin_routes_enabled():
         from app.routers.admin import router as admin_router
         from app.routers.learning import router as learning_router
 

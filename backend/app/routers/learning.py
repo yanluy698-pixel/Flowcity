@@ -7,7 +7,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.services.admin_auth import require_admin_token
+from app.services.admin_auth import AdminAccess, require_admin_read_token, require_admin_write_token
 
 
 FLOWCITY_ROOT = Path(__file__).resolve().parents[3]
@@ -26,21 +26,23 @@ class ProposalReviewRequest(BaseModel):
 
 
 @router.get("/analysis")
-def analyze_learning_events(_: None = Depends(require_admin_token)) -> dict:
+def analyze_learning_events(access: AdminAccess = Depends(require_admin_read_token)) -> dict:
     """Admin-only learning review data; never call this from the consumer chat UI."""
-    return ontology_evolution.analyze(learning_events.get_store())
+    payload = ontology_evolution.analyze(learning_events.get_store())
+    payload["access"] = access
+    return payload
 
 
 @router.get("/proposals")
-def list_learning_proposals(status: str | None = None, _: None = Depends(require_admin_token)) -> dict:
-    return {"proposals": learning_events.get_store().proposals(status)}
+def list_learning_proposals(status: str | None = None, access: AdminAccess = Depends(require_admin_read_token)) -> dict:
+    return {"access": access, "proposals": learning_events.get_store().proposals(status)}
 
 
 @router.post("/proposals/{proposal_id}/review")
 def review_learning_proposal(
     proposal_id: str,
     request: ProposalReviewRequest,
-    _: None = Depends(require_admin_token),
+    _: AdminAccess = Depends(require_admin_write_token),
 ) -> dict:
     updated = learning_events.get_store().review_proposal(proposal_id, request.status)
     if not updated:

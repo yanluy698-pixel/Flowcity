@@ -21,6 +21,7 @@ import mock_api
 import ontology_evolution
 import executor
 import planner
+from app.services import admin_auth
 from app.services import pipeline
 import app.main
 from poi_profiles import build_poi_profile
@@ -323,12 +324,24 @@ def run() -> list[str]:
         errors.append("major change: negated current preference should still be excluded")
 
     previous_admin_token = os.environ.pop("FLOWCITY_ADMIN_TOKEN", None)
+    previous_read_token = os.environ.pop("FLOWCITY_ADMIN_READ_TOKEN", None)
     try:
         admin_disabled_routes = [route.path for route in app.main.create_app().routes]
         if any(path.startswith("/api/learning") for path in admin_disabled_routes):
-            errors.append("learning admin: routes must stay disabled unless FLOWCITY_ADMIN_TOKEN is configured")
+            errors.append("learning admin: routes must stay disabled unless an admin token is configured")
         if any(path.startswith("/api/admin") for path in admin_disabled_routes):
-            errors.append("admin console: data routes must stay disabled unless FLOWCITY_ADMIN_TOKEN is configured")
+            errors.append("admin console: data routes must stay disabled unless an admin token is configured")
+        os.environ["FLOWCITY_ADMIN_READ_TOKEN"] = "architecture-read-token"
+        read_enabled_routes = [route.path for route in app.main.create_app().routes]
+        if "/api/admin/datasets" not in read_enabled_routes:
+            errors.append("admin console: dataset route should mount when FLOWCITY_ADMIN_READ_TOKEN is configured")
+        try:
+            admin_auth.require_admin_write_token("architecture-read-token")
+            errors.append("admin console: read-only token must not pass write authorization")
+        except Exception as exc:
+            if getattr(exc, "status_code", None) != 403:
+                errors.append("admin console: read-only token should fail writes with 403")
+        os.environ.pop("FLOWCITY_ADMIN_READ_TOKEN", None)
         os.environ["FLOWCITY_ADMIN_TOKEN"] = "architecture-test-token"
         admin_enabled_routes = [route.path for route in app.main.create_app().routes]
         if "/api/admin/datasets" not in admin_enabled_routes:
@@ -340,6 +353,10 @@ def run() -> list[str]:
             os.environ["FLOWCITY_ADMIN_TOKEN"] = previous_admin_token
         else:
             os.environ.pop("FLOWCITY_ADMIN_TOKEN", None)
+        if previous_read_token is not None:
+            os.environ["FLOWCITY_ADMIN_READ_TOKEN"] = previous_read_token
+        else:
+            os.environ.pop("FLOWCITY_ADMIN_READ_TOKEN", None)
 
     session_id = "test_session_security"
     plan_id = "plan_security"

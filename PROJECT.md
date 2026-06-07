@@ -261,7 +261,13 @@ POST   /api/learning/proposals/{proposal_id}/review
 - 编辑 `data/*.json` 供给数据，支持字段表单和 JSON 精修。
 - 审核自进化学习提案，展示样本、确认率、删除率、语义凝聚度，并支持批准或拒绝。
 
-后台接口默认关闭。只有配置 `FLOWCITY_ADMIN_TOKEN` 才挂载 `/api/admin/*` 和 `/api/learning/*`，普通用户聊天页不会看到后台入口，也不会携带管理员 Token。
+后台接口默认关闭。评审只读访问使用固定 Token：
+
+```text
+FLOWCITY_ADMIN_READ_TOKEN=flowcity-reviewer-readonly
+```
+
+评审 Token 只能查看 POI、路线、动态状态、数据覆盖和自进化学习候选，不能新增、保存、删除或审批。写权限需要单独配置 `FLOWCITY_ADMIN_TOKEN`，普通用户聊天页不会看到后台入口，也不会携带管理 Token。
 
 ## 13. 代码结构
 

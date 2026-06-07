@@ -1202,6 +1202,12 @@ button {
   color: #9f1d16;
 }
 
+.admin-toast.readonly {
+  background: #fff7cf;
+  color: #6f5300;
+  border: 1px solid #efd16a;
+}
+
 .admin-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.9fr);

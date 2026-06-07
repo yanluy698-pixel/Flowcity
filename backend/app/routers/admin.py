@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.services.admin_auth import require_admin_token
+from app.services.admin_auth import AdminAccess, require_admin_read_token, require_admin_write_token
 
 
 FLOWCITY_ROOT = Path(__file__).resolve().parents[3]
@@ -315,16 +315,19 @@ def _collection_records(data: dict[str, Any], collection_key: str) -> list[Any]:
 
 
 @router.get("/datasets")
-def list_datasets(_: None = Depends(require_admin_token)) -> dict[str, Any]:
+def list_datasets(access: AdminAccess = Depends(require_admin_read_token)) -> dict[str, Any]:
     return {
+        "access": access,
         "dataDir": str(DATA_DIR),
         "datasets": [_dataset_payload(slug) for slug in DATASETS],
     }
 
 
 @router.get("/coverage")
-def coverage_report(_: None = Depends(require_admin_token)) -> dict[str, Any]:
-    return _coverage_payload()
+def coverage_report(access: AdminAccess = Depends(require_admin_read_token)) -> dict[str, Any]:
+    payload = _coverage_payload()
+    payload["access"] = access
+    return payload
 
 
 @router.put("/datasets/{slug}/{collection_key}/{record_index}")
@@ -333,7 +336,7 @@ def update_record(
     collection_key: str,
     record_index: int,
     payload: RecordPayload,
-    _: None = Depends(require_admin_token),
+    _: AdminAccess = Depends(require_admin_write_token),
 ) -> dict[str, Any]:
     data = _read_dataset(slug)
     records = _collection_records(data, collection_key)
@@ -349,7 +352,7 @@ def create_record(
     slug: str,
     collection_key: str,
     payload: RecordPayload,
-    _: None = Depends(require_admin_token),
+    _: AdminAccess = Depends(require_admin_write_token),
 ) -> dict[str, Any]:
     data = _read_dataset(slug)
     records = _collection_records(data, collection_key)
@@ -363,7 +366,7 @@ def delete_record(
     slug: str,
     collection_key: str,
     record_index: int,
-    _: None = Depends(require_admin_token),
+    _: AdminAccess = Depends(require_admin_write_token),
 ) -> dict[str, Any]:
     data = _read_dataset(slug)
     records = _collection_records(data, collection_key)

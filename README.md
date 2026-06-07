@@ -80,6 +80,7 @@ FLOWCITY_EMBEDDING_CACHE_DIR=
 FLOWCITY_LEARNING_DB=
 FLOWCITY_APPROVED_LEARNING_ENABLED=true
 FLOWCITY_ADMIN_TOKEN=
+FLOWCITY_ADMIN_READ_TOKEN=flowcity-reviewer-readonly
 FLOWCITY_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 FLOWCITY_SESSION_TTL_SECONDS=7200
 FLOWCITY_SESSION_MAX_COUNT=500
@@ -108,7 +109,7 @@ http://localhost:5173
 
 前端通过 Vite proxy 调用后端 `http://localhost:8010`。
 
-后台管理接口默认不挂载。配置 `FLOWCITY_ADMIN_TOKEN` 后，后台页面可通过 `http://localhost:5173/#admin` 查看 POI 覆盖、商圈供给、运行时影子表、自进化学习提案，并对 `data/*.json` 做受控编辑。
+后台管理接口默认不挂载。配置 `FLOWCITY_ADMIN_READ_TOKEN=flowcity-reviewer-readonly` 后，后台页面可通过 `http://localhost:5173/#admin` 只读查看 POI 覆盖、商圈供给、运行时影子表和自进化学习提案。写入、删除和审批需要单独配置 `FLOWCITY_ADMIN_TOKEN`。
 
 ## 常用命令
 
