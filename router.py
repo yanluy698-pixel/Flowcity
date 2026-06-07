@@ -119,6 +119,9 @@ def _constraints_patch(text: str) -> dict[str, Any]:
     patch.update(_budget_constraints_from_text(text))
     if _has_any(text, ("清淡", "少油", "低脂", "不油腻")):
         patch["foodPreference"] = "清淡不油腻"
+    if _has_any(text, ("烧烤", "烤肉", "大排档", "bbq", "BBQ")):
+        patch["foodPreference"] = "烧烤"
+        patch["restaurantCuisine"] = "bbq"
     if _has_any(text, ("近一点", "别太远", "不想走那么远", "少走路", "附近")):
         patch["distancePreference"] = "nearer"
     if _has_any(text, ("不想打车", "不要打车", "别打车", "不打车")):
@@ -128,6 +131,10 @@ def _constraints_patch(text: str) -> dict[str, Any]:
         patch["distancePreference"] = "same_area"
     if _has_any(text, ("就在", "同商圈", "附近吃", "附近找", "附近安排")):
         patch["distancePreference"] = "same_area"
+    if _has_any(text, ("允许扩大", "扩大到附近", "附近区域", "放宽区域", "扩大区域", "周边区域")):
+        patch["allowNearbyAreas"] = True
+        if patch.get("distancePreference") == "same_area":
+            patch["distancePreference"] = "nearby_area"
     if _has_any(text, ("晚饭早一点", "晚餐早一点", "吃饭早一点", "早点吃", "早些吃", "提前吃", "先吃")):
         patch["mealTiming"] = "earlier"
     if _has_any(text, ("空窗", "缓冲", "等位", "时间段", "这段", "加点", "加些", "加一个", "奶茶", "茶饮", "休息")):
@@ -214,16 +221,35 @@ def route_interaction(
             flags["needNewRestaurant"] = True
             flags["needRouteRefresh"] = True
         flags["needReschedule"] = True
+        patch = _constraints_patch(raw)
+        dinner_route_replan = target_kind == "route" and _has_any(
+            raw,
+            (
+                "去晚饭地点",
+                "晚饭地点",
+                "去吃饭",
+                "去餐厅",
+                "饭店",
+                "餐厅",
+                "烤肉",
+                "烧烤",
+                "大排档",
+                "吃饭",
+            ),
+        )
+        if dinner_route_replan:
+            flags["needNewRestaurant"] = True
+            flags["needRouteRefresh"] = True
+            patch["dinnerRouteReplan"] = True
         locks = _locks_from_text(raw, current_plan)
         if target_kind in {"restaurant", "filler", "route"}:
             activity_id = _selected_poi_id(current_plan, "activity")
             if activity_id:
                 locks["activityPoiId"] = activity_id
-        if target_kind in {"activity", "filler", "route"}:
+        if target_kind in {"activity", "filler", "route"} and not flags.get("needNewRestaurant"):
             restaurant_id = _selected_poi_id(current_plan, "restaurant")
             if restaurant_id:
                 locks["restaurantPoiId"] = restaurant_id
-        patch = _constraints_patch(raw)
         if patch.get("forbidLongBuffer"):
             flags["needNewActivity"] = True
             flags["needRouteRefresh"] = True

@@ -505,6 +505,8 @@ button {
 }
 
 .user-bubble {
+  display: grid;
+  gap: 6px;
   max-width: 82%;
   margin-left: auto;
   padding: 9px 11px;
@@ -513,6 +515,21 @@ button {
   color: #111;
   font-size: 13px;
   line-height: 1.5;
+}
+
+.sent-draft-label {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 249, 220, 0.85);
+  color: #5b4700;
+  font-size: 12px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stage-card {

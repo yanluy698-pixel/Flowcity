@@ -37,7 +37,10 @@ export function ChatScreen({
         <div className="chat-scroll">
           {turns.map((turn) => (
             <section className="turn" key={turn.id}>
-              <div className="user-bubble">{turn.displayInput}</div>
+              <div className="user-bubble">
+                {turn.modifyContextLabel && <span className="sent-draft-label">{turn.modifyContextLabel}</span>}
+                <span>{turn.displayInput}</span>
+              </div>
               {!turn.finalPayload && (
                 <div className="assistant-row compact">
                   <Avatar />

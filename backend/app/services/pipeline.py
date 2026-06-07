@@ -32,7 +32,7 @@ import validator  # noqa: E402
 
 
 SESSION_STORE: dict[str, dict[str, Any]] = {}
-STREAM_STAGE_PAUSE_SECONDS = 0.25
+STREAM_STAGE_PAUSE_SECONDS = 0.08
 SESSION_TTL_SECONDS = int(os.getenv("FLOWCITY_SESSION_TTL_SECONDS", "7200"))
 SESSION_MAX_COUNT = int(os.getenv("FLOWCITY_SESSION_MAX_COUNT", "500"))
 
@@ -237,16 +237,21 @@ def _public_supply_snapshot(mock_supply: dict[str, Any]) -> dict[str, Any]:
     return {
         "city": mock_supply.get("city"),
         **_compact_supply_counts(mock_supply),
-        "areaRecallResult": {
-            "evaluatedAreaCount": area_result.get("evaluatedAreaCount"),
-            "selectedAreas": [
-                {"areaId": item.get("areaId"), "name": item.get("name"), "score": item.get("score")}
-                for item in area_result.get("selectedAreas", [])[:5]
-                if isinstance(item, dict)
-            ],
-            "protectedAreaIds": area_result.get("protectedAreaIds", []),
-            "anchorConflicts": area_result.get("anchorConflicts", []),
-        },
+        "areaRecallResult": _public_area_recall_snapshot(area_result),
+    }
+
+
+def _public_area_recall_snapshot(area_result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "evaluatedAreaCount": area_result.get("evaluatedAreaCount"),
+        "selectedAreaIds": area_result.get("selectedAreaIds", []),
+        "selectedAreas": [
+            {"areaId": item.get("areaId"), "name": item.get("name"), "score": item.get("score")}
+            for item in area_result.get("selectedAreas", [])[:5]
+            if isinstance(item, dict)
+        ],
+        "protectedAreaIds": area_result.get("protectedAreaIds", []),
+        "anchorConflicts": area_result.get("anchorConflicts", []),
     }
 
 
@@ -703,6 +708,36 @@ def _apply_budget_constraints_patch(demand: dict[str, Any], patch: dict[str, Any
             _append_unique_text(soft, "本轮用户要求明显降价，优先低客单、少付费、少转场方案")
 
 
+def _apply_food_preference_patch(demand: dict[str, Any], patch: dict[str, Any]) -> None:
+    food_preference = str(patch.get("foodPreference") or "").strip()
+    restaurant_cuisine = str(patch.get("restaurantCuisine") or "").strip()
+    if not food_preference and not restaurant_cuisine:
+        return
+
+    preferences = demand.setdefault("preferences", {})
+    if not isinstance(preferences, dict):
+        preferences = {}
+        demand["preferences"] = preferences
+    food_tags = preferences.setdefault("foodTags", [])
+    if not isinstance(food_tags, list):
+        food_tags = []
+        preferences["foodTags"] = food_tags
+
+    for tag in (food_preference, restaurant_cuisine):
+        if tag:
+            _append_unique_text(food_tags, tag)
+    if restaurant_cuisine == "bbq" or food_preference in {"烧烤", "烤肉", "大排档"}:
+        for tag in ("烧烤", "烤肉", "大排档", "bbq"):
+            _append_unique_text(food_tags, tag)
+
+    plan_control = demand.setdefault("planControl", {})
+    plan_control["preferredRestaurantCuisine"] = restaurant_cuisine or food_preference
+    constraints = demand.setdefault("constraints", {})
+    if isinstance(constraints, dict):
+        soft = constraints.setdefault("soft", [])
+        _append_unique_text(soft, f"本轮优先匹配餐饮偏好：{food_preference or restaurant_cuisine}")
+
+
 def _apply_timeline_policy_controls(
     demand: dict[str, Any],
     router_result: dict[str, Any] | None,
@@ -722,6 +757,7 @@ def _apply_timeline_policy_controls(
     elif meal_timing == "earlier":
         plan_control["mealTiming"] = "earlier"
     _apply_budget_constraints_patch(demand, patch)
+    _apply_food_preference_patch(demand, patch)
     if patch.get("forbidLongBuffer"):
         plan_control["forbidLongBuffer"] = True
         plan_control["mustImprovePreviousIdle"] = True
@@ -1118,6 +1154,16 @@ def _should_start_refinement_dialogue(request: FlowRunRequest, router_result: di
     text = str(request.input or "")
     if "【整体大改上下文】" in text:
         return False
+    flags = router_result.get("actionFlags", {})
+    explicit_food_choice = bool(
+        patch.get("foodPreference")
+        or patch.get("restaurantCuisine")
+        or any(word in text for word in ("烤肉", "烧烤", "大排档", "火锅"))
+    )
+    if explicit_food_choice and flags.get("needNewRestaurant"):
+        return False
+    if patch.get("allowNearbyAreas") or patch.get("dinnerRouteReplan"):
+        return False
     if router_result.get("llmRouter", {}).get("needsClarification"):
         return True
     if "【节点修改上下文】" in text and not any(word in text for word in ("早一点", "晚一点", "早点", "提前", "赶", "到家", "来得及")):
@@ -1513,7 +1559,7 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
         yield _event(
             "stage_done",
             stage="area",
-            payload={"areaRecallResult": area_recall_preview},
+            payload={"areaRecallResult": _public_area_recall_snapshot(area_recall_preview)},
         )
         _pause_for_streaming()
         anchor_conflicts = area_recall_preview.get("anchorConflicts", [])

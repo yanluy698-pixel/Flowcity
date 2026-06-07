@@ -538,6 +538,8 @@ def _people_from_raw(raw_input: str) -> dict[str, Any]:
     total = None
     if match := re.search(r"(\d+)\s*个(?:人|大学生|男生|朋友)?", raw_input):
         total = int(match.group(1))
+    elif match := re.search(r"([一二两三四五六七八九十])\s*个(?:人|大学生|男生|女生|同学|朋友)?", raw_input):
+        total = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}.get(match.group(1))
     elif "三" in raw_input and "男生" in raw_input:
         total = 3
     elif "四" in raw_input and ("大学生" in raw_input or "同学" in raw_input or "朋友" in raw_input):

@@ -1722,6 +1722,32 @@
       ]
     },
     {
+      "poiId": "res_xa_015",
+      "dateText": "周六",
+      "queueMinutes": 32,
+      "tableAvailable": true,
+      "availableSlots": [
+        "17:30",
+        "18:00",
+        "18:30",
+        "20:30",
+        "21:00"
+      ]
+    },
+    {
+      "poiId": "res_xa_015",
+      "dateText": "周末",
+      "queueMinutes": 34,
+      "tableAvailable": true,
+      "availableSlots": [
+        "17:30",
+        "18:00",
+        "18:30",
+        "20:30",
+        "21:00"
+      ]
+    },
+    {
       "poiId": "res_xa_016",
       "dateText": "周日",
       "queueMinutes": 5,

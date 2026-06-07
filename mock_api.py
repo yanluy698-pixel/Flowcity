@@ -671,6 +671,75 @@ def _raw_and_structured_text(demand: dict[str, Any]) -> str:
     )
 
 
+def _restaurant_food_terms(demand: dict[str, Any]) -> list[str]:
+    plan_control = demand.get("planControl", {}) if isinstance(demand.get("planControl"), dict) else {}
+    patch = plan_control.get("constraintsPatch", {}) if isinstance(plan_control.get("constraintsPatch"), dict) else {}
+    preferences = demand.get("preferences", {}) if isinstance(demand.get("preferences"), dict) else {}
+    terms: list[str] = []
+    for value in (
+        patch.get("foodPreference"),
+        patch.get("restaurantCuisine"),
+        plan_control.get("preferredRestaurantCuisine"),
+    ):
+        if value:
+            terms.append(str(value))
+    for value in preferences.get("foodTags", []):
+        if value:
+            terms.append(str(value))
+    text = _raw_and_structured_text(demand)
+    if any(keyword in text for keyword in ("烧烤", "烤肉", "大排档", "bbq", "BBQ")):
+        terms.extend(["烧烤", "烤肉", "大排档", "bbq"])
+    deduped: list[str] = []
+    for term in terms:
+        clean = str(term).strip()
+        if clean and clean not in deduped:
+            deduped.append(clean)
+    return deduped
+
+
+def _prefers_light_food_or_drinks(demand: dict[str, Any]) -> bool:
+    return _has_any_text(
+        demand,
+        [
+            "清淡",
+            "少油",
+            "低脂",
+            "减肥",
+            "别油腻",
+            "不油腻",
+            "简餐",
+            "轻食",
+            "茶饮",
+            "奶茶",
+            "咖啡",
+            "坐下来聊",
+            "小吃",
+        ],
+    )
+
+
+def _restaurant_matches_food_preference(restaurant: dict[str, Any], food_terms: list[str]) -> bool:
+    if not food_terms:
+        return False
+    searchable = " ".join(
+        [
+            str(restaurant.get("name") or ""),
+            str(restaurant.get("cuisine") or ""),
+            " ".join(str(tag) for tag in restaurant.get("tags", [])),
+        ]
+    ).lower()
+    for term in food_terms:
+        clean = str(term).strip().lower()
+        if not clean:
+            continue
+        if clean in {"bbq", "烧烤", "烤肉", "大排档"}:
+            if any(keyword in searchable for keyword in ("bbq", "烧烤", "烤肉", "大排档")):
+                return True
+        elif clean in searchable:
+            return True
+    return False
+
+
 def _wants_scenic_recall(social: dict[str, Any], demand: dict[str, Any]) -> bool:
     preferences = demand.get("preferences", {})
     text = " ".join(
@@ -739,6 +808,17 @@ def _children_ages(demand: dict[str, Any]) -> list[int]:
         if isinstance(age, int):
             ages.append(age)
     return ages
+
+
+def _adult_count(demand: dict[str, Any]) -> int:
+    people = demand.get("people", {})
+    adults = people.get("adults")
+    if isinstance(adults, int) and adults > 0:
+        return adults
+    total = people.get("total")
+    if isinstance(total, int) and total > 0 and not people.get("children"):
+        return total
+    return 0
 
 
 def _people_total(demand: dict[str, Any]) -> int:
@@ -1088,6 +1168,7 @@ def search_activities(
     social = _social_intent(structured_demand)
     social_primary = social["primary"]
     children_ages = _children_ages(structured_demand)
+    adult_only_group = _adult_count(structured_demand) > 0 and not children_ages
     people_total = _people_total(structured_demand)
     max_budget = _budget_max(structured_demand)
     budget_mode = _budget_mode(structured_demand)
@@ -1164,6 +1245,15 @@ def search_activities(
             continue
         if children_ages:
             reasons.append(f"适合 {min(children_ages)} 岁儿童")
+        if adult_only_group and int(activity.get("ageMax") or 99) < 16:
+            filtered_out.append(
+                _filtered(
+                    activity,
+                    "activity",
+                    f"成年人/大学生不在活动适龄范围 {activity.get('ageMin', 0)}-{activity.get('ageMax', 99)} 岁",
+                )
+            )
+            continue
 
         availability = _availability_for_activity_poi(activity, structured_demand, data, metadata)
         if not availability:
@@ -1374,6 +1464,8 @@ def search_restaurants(
     has_children = bool(_children_ages(structured_demand))
     avoid_terms = _avoid_terms(structured_demand)
     excluded_poi_ids = _excluded_poi_ids(structured_demand)
+    food_terms = _restaurant_food_terms(structured_demand)
+    prefers_light_food = _prefers_light_food_or_drinks(structured_demand)
 
     candidates: list[dict[str, Any]] = []
     filtered_out: list[dict[str, Any]] = []
@@ -1395,6 +1487,12 @@ def search_restaurants(
         area = areas[restaurant["areaId"]]
         metadata = _enriched_poi_metadata(restaurant)
         poi_tags = _poi_tags(restaurant)
+        food_preference_match = _restaurant_matches_food_preference(restaurant, food_terms)
+        cuisine = str(restaurant.get("cuisine") or "")
+
+        if cuisine in {"tea_meal", "light_cafe_meal"} and not prefers_light_food and not food_preference_match:
+            filtered_out.append(_filtered(restaurant, "restaurant", "普通吃饭需求下，茶饮/轻食不作为正餐候选"))
+            continue
 
         avoided = next((term for term in avoid_terms if _matches_avoid_term(restaurant, area, term)), None)
         if avoided:
@@ -1424,9 +1522,10 @@ def search_restaurants(
         if not availability.get("tableAvailable"):
             filtered_out.append(_filtered(restaurant, "restaurant", "目标日期暂无可用座位"))
             continue
-        if availability.get("queueMinutes", 0) > queue_limit:
+        effective_queue_limit = max(queue_limit, 45) if food_preference_match else queue_limit
+        if availability.get("queueMinutes", 0) > effective_queue_limit:
             filtered_out.append(
-                _filtered(restaurant, "restaurant", f"排队 {availability['queueMinutes']} 分钟，超过阈值 {queue_limit} 分钟")
+                _filtered(restaurant, "restaurant", f"排队 {availability['queueMinutes']} 分钟，超过阈值 {effective_queue_limit} 分钟")
             )
             continue
 
@@ -1445,6 +1544,9 @@ def search_restaurants(
         matched_tags = _matched_tags(poi_tags, demand_tags)
         base_quality_score = 0.0
         constraint_fit_score = float(len(matched_tags) * 2)
+        if food_preference_match:
+            constraint_fit_score += 14
+            reasons.append("匹配想吃的餐饮类型")
         if has_children and restaurant.get("childFriendly"):
             constraint_fit_score += 2
             reasons.append("儿童友好")

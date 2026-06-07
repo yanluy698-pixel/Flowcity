@@ -9,6 +9,7 @@ class TimelineMetrics(TypedDict):
     activeTimeUtilization: float
     idleMinutes: int
     longestIdleMinutes: int
+    firstIdleMinutes: int
     routeMinutes: int
     experienceBlockCount: int
     unusedTailMinutes: int
@@ -56,12 +57,14 @@ def metrics(
     idle_minutes = sum(step_minutes(step) for step in timeline if is_idle_step(step))
     route_minutes = sum(step_minutes(step) for step in timeline if step.get("type") in {"route", "multi_origin_route"})
     longest_idle = max([step_minutes(step) for step in timeline if is_idle_step(step)] or [0])
+    first_idle = step_minutes(timeline[0]) if timeline and is_idle_step(timeline[0]) else 0
     experience_blocks = sum(1 for step in timeline if is_experience_step(step))
     planned_end = cursor if cursor is not None else window_end
     return {
         "activeTimeUtilization": round(min(1.0, active_minutes / window_minutes), 4),
         "idleMinutes": idle_minutes,
         "longestIdleMinutes": longest_idle,
+        "firstIdleMinutes": first_idle,
         "routeMinutes": route_minutes,
         "experienceBlockCount": experience_blocks,
         "unusedTailMinutes": max(0, window_end - planned_end),
@@ -75,6 +78,12 @@ def rejection(
     target_experience_blocks: int,
     has_restaurant: bool,
 ) -> dict[str, Any] | None:
+    if metrics_value.get("firstIdleMinutes", 0) > max_idle_minutes:
+        return {
+            "reason": "开局等待超过规划策略阈值",
+            "firstIdleMinutes": metrics_value["firstIdleMinutes"],
+            "maxIdleMinutes": max_idle_minutes,
+        }
     if metrics_value["longestIdleMinutes"] > max_idle_minutes:
         return {
             "reason": "连续无意义等待超过规划策略阈值",

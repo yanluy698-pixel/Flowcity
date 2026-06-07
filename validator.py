@@ -137,6 +137,17 @@ def _children_ages(demand: dict[str, Any]) -> list[int]:
     ]
 
 
+def _adult_count(demand: dict[str, Any]) -> int:
+    people = demand.get("people", {})
+    adults = people.get("adults")
+    if isinstance(adults, int) and adults > 0:
+        return adults
+    total = people.get("total")
+    if isinstance(total, int) and total > 0 and not people.get("children"):
+        return total
+    return 0
+
+
 def _budget_limit(demand: dict[str, Any]) -> float | None:
     budget = demand.get("budget", {})
     max_total = budget.get("maxTotal")
@@ -390,6 +401,7 @@ def _validate_people_fit(
     details = _poi_details_by_id(data)
     children_ages = _children_ages(demand)
     has_children = bool(children_ages)
+    adult_only_group = _adult_count(demand) > 0 and not has_children
     wants_low_fat = _has_any_text(demand, ["低脂", "清淡", "减肥", "少油"])
 
     for index, item in enumerate(plan.get("timeline", [])):
@@ -415,6 +427,20 @@ def _validate_people_fit(
                             actual=f"{age} 岁",
                         )
                     )
+            if adult_only_group and int(poi.get("ageMax") or 99) < 16:
+                issues.append(
+                    _issue(
+                        "PEOPLE_ADULT_AGE_MISMATCH",
+                        "people_fit",
+                        "error",
+                        "成年人/大学生不在该活动适龄范围内。",
+                        blocking=True,
+                        timeline_index=index,
+                        poi_id=poi_id,
+                        expected=f"{poi.get('ageMin', 0)}-{poi.get('ageMax', 99)} 岁",
+                        actual="成年人/大学生",
+                    )
+                )
         elif poi.get("kind") == "restaurant":
             if has_children and not poi.get("childFriendly"):
                 issues.append(

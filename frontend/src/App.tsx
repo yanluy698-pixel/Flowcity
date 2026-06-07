@@ -58,11 +58,12 @@ const FOLLOW_UP_HINTS = [
   "先吃"
 ];
 
-function createTurn(displayInput: string, effectiveInput: string): ChatTurn {
+function createTurn(displayInput: string, effectiveInput: string, modifyContextLabel?: string): ChatTurn {
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     displayInput,
     effectiveInput,
+    modifyContextLabel,
     startedAt: performance.now(),
     stages: ORDERED_STAGES.map((stage) => ({ ...stage }))
   };
@@ -316,7 +317,7 @@ export default function App() {
     const effectiveInput = hasModifyContext
       ? `${activeDraft!.systemPrompt}\n\n【用户补充】${displayInput}`
       : displayInput;
-    const turn = createTurn(displayInput, effectiveInput);
+    const turn = createTurn(displayInput, effectiveInput, activeDraft?.label);
     setTurns((items) => (shouldStartNewPlan ? [turn] : [...items, turn]));
     setIsRunning(true);
     let pendingEvents: Array<{ event: FlowEvent; eventTime: number }> = [];
@@ -352,13 +353,13 @@ export default function App() {
           }
           pendingEvents.push({ event, eventTime });
           if (flushTimer === undefined) {
-            flushTimer = window.setTimeout(flushPendingEvents, 350);
+            flushTimer = window.setTimeout(flushPendingEvents, 700);
           }
         },
         {
           plannerLlm: false,
           strictPlannerLlm: false,
-          limit: 8,
+          limit: 12,
           sessionId: runSessionId,
           interactionMode: shouldStartNewPlan ? "new_plan" : shouldOptimizePrevious ? "refine" : "auto",
           previousPlanId: shouldStartNewPlan ? undefined : lastTurn?.finalPayload?.planId,

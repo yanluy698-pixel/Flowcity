@@ -393,13 +393,50 @@ def _needs_sit_down_component(demand: dict[str, Any]) -> bool:
     return False
 
 
+def _prefers_light_or_early_meal(demand: dict[str, Any]) -> bool:
+    """Generic food preferences before an early end should not be forced into dinner."""
+    raw_text = _raw_user_text(demand)
+    if _explicit_dinner_requested(demand):
+        return False
+    _, end = _time_window_bounds(demand)
+    if end is None or end > 18 * 60:
+        return False
+    light_meal_terms = (
+        "吃的",
+        "好吃",
+        "别油腻",
+        "不油腻",
+        "清淡",
+        "低脂",
+        "减脂",
+        "减肥",
+        "轻食",
+        "简餐",
+        "下午茶",
+        "奶茶",
+        "咖啡",
+    )
+    return any(keyword in raw_text for keyword in light_meal_terms)
+
+
+def _explicit_dinner_requested(demand: dict[str, Any]) -> bool:
+    raw_text = _raw_user_text(demand)
+    return any(keyword in raw_text for keyword in ("晚饭", "晚餐", "傍晚吃", "夜间吃饭", "晚上吃", "吃晚饭", "吃晚餐", "正常饭点")) or (
+        "晚上" in raw_text and any(keyword in raw_text for keyword in ("吃饭", "聚餐", "餐厅", "吃一顿", "吃顿饭"))
+    )
+
+
+def _has_explicit_end_time(demand: dict[str, Any]) -> bool:
+    time_window = demand.get("timeWindow", {}) if isinstance(demand.get("timeWindow"), dict) else {}
+    return time_window.get("hasExplicitEnd") is not False and _parse_minutes(time_window.get("endTime")) is not None
+
+
 def _requires_dinner_anchor(demand: dict[str, Any]) -> bool:
     raw_text = _raw_user_text(demand)
-    explicit_dinner = any(keyword in raw_text for keyword in ("晚饭", "晚餐", "傍晚吃", "夜间吃饭")) or (
-        "晚上" in raw_text and any(keyword in raw_text for keyword in ("吃饭", "聚餐", "餐厅", "吃一顿"))
-    )
-    if explicit_dinner:
+    if _explicit_dinner_requested(demand):
         return True
+    if _prefers_light_or_early_meal(demand):
+        return False
     if any(keyword in raw_text for keyword in ("早吃", "早点吃", "先吃", "午饭", "午餐", "中午吃", "下午茶", "奶茶", "茶歇")):
         return False
     start, end = _time_window_bounds(demand)
@@ -415,6 +452,8 @@ def _requires_dinner_anchor(demand: dict[str, Any]) -> bool:
 
 def _should_anchor_restaurant_as_dinner(demand: dict[str, Any], restaurant: dict[str, Any] | None) -> bool:
     if not restaurant or _meal_timing(demand) == "earlier":
+        return False
+    if _prefers_light_or_early_meal(demand):
         return False
     if _requires_dinner_anchor(demand):
         return True
@@ -614,6 +653,11 @@ def _meal_first(demand: dict[str, Any]) -> bool:
     )
 
 
+def _explicit_light_multi_stop(demand: dict[str, Any]) -> bool:
+    text = _demand_text(demand)
+    return any(keyword in text for keyword in ("citywalk", "逛吃", "小吃", "坐下来聊", "边逛边吃", "走走吃吃"))
+
+
 def _wants_after_meal_walk(demand: dict[str, Any]) -> bool:
     return any(keyword in _demand_text(demand) for keyword in ("饭后", "吃完饭", "吃完晚饭", "转一会", "散步"))
 
@@ -750,7 +794,8 @@ def _align_activity_start(
     cursor: int | None,
     demand: dict[str, Any],
 ) -> tuple[int | None, dict[str, Any] | None]:
-    if cursor is None or _activity_has_slot_at(activity, cursor):
+    minimum_activity_minutes = min(_activity_duration_options(activity, demand) or [1])
+    if cursor is None or _activity_has_slot_at(activity, cursor, minimum_activity_minutes):
         aligned_cursor = cursor
     else:
         slots = _activity_slot_start_minutes(activity)
@@ -1421,9 +1466,23 @@ def _timeline_quality_metrics(
 
 def _timeline_quality_rejection(demand: dict[str, Any], metrics: dict[str, Any], has_restaurant: bool) -> dict[str, Any] | None:
     policy = _planning_policy(demand)
+    max_idle_minutes = int(policy.get("maxIdleMinutes") or DEFAULT_MAX_IDLE_MINUTES)
+    if int(metrics.get("firstIdleMinutes") or 0) > max_idle_minutes:
+        return {
+            "reason": "开局等待超过规划策略阈值",
+            "firstIdleMinutes": int(metrics.get("firstIdleMinutes") or 0),
+            "maxIdleMinutes": max_idle_minutes,
+        }
+    if (
+        has_restaurant
+        and _requires_dinner_anchor(demand)
+        and not _has_explicit_end_time(demand)
+        and not bool(policy.get("forbidLongBuffer"))
+    ):
+        max_idle_minutes = max(max_idle_minutes, 60)
     return timeline_quality.rejection(
         metrics_value=metrics,
-        max_idle_minutes=int(policy.get("maxIdleMinutes") or DEFAULT_MAX_IDLE_MINUTES),
+        max_idle_minutes=max_idle_minutes,
         target_experience_blocks=int(policy.get("targetExperienceBlocks") or 0),
         has_restaurant=has_restaurant,
     )
@@ -1493,13 +1552,22 @@ def _strip_reason_prefix(value: str) -> str:
     return value.split("：", 1)[1] if "：" in value else value
 
 
+def _clean_reason_value(value: str) -> str:
+    cleaned = value.strip()
+    while "适合适合" in cleaned:
+        cleaned = cleaned.replace("适合适合", "适合")
+    if cleaned.startswith("适合") and cleaned[2:] in {"朋友多人", "多人", "大学生", "轻约会"}:
+        cleaned = cleaned[2:]
+    return cleaned
+
+
 def _candidate_reason_summary(candidate: dict[str, Any], *, fallback: str) -> str:
     values: list[str] = []
     feasibility = _reason_values(candidate, "feasibility")
     explicit = _reason_values(candidate, "explicitPreference")
     profile = _reason_values(candidate, "profileAssist")
     for item in [*explicit, *profile, *feasibility]:
-        value = _strip_reason_prefix(item).strip()
+        value = _clean_reason_value(_strip_reason_prefix(item))
         if not value or value in {"基础评分较高", "预算友好"}:
             continue
         if value not in values:
@@ -1630,7 +1698,7 @@ def _build_candidate_plan(
     policy = _planning_policy(demand)
     selected_area = (restaurant or activity or {}).get("areaId") if meal_first else (activity or restaurant or {}).get("areaId")
     first_route = _multi_origin_route_for_area(supply, selected_area) if _has_multi_origin(demand) else _route_for_area(supply, selected_area)
-    if _has_multi_origin(demand) and selected_area and not first_route:
+    if _has_multi_origin(demand) and selected_area and not first_route and policy.get("includeOutboundRoute"):
         return None, {"reason": "多人公平集合缺少完整出发点路线矩阵", "areaId": selected_area}
     if _requires_inbound_route(demand) and selected_area and not first_route:
         return None, {"reason": "跨城出行缺少到目标商圈的入城路线", "areaId": selected_area}
@@ -2208,7 +2276,7 @@ def _build_multi_node_candidate_plan(
     place_keys = [key for key in [_poi_place_key(primary), *[_poi_place_key(item) for item in supplemental_nodes]] if key]
     if len(place_keys) != len(set(place_keys)):
         return None, {"reason": "多节点体验不能重复安排同一实际地点", "placeKeys": place_keys}
-    if _meal_first(demand):
+    if _meal_first(demand) and not _explicit_light_multi_stop(demand):
         return None, {"reason": "当前请求要求先吃饭，多节点晚饭前补位不适用"}
 
     policy = _planning_policy(demand)
@@ -2221,7 +2289,7 @@ def _build_multi_node_candidate_plan(
     selected_area = primary.get("areaId")
     first_route = None
     first_route = _multi_origin_route_for_area(supply, selected_area) if _has_multi_origin(demand) else _route_for_area(supply, selected_area)
-    if _has_multi_origin(demand) and selected_area and not first_route:
+    if _has_multi_origin(demand) and selected_area and not first_route and policy.get("includeOutboundRoute"):
         return None, {"reason": "多人公平集合缺少完整出发点路线矩阵", "areaId": selected_area}
     if _requires_inbound_route(demand) and selected_area and not first_route:
         return None, {"reason": "跨城出行缺少到目标商圈的入城路线", "areaId": selected_area}
@@ -2616,7 +2684,7 @@ def _multi_node_candidate_plans(
     if int(policy.get("targetExperienceBlocks") or 0) < 2:
         return [], []
     needs_restaurant = _has_meal_constraint(demand) or _needs_sit_down_component(demand)
-    if _meal_first(demand) or not activities or (needs_restaurant and not restaurants):
+    if (_meal_first(demand) and not _explicit_light_multi_stop(demand)) or not activities or (needs_restaurant and not restaurants):
         return [], []
     primary_choices = activities[: min(len(activities), SCHEDULER_PRIMARY_BEAM)]
     restaurant_choices: list[dict[str, Any] | None] = (

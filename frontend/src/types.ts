@@ -24,6 +24,7 @@ export type ChatTurn = {
   id: string;
   displayInput: string;
   effectiveInput: string;
+  modifyContextLabel?: string;
   stages: StageState[];
   startedAt: number;
   completedAt?: number;

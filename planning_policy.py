@@ -99,9 +99,13 @@ def _requested_components(demand: dict[str, Any]) -> set[str]:
     if _explicit_no_meal(demand):
         profile = demand.get("demandProfile") if isinstance(demand.get("demandProfile"), dict) else {}
         components = profile.get("requestedComponents") if isinstance(profile.get("requestedComponents"), list) else []
+        if not components and isinstance(demand.get("requestedComponents"), list):
+            components = demand["requestedComponents"]
         return {str(item) for item in components if str(item) != "restaurant"} or {"activity"}
     profile = demand.get("demandProfile") if isinstance(demand.get("demandProfile"), dict) else {}
     components = profile.get("requestedComponents") if isinstance(profile.get("requestedComponents"), list) else []
+    if not components and isinstance(demand.get("requestedComponents"), list):
+        components = demand["requestedComponents"]
     if components:
         return {str(item) for item in components}
     must_include = demand.get("expectedOutput", {}).get("mustInclude", [])
@@ -237,6 +241,20 @@ def is_simple_trip_intent(demand: dict[str, Any]) -> bool:
     )
 
 
+def _has_explicit_multi_stop_intent(demand: dict[str, Any]) -> bool:
+    """Lightweight trips can still need multiple small stops."""
+    text = demand_text(demand)
+    requested = _requested_components(demand)
+    if any(keyword in text for keyword in ("citywalk", "逛吃", "小吃", "坐下来聊", "边逛边吃", "走走吃吃")):
+        return True
+    preferences = demand.get("preferences", {}) if isinstance(demand.get("preferences"), dict) else {}
+    activity_types = [str(item) for item in _list_values(preferences.get("activityTypes")) if item]
+    food_tags = [str(item) for item in _list_values(preferences.get("foodTags")) if item]
+    return bool(activity_types) and bool(food_tags) and any(
+        keyword in text for keyword in ("聊", "坐", "歇", "小吃", "逛")
+    )
+
+
 def allow_single_node_itinerary(demand: dict[str, Any]) -> bool:
     if has_low_cost_intent(demand):
         return True
@@ -312,7 +330,7 @@ def resolve_planning_policy(demand: dict[str, Any], raw_input: str | None = None
     if (explicit_meetup_context or explicit_meetup_start) and not cross_city.get("enabled"):
         time_scope = "onsite_after_meetup"
         start_anchor_type = "explicit_meetup"
-    if origin_points and not explicit_meetup_start:
+    if origin_points and (not explicit_meetup_start or (not _has_target_area(demand) and not location.get("startPoint"))):
         time_scope = "door_to_door"
         start_anchor_type = "origin_departure"
     if any(keyword in raw_text for keyword in ("回家", "回去", "到家", "回学校", "回校")):
@@ -321,7 +339,7 @@ def resolve_planning_policy(demand: dict[str, Any], raw_input: str | None = None
     include_outbound = raw_policy.get("includeOutboundRoute")
     if not isinstance(include_outbound, bool):
         include_outbound = time_scope == "door_to_door" or bool(cross_city.get("enabled")) or bool(origin_points)
-    if origin_points and not explicit_meetup_start:
+    if origin_points and (not explicit_meetup_start or (not _has_target_area(demand) and not location.get("startPoint"))):
         include_outbound = True
     if start_anchor_type in {"explicit_meetup", "already_in_area"} and not cross_city.get("enabled"):
         include_outbound = False
@@ -354,7 +372,7 @@ def resolve_planning_policy(demand: dict[str, Any], raw_input: str | None = None
         target_blocks = 1
     if has_low_cost_intent(demand) and simple_trip and not isinstance(patch_blocks, int):
         target_blocks = min(target_blocks, 1)
-    if {"activity", "restaurant"}.issubset(requested) and duration >= 180 and not simple_trip:
+    if {"activity", "restaurant"}.issubset(requested) and duration >= 180 and (not simple_trip or _has_explicit_multi_stop_intent(demand)):
         target_blocks = max(DEFAULT_TARGET_BLOCKS_LOCAL, target_blocks)
     if duration >= LONG_TRIP_MINUTES and not simple_trip and target_blocks >= DEFAULT_TARGET_BLOCKS_LOCAL:
         target_blocks = max(DEFAULT_TARGET_BLOCKS_LONG, target_blocks)
@@ -366,6 +384,7 @@ def resolve_planning_policy(demand: dict[str, Any], raw_input: str | None = None
         and start_minutes is not None
         and DINNER_WINDOW_START_MINUTES <= start_minutes <= DINNER_WINDOW_END_MINUTES
         and not _is_lunch_or_tea_intent(demand)
+        and not _has_explicit_multi_stop_intent(demand)
     ):
         target_blocks = min(target_blocks, DEFAULT_TARGET_BLOCKS_SHORT)
 

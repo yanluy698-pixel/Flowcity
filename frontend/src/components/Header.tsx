@@ -9,7 +9,7 @@ export function Header({ onNewSession, onHistoryClick, hasHistory, disabled }: P
   return (
     <header className="app-header">
       <div className="status-bar">
-        <span>9:41</span>
+        <span aria-hidden="true" />
         <span className="dynamic-island" />
         <span className="signal">▮▮▮</span>
       </div>

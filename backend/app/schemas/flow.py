@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class FlowRunRequest(BaseModel):
     input: str = Field(..., min_length=1)
-    limit: int = Field(default=8, ge=1, le=10)
+    limit: int = Field(default=8, ge=1, le=12)
     plannerLlm: bool = False
     strictPlannerLlm: bool = False
     confirmExecute: bool = False

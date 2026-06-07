@@ -196,9 +196,9 @@
     {
       "id": "multi_campus_meetup",
       "name": "多大学相聚",
-      "userInput": "我们四个人周六中午想出来玩，分别在长安大学、西安交大、西北大学和陕师大，每个人预算不太一样，最低的同学只能接受80以内，怎么安排比较公平？",
+      "userInput": "我们四个人周六中午一点集合，分别从长安大学、西安交大、西北大学和陕师大出发，人均100以内，希望找个对大家都公平的地方，再安排吃和玩。",
       "expectedStructuredDemand": {
-        "rawInput": "我们四个人周六中午想出来玩，分别在长安大学、西安交大、西北大学和陕师大，每个人预算不太一样，最低的同学只能接受80以内，怎么安排比较公平？",
+        "rawInput": "我们四个人周六中午一点集合，分别从长安大学、西安交大、西北大学和陕师大出发，人均100以内，希望找个对大家都公平的地方，再安排吃和玩。",
         "scene": {
           "primaryType": "friends",
           "confidence": 0.9,
@@ -206,10 +206,13 @@
         },
         "timeWindow": {
           "dateText": "周六中午",
-          "startTime": null,
+          "startTime": "13:00",
           "endTime": null,
           "durationHours": null,
-          "isFlexible": true
+          "isFlexible": true,
+          "hasExplicitEnd": false,
+          "startTimeSource": "explicit",
+          "targetDurationRangeMinutes": [240, 360]
         },
         "people": {
           "total": 4,
@@ -221,7 +224,7 @@
         },
         "budget": {
           "maxTotal": null,
-          "perPerson": 80,
+          "perPerson": 100,
           "currency": "CNY",
           "flexibility": "strict"
         },
@@ -243,10 +246,10 @@
           "activityTypes": ["朋友相聚", "轻松活动"],
           "foodTags": [],
           "experienceTags": ["预算公平", "集合方便"],
-          "avoidTags": ["超出80元人均", "单人通勤过远"]
+          "avoidTags": ["超出100元人均", "单人通勤过远"]
         },
         "constraints": {
-          "hard": ["人均预算需优先按80元以内设计", "需要考虑四个不同出发地"],
+          "hard": ["人均预算需优先按100元以内设计", "需要考虑四个不同出发地"],
           "soft": ["集合点尽量公平", "公共交通可达", "活动轻松"],
           "dynamic": ["各出发地到集合点通勤时间", "营业时间", "排队时间"]
         },
@@ -258,8 +261,8 @@
           "planFormat": "options_comparison",
           "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "推荐理由", "风险提示", "备选方案"]
         },
-        "assumptions": ["用户未说明具体开始和结束时间，暂只记录“周六中午”。", "不自行决定集合商圈，后续由 Planner 基于通勤公平性选择。"],
-        "clarificationQuestions": ["周六中午大概几点开始？", "是否希望全程公共交通？"]
+        "assumptions": ["用户明确 13:00 集合，后续时间窗按 4-6 小时本地出行处理。", "不自行决定集合商圈，后续由 Planner 基于通勤公平性选择。"],
+        "clarificationQuestions": ["是否希望全程公共交通？"]
       }
     },
     {
@@ -579,20 +582,20 @@
     {
       "id": "multi_campus_fair_meetup",
       "name": "五组画像4：多校区公平集合",
-      "userInput": "我们4个大学生周六中午想出来玩，分别从长安大学、西安交大、西北大学和陕师大出发，最低预算的同学只能接受人均80，希望找个对大家都公平的地方集合，再安排吃和玩。",
+      "userInput": "我们4个大学生周六中午一点集合，分别从长安大学、西安交大、西北大学和陕师大出发，希望找个对大家都公平的地方，再安排吃和玩，人均100以内。",
       "expectedStructuredDemand": {
-        "rawInput": "我们4个大学生周六中午想出来玩，分别从长安大学、西安交大、西北大学和陕师大出发，最低预算的同学只能接受人均80，希望找个对大家都公平的地方集合，再安排吃和玩。",
+        "rawInput": "我们4个大学生周六中午一点集合，分别从长安大学、西安交大、西北大学和陕师大出发，希望找个对大家都公平的地方，再安排吃和玩，人均100以内。",
         "scene": { "primaryType": "friends", "confidence": 0.9, "tags": ["朋友相聚", "多出发地", "大学生", "预算不一致", "公平集合"] },
-        "timeWindow": { "dateText": "周六中午", "startTime": null, "endTime": null, "durationHours": null, "isFlexible": true },
+        "timeWindow": { "dateText": "周六中午", "startTime": "13:00", "endTime": null, "durationHours": null, "isFlexible": true, "hasExplicitEnd": false, "startTimeSource": "explicit", "targetDurationRangeMinutes": [240, 360] },
         "people": { "total": 4, "adults": 4, "children": [], "seniors": [], "relationship": "friends", "specialNeeds": ["四人分别从不同大学出发", "预算需要照顾最低预算者"] },
-        "budget": { "maxTotal": null, "perPerson": 80, "currency": "CNY", "flexibility": "strict" },
+        "budget": { "maxTotal": null, "perPerson": 100, "currency": "CNY", "flexibility": "strict" },
         "location": { "startPoint": null, "originPoints": [{ "label": "同伴1", "point": "长安大学" }, { "label": "同伴2", "point": "西安交大" }, { "label": "同伴3", "point": "西北大学" }, { "label": "同伴4", "point": "陕师大" }], "preferredArea": null, "crossCityIntent": { "enabled": false, "fromCity": null, "toCity": null }, "maxTravelMinutes": null, "transportPreference": "public_transport", "distancePreference": "多地点折中集合" },
-        "preferences": { "activityTypes": ["大学生", "朋友相聚", "轻松活动"], "foodTags": ["低预算", "适合多人"], "experienceTags": ["预算公平", "集合方便", "公共交通可达"], "avoidTags": ["超出80元人均", "单人通勤过远", "太贵"] },
-        "constraints": { "hard": ["人均预算需优先按80元以内设计", "需要考虑四个不同出发地", "公共交通可达"], "soft": ["集合点尽量公平", "活动轻松", "学生低价"], "dynamic": ["各出发地到集合点通勤时间", "营业时间", "排队时间", "团购库存"] },
+        "preferences": { "activityTypes": ["大学生", "朋友相聚", "轻松活动"], "foodTags": ["低预算", "适合多人"], "experienceTags": ["预算公平", "集合方便", "公共交通可达"], "avoidTags": ["超出100元人均", "单人通勤过远", "太贵"] },
+        "constraints": { "hard": ["人均预算需优先按100元以内设计", "需要考虑四个不同出发地", "公共交通可达"], "soft": ["集合点尽量公平", "活动轻松", "学生低价"], "dynamic": ["各出发地到集合点通勤时间", "营业时间", "排队时间", "团购库存"] },
         "potentialConflicts": [{ "type": "multi_origin_fairness", "description": "最公平地点未必最好玩，需要解释取舍。" }, { "type": "budget_mismatch", "description": "最低预算限制体验质量。" }],
         "expectedOutput": { "planFormat": "options_comparison", "mustInclude": ["时间轴", "活动安排", "餐饮安排", "路线/通勤", "预算估算", "推荐理由", "风险提示", "备选方案"] },
-        "assumptions": ["按最低预算者人均80元优先设计。"],
-        "clarificationQuestions": ["周六中午大概几点开始？"]
+        "assumptions": ["按人均100元以内优先设计。"],
+        "clarificationQuestions": []
       }
     },
     {
