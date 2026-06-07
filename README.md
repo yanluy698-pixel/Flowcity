@@ -116,12 +116,12 @@ FLOWCITY_SESSION_MAX_COUNT=500
 ## 本地运行
 
 ```powershell
-cd "D:\产品\美团\周末闲时活动规划\Flowcity\backend"
+cd backend
 uvicorn app.main:app --reload --port 8010
 ```
 
 ```powershell
-cd "D:\产品\美团\周末闲时活动规划\Flowcity\frontend"
+cd frontend
 npm install
 npm run dev
 ```
@@ -141,33 +141,33 @@ http://localhost:5173
 只查看需求抽取 Prompt，不调用模型：
 
 ```powershell
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' extractor.py --input "周六下午2点到6点，带5岁孩子和老婆出去玩，预算400。" --dry-run
+python extractor.py --input "周六下午2点到6点，带5岁孩子和老婆出去玩，预算400。" --dry-run
 ```
 
 跑完整命令行链路：
 
 ```powershell
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' .\run_flow.py --input "周六下午2点到6点，我从曲江池附近出发，带5岁孩子和老婆，老婆最近减脂，别太远，总预算400。" --limit 3
+python .\run_flow.py --input "周六下午2点到6点，我从曲江池附近出发，带5岁孩子和老婆，老婆最近减脂，别太远，总预算400。" --limit 3
 ```
 
 离线回归测试：
 
 ```powershell
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' test_examples.py
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' test_architecture_v5.py
+python test_examples.py
+python test_architecture_v5.py
 ```
 
 前端构建：
 
 ```powershell
-cd "D:\产品\美团\周末闲时活动规划\Flowcity\frontend"
+cd frontend
 npm run build
 ```
 
 LLM 能力覆盖评估：
 
 ```powershell
-& 'C:\Users\Admin\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -B run_llm_capability_eval.py --limit 12
+python -B run_llm_capability_eval.py --limit 12
 ```
 
 ## POI 与数据原则
