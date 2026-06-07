@@ -232,6 +232,74 @@ def _compact_supply_counts(mock_supply: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _public_supply_snapshot(mock_supply: dict[str, Any]) -> dict[str, Any]:
+    area_result = mock_supply.get("areaRecallResult", {}) if isinstance(mock_supply.get("areaRecallResult"), dict) else {}
+    return {
+        "city": mock_supply.get("city"),
+        **_compact_supply_counts(mock_supply),
+        "areaRecallResult": {
+            "evaluatedAreaCount": area_result.get("evaluatedAreaCount"),
+            "selectedAreas": [
+                {"areaId": item.get("areaId"), "name": item.get("name"), "score": item.get("score")}
+                for item in area_result.get("selectedAreas", [])[:5]
+                if isinstance(item, dict)
+            ],
+            "protectedAreaIds": area_result.get("protectedAreaIds", []),
+            "anchorConflicts": area_result.get("anchorConflicts", []),
+        },
+    }
+
+
+def _compact_tool_results(tool_results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    compact: list[dict[str, Any]] = []
+    for item in tool_results:
+        if not isinstance(item, dict):
+            continue
+        compact.append(
+            {
+                "tool": item.get("tool"),
+                "itemCount": len(item.get("items", []) if isinstance(item.get("items"), list) else []),
+                "rejectedCount": len(item.get("rejected", []) if isinstance(item.get("rejected"), list) else []),
+                "latencyMs": item.get("latencyMs"),
+                "source": item.get("source"),
+                "warnings": item.get("warnings", []),
+            }
+        )
+    return compact
+
+
+def _compact_scheduler_result(value: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    selected = value.get("selectedCombination") if isinstance(value.get("selectedCombination"), dict) else {}
+    return {
+        "status": value.get("status"),
+        "strategy": value.get("strategy"),
+        "evaluatedCombinationCount": value.get("evaluatedCombinationCount"),
+        "feasibleCombinationCount": value.get("feasibleCombinationCount"),
+        "multiNodeFeasibleCombinationCount": value.get("multiNodeFeasibleCombinationCount"),
+        "qualityQualifiedCombinationCount": value.get("qualityQualifiedCombinationCount"),
+        "selectionPool": value.get("selectionPool"),
+        "selectedCombination": {
+            "activity": selected.get("activity"),
+            "supplemental": selected.get("supplemental"),
+            "restaurant": selected.get("restaurant"),
+            "score": selected.get("score"),
+            "mode": selected.get("mode"),
+        },
+        "fillerInsertion": value.get("fillerInsertion"),
+    }
+
+
+def _public_timeline_plan(timeline_plan: dict[str, Any], *, debug: bool = False) -> dict[str, Any]:
+    if debug:
+        return timeline_plan
+    public = deepcopy(timeline_plan)
+    public["schedulerResult"] = _compact_scheduler_result(public.get("schedulerResult"))
+    public.pop("rawPlannerNotes", None)
+    return public
+
+
 def _build_plan_explanation(
     *,
     router_result: dict[str, Any],
@@ -1482,11 +1550,18 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
         yield _event(
             "stage_done",
             stage="supply",
-            payload={
-                "mockSupply": mock_supply,
-                "toolResults": tool_results,
-                **_compact_supply_counts(mock_supply),
-            },
+            payload=(
+                {
+                    "mockSupply": mock_supply,
+                    "toolResults": tool_results,
+                    **_compact_supply_counts(mock_supply),
+                }
+                if request.debug
+                else {
+                    **_public_supply_snapshot(full_supply),
+                    "toolResults": _compact_tool_results(tool_results),
+                }
+            ),
         )
         _pause_for_streaming()
         preference_conflicts = full_supply.get("explicitPreferenceCoverage", {}).get("blockingConflicts", [])
@@ -1510,7 +1585,7 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
                     "planId": plan_id,
                     "routerResult": router_result,
                     "structuredDemand": client_demand,
-                    "mockSupply": full_supply,
+                    "mockSupply": full_supply if request.debug else _public_supply_snapshot(full_supply),
                     "awaitingUserChoice": True,
                     "assistantMessage": {
                         "mode": "clarification",
@@ -1547,8 +1622,8 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
             "stage_done",
             stage="plan",
             payload={
-                "timelinePlan": timeline_plan,
-                "schedulerResult": timeline_plan.get("schedulerResult"),
+                "timelinePlan": _public_timeline_plan(timeline_plan, debug=request.debug),
+                "schedulerResult": timeline_plan.get("schedulerResult") if request.debug else _compact_scheduler_result(timeline_plan.get("schedulerResult")),
             },
         )
         _pause_for_streaming()
@@ -1590,11 +1665,11 @@ def stream_flow_events(request: FlowRunRequest) -> Iterator[str]:
                 "routerResult": router_result,
                 "refinementIntent": refinement_intent,
                 "structuredDemand": client_demand,
-                "mockSupply": full_supply,
-                "toolResults": full_supply.get("toolResults", []),
-                "timelinePlan": timeline_plan,
-                "schedulerResult": timeline_plan.get("schedulerResult"),
-                "rejectedCombinations": (timeline_plan.get("schedulerResult") or {}).get("rejectedCombinations", []),
+                "mockSupply": full_supply if request.debug else _public_supply_snapshot(full_supply),
+                "toolResults": full_supply.get("toolResults", []) if request.debug else _compact_tool_results(full_supply.get("toolResults", [])),
+                "timelinePlan": _public_timeline_plan(timeline_plan, debug=request.debug),
+                "schedulerResult": timeline_plan.get("schedulerResult") if request.debug else _compact_scheduler_result(timeline_plan.get("schedulerResult")),
+                "rejectedCombinations": (timeline_plan.get("schedulerResult") or {}).get("rejectedCombinations", []) if request.debug else [],
                 "lockedItems": refinement_intent.get("lockedItems", []),
                 "changedItems": refinement_intent.get("changedItems", []),
                 "validationResult": stage5["validationResult"],

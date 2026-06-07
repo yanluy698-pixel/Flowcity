@@ -16,6 +16,7 @@ class FlowRunRequest(BaseModel):
     previousPlanId: str | None = None
     hypothesisFeedback: dict[str, Any] | None = None
     constraintsPatch: dict[str, Any] | None = None
+    debug: bool = False
 
 
 class ExecuteRequest(BaseModel):

@@ -99,15 +99,24 @@ function routerSummary(payload?: Record<string, unknown>) {
 
 function supplySummary(payload?: Record<string, unknown>) {
   const supply = payload?.mockSupply as any;
-  if (!supply) return "正在找活动、吃饭地点、路线、余票、座位和排队情况。";
   const toolResults = (payload?.toolResults as any[]) ?? [];
   if (toolResults.length) {
     const activityTool = toolResults.find((item) => item.tool === "search_activities");
     const restaurantTool = toolResults.find((item) => item.tool === "search_restaurants");
     const routeTool = toolResults.find((item) => item.tool === "get_routes");
+    const countOf = (item: any) => item?.itemCount ?? item?.items?.length ?? 0;
     return userText(
-      `已同时查到 ${activityTool?.items?.length ?? 0} 个可玩活动、${restaurantTool?.items?.length ?? 0} 个吃饭地点、${routeTool?.items?.length ?? 0} 条路线。`
+      `已同时查到 ${countOf(activityTool)} 个可玩活动、${countOf(restaurantTool)} 个吃饭地点、${countOf(routeTool)} 条路线。`
     );
+  }
+  if (!supply) {
+    const activityCount = Number(payload?.activityCount ?? 0);
+    const restaurantCount = Number(payload?.restaurantCount ?? 0);
+    const routeCount = Number(payload?.routeCount ?? 0);
+    if (activityCount || restaurantCount || routeCount) {
+      return userText(`已整理 ${activityCount} 个可玩活动、${restaurantCount} 个吃饭地点和 ${routeCount} 条路线。`);
+    }
+    return "正在找活动、吃饭地点、路线、余票、座位和排队情况。";
   }
   const activities = textList(supply.activityCandidates ?? [], 8);
   const restaurants = textList(supply.restaurantCandidates ?? [], 8);

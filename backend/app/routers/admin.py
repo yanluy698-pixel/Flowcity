@@ -17,6 +17,7 @@ if str(FLOWCITY_ROOT) not in sys.path:
     sys.path.insert(0, str(FLOWCITY_ROOT))
 
 import supply_governance  # noqa: E402
+import mock_api  # noqa: E402
 
 
 router = APIRouter()
@@ -129,6 +130,7 @@ def _write_dataset(slug: str, data: dict[str, Any]) -> None:
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     tmp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     tmp_path.replace(path)
+    mock_api.clear_mock_data_cache()
 
 
 def _record_fields(records: list[Any]) -> list[str]:

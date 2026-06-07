@@ -48,7 +48,9 @@ export function ChatScreen({
                 <div className="assistant-row compact">
                   <Avatar />
                   <div className="assistant-bubble suggestion-bubble">
-                    <strong>先确认一个关键点</strong>
+                    <strong>
+                      {turn.finalPayload.assistantMessage.mode === "info" ? "我能帮你做这些" : "先确认一个关键点"}
+                    </strong>
                     <span>{String(turn.finalPayload.assistantMessage.message)}</span>
                     <div className="quick-replies">
                       {((turn.finalPayload.assistantMessage.quickReplies ?? []) as string[]).map((reply) => (

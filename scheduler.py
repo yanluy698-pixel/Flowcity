@@ -53,17 +53,19 @@ RESTAURANT_DURATION_STEP_MINUTES = 15
 AFTER_MEAL_WALK_MINUTES = 35
 BUFFER_MINUTES = 15
 DINNER_EARLIEST_MINUTES = 17 * 60 + 30
+DINNER_LATEST_MINUTES = 19 * 60 + 30
 EARLY_DINNER_EARLIEST_MINUTES = 16 * 60 + 30
 FILLER_MIN_GAP_MINUTES = 35
 FILLER_TARGET_MINUTES = 45
 DEFAULT_MAX_IDLE_MINUTES = planning_policy.DEFAULT_MAX_IDLE_MINUTES
 LONG_IDLE_MINUTES = 90
 TARGET_BUDGET_UTILIZATION = planning_policy.TARGET_BUDGET_UTILIZATION
-SCHEDULER_MIN_TOP_K = 18
-SCHEDULER_PRIMARY_BEAM = 12
-SCHEDULER_SUPPLEMENTAL_BEAM = 9
-SCHEDULER_SECONDARY_BEAM = 4
-SCHEDULER_RESTAURANT_BEAM = 12
+SCHEDULER_MIN_TOP_K = 10
+SCHEDULER_PRIMARY_BEAM = 10
+SCHEDULER_SUPPLEMENTAL_BEAM = 6
+SCHEDULER_SECONDARY_BEAM = 2
+SCHEDULER_RESTAURANT_BEAM = 10
+SCHEDULER_MAX_MULTI_ATTEMPTS = 360
 
 MEAL_REQUEST_TERMS = (
     "吃饭",
@@ -246,6 +248,29 @@ def _raw_has_meal_request(demand: dict[str, Any]) -> bool:
     return any(keyword in raw for keyword in MEAL_REQUEST_TERMS)
 
 
+def _activity_only_component_intent(demand: dict[str, Any]) -> bool:
+    text = _positive_activity_text(demand)
+    walk_only_terms = (
+        "只想走走",
+        "随便走走",
+        "简单走走",
+        "就走走",
+        "只逛逛",
+        "简单逛逛",
+        "就逛逛",
+        "散散步",
+        "散步",
+    )
+    if not any(term in text for term in walk_only_terms) or _raw_has_meal_request(demand):
+        return False
+    profile = demand.get("demandProfile") if isinstance(demand.get("demandProfile"), dict) else {}
+    components = profile.get("requestedComponents")
+    if isinstance(components, list) and components:
+        normalized = {str(item) for item in components}
+        return "restaurant" not in normalized
+    return True
+
+
 def _structured_has_meal_requirement(demand: dict[str, Any]) -> bool:
     if _explicit_no_meal(demand):
         return False
@@ -284,14 +309,15 @@ def _should_default_dinner_component(demand: dict[str, Any]) -> bool:
     if _explicit_no_meal(demand):
         return False
     raw_text = _raw_user_text(demand)
+    if _activity_only_component_intent(demand):
+        return False
     if any(keyword in raw_text for keyword in ("回家", "回到家", "到家", "回校", "回学校")):
         end = _parse_minutes(demand.get("timeWindow", {}).get("endTime"))
         if end is not None and end <= 18 * 60:
             return False
     if any(keyword in raw_text for keyword in ("午饭", "午餐", "中午吃", "下午茶", "奶茶", "咖啡")):
         return False
-    start = _parse_minutes(demand.get("timeWindow", {}).get("startTime"))
-    end = _parse_minutes(demand.get("timeWindow", {}).get("endTime"))
+    start, end = _time_window_bounds(demand)
     return bool(
         start is not None
         and end is not None
@@ -374,10 +400,9 @@ def _requires_dinner_anchor(demand: dict[str, Any]) -> bool:
     )
     if explicit_dinner:
         return True
-    if any(keyword in raw_text for keyword in ("早吃", "早点吃", "先吃", "午饭", "午餐", "中午", "下午茶", "奶茶", "茶歇")):
+    if any(keyword in raw_text for keyword in ("早吃", "早点吃", "先吃", "午饭", "午餐", "中午吃", "下午茶", "奶茶", "茶歇")):
         return False
-    start = _parse_minutes(demand.get("timeWindow", {}).get("startTime"))
-    end = _parse_minutes(demand.get("timeWindow", {}).get("endTime"))
+    start, end = _time_window_bounds(demand)
     has_meal = _has_meal_constraint(demand) or any(keyword in raw_text for keyword in ("聚餐", "吃点"))
     return bool(
         has_meal
@@ -398,10 +423,9 @@ def _should_anchor_restaurant_as_dinner(demand: dict[str, Any], restaurant: dict
         keyword in raw_text for keyword in ("晚饭", "晚餐", "晚上吃", "正常饭点")
     ):
         return False
-    if any(keyword in raw_text for keyword in ("早餐", "早饭", "午饭", "午餐", "中午", "下午茶", "奶茶", "咖啡")):
+    if any(keyword in raw_text for keyword in ("早餐", "早饭", "午饭", "午餐", "中午吃", "下午茶", "奶茶", "咖啡")):
         return False
-    start = _parse_minutes(demand.get("timeWindow", {}).get("startTime"))
-    end = _parse_minutes(demand.get("timeWindow", {}).get("endTime"))
+    start, end = _time_window_bounds(demand)
     return bool(
         end is not None
         and end >= DINNER_EARLIEST_MINUTES
@@ -579,7 +603,15 @@ def _meal_first(demand: dict[str, Any]) -> bool:
     text = _raw_user_text(demand)
     if _meal_timing(demand) == "earlier":
         return True
-    return any(keyword in text for keyword in ("先吃", "先晚饭", "先吃晚饭", "先吃饭", "吃完饭再", "饭后再"))
+    if any(keyword in text for keyword in ("先吃", "先晚饭", "先吃晚饭", "先吃饭", "吃完饭再", "饭后再")):
+        return True
+    start = _parse_minutes(demand.get("timeWindow", {}).get("startTime"))
+    if start is None:
+        start = _default_start_minutes(demand)
+    return bool(
+        _requires_dinner_anchor(demand)
+        and DINNER_EARLIEST_MINUTES <= start <= DINNER_LATEST_MINUTES
+    )
 
 
 def _wants_after_meal_walk(demand: dict[str, Any]) -> bool:
@@ -1182,7 +1214,7 @@ def _scheduler_candidate_pool(
     if not candidates:
         return []
     strict_budget = _budget_is_strict(demand) or _is_low_cost_intent(demand)
-    target_size = min(len(candidates), max(top_k, top_k + 8))
+    target_size = min(len(candidates), max(top_k, top_k + 4))
     selected: list[dict[str, Any]] = []
 
     for item in candidates[: max(4, top_k // 2)]:
@@ -1587,21 +1619,7 @@ def _build_candidate_plan(
     activity: dict[str, Any] | None,
     restaurant: dict[str, Any] | None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
-    start = _parse_minutes(demand.get("timeWindow", {}).get("startTime"))
-    end_limit = _parse_minutes(demand.get("timeWindow", {}).get("endTime"))
-    if start is None:
-        start = _default_start_minutes(demand)
-    if end_limit is not None and end_limit <= start:
-        end_limit = None
-    if end_limit is None:
-        duration_hours = demand.get("timeWindow", {}).get("durationHours")
-        if isinstance(duration_hours, (int, float)) and duration_hours:
-            duration_minutes = int(duration_hours * 60)
-        elif _requires_activity(demand) and _has_meal_constraint(demand):
-            duration_minutes = 5 * 60
-        else:
-            duration_minutes = 4 * 60
-        end_limit = start + duration_minutes
+    start, end_limit = _time_window_bounds(demand)
     cursor = start
     timeline: list[dict[str, Any]] = []
     route_cost = 0.0
@@ -2607,7 +2625,11 @@ def _multi_node_candidate_plans(
     allow_extra_experience = not needs_restaurant and _time_window_duration_minutes(demand) >= planning_policy.LOCAL_TRIP_MINUTES
     feasible: list[tuple[float, dict[str, Any], dict[str, Any]]] = []
     rejected: list[dict[str, Any]] = []
+    attempts = 0
+    max_attempts_per_primary = max(48, SCHEDULER_MAX_MULTI_ATTEMPTS // max(len(primary_choices), 1))
     for primary in primary_choices:
+        primary_attempts = 0
+        stop_primary = False
         supplemental_options = _supplemental_candidates(
             activities[: top_k + 4],
             fillers[: top_k + 6],
@@ -2633,6 +2655,13 @@ def _multi_node_candidate_plans(
             for second in second_options:
                 supplemental_nodes = [supplemental, *([second] if second else [])]
                 for restaurant in restaurant_choices:
+                    if primary_attempts >= max_attempts_per_primary:
+                        stop_primary = True
+                        break
+                    attempts += 1
+                    primary_attempts += 1
+                    if attempts > SCHEDULER_MAX_MULTI_ATTEMPTS:
+                        return feasible, rejected
                     if restaurant and any(node.get("poiId") == restaurant.get("poiId") for node in supplemental_nodes):
                         continue
                     plan, meta = _build_multi_node_candidate_plan(demand, supply, primary, supplemental_nodes, restaurant)
@@ -2640,6 +2669,10 @@ def _multi_node_candidate_plans(
                         rejected.append(meta)
                         continue
                     feasible.append((float(meta["score"]), plan, meta))
+                if stop_primary:
+                    break
+            if stop_primary:
+                break
     return feasible, rejected
 
 
@@ -2927,7 +2960,7 @@ def schedule_timeline(
     top_k: int = SCHEDULER_MIN_TOP_K,
     _with_decision_options: bool = True,
 ) -> dict[str, Any]:
-    top_k = max(SCHEDULER_MIN_TOP_K, top_k)
+    top_k = max(SCHEDULER_MIN_TOP_K, min(14, top_k))
     if mock_supply.get("supplyStatus", {}).get("status") == "failed":
         return {
             "status": "failed",

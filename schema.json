@@ -239,6 +239,25 @@
         "isFlexible": {
           "type": "boolean",
           "description": "时间是否可弹性调整。"
+        },
+        "hasExplicitEnd": {
+          "type": "boolean",
+          "description": "结束时间是否来自用户明确表达。未说明结束时间时为 false，后端只使用软规划窗口。"
+        },
+        "startTimeSource": {
+          "type": ["string", "null"],
+          "enum": ["explicit", "default", "inferred", null],
+          "description": "开始时间来源：用户明确表达、默认时段或模型推断。"
+        },
+        "targetDurationRangeMinutes": {
+          "type": ["array", "null"],
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "未说明结束时间时，Scheduler 使用的软规划时长范围。"
         }
       }
     },

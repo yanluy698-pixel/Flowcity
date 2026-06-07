@@ -163,6 +163,18 @@ function looksLikeNewPlan(text: string) {
   return hasPlanVerb && ((hasTime && hasPeople) || (hasTime && hasPlace) || (hasPeople && hasPlace && text.length > 22));
 }
 
+function isClearlyNonPlanningInput(text: string) {
+  const value = text.trim();
+  if (!value) return false;
+  const planningSignal =
+    /(?:周|今天|明天|今晚|中午|下午|晚上|早上|上午|\d{1,2}\s*点|人|男生|女生|同学|朋友|孩子|老婆|对象|约会|聚会|集合|出发|回家|回校|预算|人均|元|吃饭|晚饭|午饭|餐|小吃|玩|逛|citywalk|商圈|地铁|附近|路线|安排|规划)/i.test(value);
+  if (planningSignal || looksLikeNewPlan(value)) return false;
+  if (/^(你好|您好|hello|hi|嗨|在吗|谢谢|感谢|你是谁|你能干嘛|你能做什么)[。！!？?\s]*$/i.test(value)) {
+    return true;
+  }
+  return value.length <= 18 && /(?:讲个笑话|写代码|翻译|天气|股票|新闻|闲聊|唱歌|画图)/.test(value);
+}
+
 const LEGACY_SESSION_STORAGE_KEY = "flowcity.sessionId";
 const SESSION_HISTORY_KEY = "flowcity.sessionHistory.v1";
 const SESSION_HISTORY_TTL_MS = 2 * 60 * 60 * 1000;
@@ -267,6 +279,29 @@ export default function App() {
   async function handleSubmit(text: string, hypothesisFeedback?: Record<string, unknown>) {
     if (!text.trim() || isRunning) return;
     const displayInput = text.trim();
+    if (!modifyDraft && isClearlyNonPlanningInput(displayInput)) {
+      const now = performance.now();
+      const turn: ChatTurn = {
+        ...createTurn(displayInput, displayInput),
+        completedAt: now,
+        totalDurationMs: 0,
+        finalPayload: {
+          assistantMessage: {
+            mode: "info",
+            message:
+              "我主要帮你做周末 4-6 小时本地出行规划：把一句话拆成时间、人数、预算、地点和偏好，再组合可执行的玩、吃、路线和确认流程。你可以直接说“周六下午从哪出发、几个人、预算多少、想怎么玩”。",
+            quickReplies: [
+              "周六下午2点到6点，带孩子轻松玩",
+              "今晚6点半朋友在钟楼集合，想逛吃",
+              "周天1点到7点，从咸阳坐地铁去西安市区玩"
+            ]
+          }
+        },
+        stages: ORDERED_STAGES.map((stage) => ({ ...stage, status: "done" as const }))
+      };
+      setTurns((items) => [...items, turn]);
+      return;
+    }
     const activeDraft = modifyDraft;
     setModifyDraft(undefined);
     const lastTurn = turns[turns.length - 1];
@@ -284,15 +319,41 @@ export default function App() {
     const turn = createTurn(displayInput, effectiveInput);
     setTurns((items) => (shouldStartNewPlan ? [turn] : [...items, turn]));
     setIsRunning(true);
+    let pendingEvents: Array<{ event: FlowEvent; eventTime: number }> = [];
+    let flushTimer: number | undefined;
+    const flushPendingEvents = () => {
+      if (flushTimer !== undefined) {
+        window.clearTimeout(flushTimer);
+        flushTimer = undefined;
+      }
+      if (!pendingEvents.length) return;
+      const events = pendingEvents;
+      pendingEvents = [];
+      setTurns((items) =>
+        items.map((item) =>
+          item.id === turn.id
+            ? events.reduce((next, queued) => updateTurnWithEvent(next, queued.event, queued.eventTime), item)
+            : item
+        )
+      );
+    };
 
     try {
       await runFlowStream(
         effectiveInput,
         (event) => {
           const eventTime = performance.now();
-          setTurns((items) =>
-            items.map((item) => (item.id === turn.id ? updateTurnWithEvent(item, event, eventTime) : item))
-          );
+          if (event.type === "final" || event.type === "error") {
+            flushPendingEvents();
+            setTurns((items) =>
+              items.map((item) => (item.id === turn.id ? updateTurnWithEvent(item, event, eventTime) : item))
+            );
+            return;
+          }
+          pendingEvents.push({ event, eventTime });
+          if (flushTimer === undefined) {
+            flushTimer = window.setTimeout(flushPendingEvents, 350);
+          }
         },
         {
           plannerLlm: false,
@@ -302,7 +363,8 @@ export default function App() {
           interactionMode: shouldStartNewPlan ? "new_plan" : shouldOptimizePrevious ? "refine" : "auto",
           previousPlanId: shouldStartNewPlan ? undefined : lastTurn?.finalPayload?.planId,
           hypothesisFeedback,
-          constraintsPatch: activeDraft?.constraintsPatch
+          constraintsPatch: activeDraft?.constraintsPatch,
+          debug: false
         }
       );
     } catch (error) {
@@ -314,6 +376,7 @@ export default function App() {
         )
       );
     } finally {
+      flushPendingEvents();
       setIsRunning(false);
     }
   }

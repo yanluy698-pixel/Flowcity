@@ -369,6 +369,76 @@ def _normalize_trip_hour(hour: int, raw_input: str) -> int:
     return hour
 
 
+_CN_NUMBERS = {
+    "零": 0,
+    "一": 1,
+    "二": 2,
+    "两": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+    "十": 10,
+}
+
+
+def _parse_hour_token(value: str) -> int | None:
+    value = value.strip()
+    if value.isdigit():
+        return int(value)
+    if value == "十":
+        return 10
+    if value.startswith("十") and len(value) == 2:
+        tail = _CN_NUMBERS.get(value[1])
+        return 10 + tail if tail is not None else None
+    if value.endswith("十") and len(value) == 2:
+        head = _CN_NUMBERS.get(value[0])
+        return head * 10 if head is not None else None
+    if "十" in value and len(value) == 3:
+        head = _CN_NUMBERS.get(value[0])
+        tail = _CN_NUMBERS.get(value[2])
+        if head is not None and tail is not None:
+            return head * 10 + tail
+    return _CN_NUMBERS.get(value)
+
+
+_TIME_TOKEN = r"(?:\d{1,2}|[一二两三四五六七八九十]{1,3})"
+
+
+def _format_clock(hour: int, minute: int = 0) -> str:
+    hour %= 24
+    return f"{hour:02d}:{minute:02d}"
+
+
+def _explicit_start_source(raw_input: str) -> str | None:
+    if re.search(rf"{_TIME_TOKEN}\s*点(?:半)?\s*(?:集合|见面|碰头|会合|出发|出来|开始|约)", raw_input):
+        return "explicit"
+    if re.search(rf"(?:集合|见面|碰头|会合|出发|出来|开始|约在).{{0,6}}{_TIME_TOKEN}\s*点(?:半)?", raw_input):
+        return "explicit"
+    if re.search(rf"{_TIME_TOKEN}\s*点(?:半)?", raw_input):
+        return "explicit"
+    return None
+
+
+def _is_explicit_end_text(raw_input: str) -> bool:
+    return bool(
+        re.search(rf"{_TIME_TOKEN}\s*点(?:半)?\s*(?:前|之前|结束|回家|到家|回校)", raw_input)
+        or any(keyword in raw_input for keyword in ("玩到", "逛到", "待到", "坐到", "结束前", "前回"))
+        or re.search(rf"{_TIME_TOKEN}\s*点(?:半)?\s*(?:到|至|-|~)\s*{_TIME_TOKEN}\s*点", raw_input)
+    )
+
+
+def _parse_time_match(match: re.Match[str], raw_input: str, group: str = "hour") -> tuple[int, int] | None:
+    hour = _parse_hour_token(str(match.group(group)))
+    if hour is None:
+        return None
+    minute = 30 if match.groupdict().get(f"{group}_half") else 0
+    return _normalize_trip_hour(hour, raw_input), minute
+
+
 def _time_from_raw(raw_input: str) -> dict[str, Any]:
     date_text = None
     if "今晚" in raw_input:
@@ -382,44 +452,68 @@ def _time_from_raw(raw_input: str) -> dict[str, Any]:
 
     start_time = None
     end_time = None
-    range_match = re.search(r"(\d{1,2})\s*点\s*(?:到|至|-|~)\s*(\d{1,2})\s*点", raw_input)
+    start_source: str | None = None
+    has_explicit_end = False
+    range_match = re.search(
+        rf"(?P<start>{_TIME_TOKEN})\s*点(?P<start_half>半)?\s*(?:到|至|-|~)\s*(?P<end>{_TIME_TOKEN})\s*点(?P<end_half>半)?",
+        raw_input,
+    )
     if range_match:
-        start_hour = _normalize_trip_hour(int(range_match.group(1)), raw_input)
-        end_hour = _normalize_trip_hour(int(range_match.group(2)), raw_input)
-        if end_hour < start_hour:
-            end_hour += 12
-        start_time = f"{start_hour:02d}:00"
-        end_time = f"{end_hour:02d}:00"
+        start_value = _parse_time_match(range_match, raw_input, "start")
+        end_value = _parse_time_match(range_match, raw_input, "end")
+        if not start_value or not end_value:
+            start_value = end_value = None
+        if start_value and end_value:
+            start_hour, start_minute = start_value
+            end_hour, end_minute = end_value
+            if end_hour < start_hour or (end_hour == start_hour and end_minute <= start_minute):
+                end_hour += 12
+            start_time = _format_clock(start_hour, start_minute)
+            end_time = _format_clock(end_hour, end_minute)
+            start_source = "explicit"
+            has_explicit_end = True
     elif "6点半" in raw_input or "六点半" in raw_input:
         start_time = "18:30"
+        start_source = "explicit"
     else:
-        for match in re.finditer(r"(\d{1,2})\s*点", raw_input):
+        for match in re.finditer(rf"(?P<hour>{_TIME_TOKEN})\s*点(?P<hour_half>半)?", raw_input):
             if raw_input[match.end(): match.end() + 1] == "前":
                 continue
-            hour = _normalize_trip_hour(int(match.group(1)), raw_input)
-            start_time = f"{hour:02d}:00"
+            parsed = _parse_time_match(match, raw_input, "hour")
+            if not parsed:
+                continue
+            hour, minute = parsed
+            start_time = _format_clock(hour, minute)
+            start_source = _explicit_start_source(raw_input) or "explicit"
             break
     if end_time:
         pass
-    elif "10点前" in raw_input or "十点前" in raw_input:
-        end_time = "22:00"
-    elif "7点前" in raw_input or "七点前" in raw_input:
-        end_time = "19:00"
-    elif "6点前" in raw_input or "六点前" in raw_input:
-        end_time = "18:00"
+    else:
+        end_before = re.search(rf"(?P<hour>{_TIME_TOKEN})\s*点(?P<hour_half>半)?\s*(?:前|之前|结束|回家|到家|回校)", raw_input)
+        if end_before:
+            parsed = _parse_time_match(end_before, raw_input, "hour")
+            if parsed:
+                end_time = _format_clock(*parsed)
+                has_explicit_end = True
     if start_time is None and end_time and "下午" in raw_input:
         start_time = "13:00"
-    if start_time is None and end_time is None and "中午" in raw_input and any(
-        keyword in raw_input for keyword in ("出来玩", "出去玩", "吃和玩", "聚一下", "安排")
-    ):
-        start_time = "13:00"
-        end_time = "18:00"
+        start_source = "default"
+    if start_time is None:
+        if any(keyword in raw_input for keyword in ("晚上出来", "晚上想出来", "晚上出去", "今晚出来", "今晚出去", "夜里出来")):
+            start_time = "19:00"
+            start_source = "default"
+        elif "中午" in raw_input or "下午" in raw_input:
+            start_time = "14:00"
+            start_source = "default"
     return {
         "dateText": date_text,
         "startTime": start_time,
         "endTime": end_time,
         "durationHours": None,
-        "isFlexible": start_time is None or end_time is None,
+        "isFlexible": not has_explicit_end,
+        "hasExplicitEnd": has_explicit_end,
+        "startTimeSource": start_source,
+        "targetDurationRangeMinutes": [240, 360] if not has_explicit_end else None,
     }
 
 
@@ -433,10 +527,7 @@ def _minutes_from_time_text(value: Any) -> int | None:
 
 
 def _has_explicit_time_range(raw_input: str) -> bool:
-    return bool(
-        re.search(r"\d{1,2}\s*点\s*(?:到|至|-|~)\s*\d{1,2}\s*点", raw_input)
-        or any(keyword in raw_input for keyword in ("玩到", "逛到", "待到", "坐到", "结束前", "之前", "前回"))
-    )
+    return _is_explicit_end_text(raw_input)
 
 
 def _people_from_raw(raw_input: str) -> dict[str, Any]:
@@ -774,9 +865,21 @@ def _augment_missing_from_raw(result: dict[str, Any], raw_input: str) -> None:
     raw_time = _time_from_raw(raw_input)
     time_window = result.setdefault("timeWindow", {})
     if isinstance(time_window, dict):
-        for key in ("dateText", "startTime", "endTime"):
+        for key in ("dateText", "startTime", "endTime", "hasExplicitEnd", "startTimeSource", "targetDurationRangeMinutes"):
             if not time_window.get(key) and raw_time.get(key):
                 time_window[key] = raw_time[key]
+        if raw_time.get("startTimeSource") == "explicit" and raw_time.get("startTime"):
+            time_window["startTime"] = raw_time["startTime"]
+            time_window["startTimeSource"] = "explicit"
+        if raw_time.get("hasExplicitEnd") and raw_time.get("endTime"):
+            time_window["endTime"] = raw_time["endTime"]
+            time_window["hasExplicitEnd"] = True
+        elif not _has_explicit_time_range(raw_input):
+            time_window["endTime"] = None
+            time_window["durationHours"] = None
+            time_window["hasExplicitEnd"] = False
+            time_window["targetDurationRangeMinutes"] = raw_time.get("targetDurationRangeMinutes") or [240, 360]
+            time_window["isFlexible"] = True
         if (
             time_window.get("startTime")
             and time_window.get("startTime") == time_window.get("endTime")
@@ -797,6 +900,8 @@ def _augment_missing_from_raw(result: dict[str, Any], raw_input: str) -> None:
             time_window["endTime"] = None
             time_window["durationHours"] = None
             time_window["isFlexible"] = True
+            time_window["hasExplicitEnd"] = False
+            time_window["targetDurationRangeMinutes"] = [240, 360]
 
     raw_people = _people_from_raw(raw_input)
     people = result.setdefault("people", {})
@@ -928,6 +1033,19 @@ def _normalize_expected_output(result: dict[str, Any]) -> None:
 
 
 def _normalize_required_schema_defaults(result: dict[str, Any]) -> None:
+    time_window = result.setdefault("timeWindow", {})
+    if not isinstance(time_window, dict):
+        time_window = {}
+        result["timeWindow"] = time_window
+    time_window.setdefault("dateText", None)
+    time_window.setdefault("startTime", None)
+    time_window.setdefault("endTime", None)
+    time_window.setdefault("durationHours", None)
+    time_window.setdefault("isFlexible", True)
+    time_window.setdefault("hasExplicitEnd", bool(time_window.get("endTime")))
+    time_window.setdefault("startTimeSource", None)
+    time_window.setdefault("targetDurationRangeMinutes", [240, 360] if not time_window.get("hasExplicitEnd") else None)
+
     people = result.setdefault("people", {})
     if not isinstance(people, dict):
         people = {}
@@ -985,6 +1103,9 @@ def _normalize_required_schema_defaults(result: dict[str, Any]) -> None:
     constraints.setdefault("hard", [])
     constraints.setdefault("soft", [])
     constraints.setdefault("dynamic", [])
+    result.setdefault("potentialConflicts", [])
+    result.setdefault("assumptions", [])
+    result.setdefault("clarificationQuestions", [])
 
 
 def _shift_evening_clock(value: Any) -> Any:

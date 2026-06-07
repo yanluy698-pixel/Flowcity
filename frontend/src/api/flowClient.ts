@@ -14,6 +14,7 @@ export async function runFlowStream(
     previousPlanId?: string;
     hypothesisFeedback?: Record<string, unknown>;
     constraintsPatch?: Record<string, unknown>;
+    debug?: boolean;
   }
 ) {
   const response = await fetch(`${API_BASE}/api/flow/run-stream`, {
@@ -28,7 +29,8 @@ export async function runFlowStream(
       interactionMode: options?.interactionMode ?? "auto",
       previousPlanId: options?.previousPlanId,
       hypothesisFeedback: options?.hypothesisFeedback,
-      constraintsPatch: options?.constraintsPatch
+      constraintsPatch: options?.constraintsPatch,
+      debug: options?.debug ?? false
     })
   });
 

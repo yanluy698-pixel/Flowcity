@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -173,8 +174,19 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+_MOCK_DATA_CACHE: dict[str, Any] | None = None
+
+
+def clear_mock_data_cache() -> None:
+    global _MOCK_DATA_CACHE
+    _MOCK_DATA_CACHE = None
+
+
 def load_mock_data(data_dir: Path = DATA_DIR) -> dict[str, Any]:
     """Load all stage-3 mock data files."""
+    global _MOCK_DATA_CACHE
+    if data_dir == DATA_DIR and _MOCK_DATA_CACHE is not None:
+        return deepcopy(_MOCK_DATA_CACHE)
     activities = supply_governance.enrich_many(
         load_json(data_dir / "mock_activities.json")["activities"],
         source_type="mock_curated",
@@ -188,7 +200,7 @@ def load_mock_data(data_dir: Path = DATA_DIR) -> dict[str, Any]:
         load_json(data_dir / "mock_restaurants.json")["restaurants"],
         source_type="mock_curated",
     )
-    return {
+    data = {
         "areas": load_json(data_dir / "mock_areas.json")["areas"],
         "activities": activities,
         "restaurants": restaurants,
@@ -201,6 +213,9 @@ def load_mock_data(data_dir: Path = DATA_DIR) -> dict[str, Any]:
         ],
         "deals": load_json(data_dir / "mock_deals.json")["deals"],
     }
+    if data_dir == DATA_DIR:
+        _MOCK_DATA_CACHE = deepcopy(data)
+    return data
 
 
 def load_runtime_status(path: Path = RUNTIME_STATUS_PATH) -> dict[str, Any]:
@@ -1917,7 +1932,7 @@ def search_routes(
             "routeFairnessByArea": fairness_by_area,
         }
     ]
-    route_limit = 80 if len(multi_origins) > 1 else 40
+    route_limit = 48 if len(multi_origins) > 1 else 28
     return route_candidates[:route_limit], logs
 
 
@@ -2083,7 +2098,7 @@ def search_supply(structured_demand: dict[str, Any]) -> dict[str, Any]:
         vector_scores=vector_scores,
     )
     area_ids = [
-        item["areaId"] for item in [*activity_candidates[:10], *restaurant_candidates[:10]]
+        item["areaId"] for item in [*activity_candidates[:8], *restaurant_candidates[:8]]
     ]
     route_candidates, route_logs = search_routes(structured_demand, area_ids, data)
     route_fairness_by_area = _route_fairness_by_area(structured_demand, area_ids, route_candidates, data)

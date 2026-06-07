@@ -492,7 +492,7 @@ def draft_plan_without_llm(
     mock_supply: dict[str, Any],
     limit: int = 8,
 ) -> dict[str, Any]:
-    scheduled = scheduler.schedule_timeline(structured_demand, mock_supply, top_k=max(scheduler.SCHEDULER_MIN_TOP_K, limit))
+    scheduled = scheduler.schedule_timeline(structured_demand, mock_supply, top_k=limit)
     plan = scheduled["timelinePlan"]
     plan["schedulerResult"] = {
         "status": scheduled.get("status"),
