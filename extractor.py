@@ -348,6 +348,27 @@ def _is_sparse_or_drifted(result: dict[str, Any], raw_input: str) -> bool:
     return signal_count <= 1 and len(raw_input) >= 20
 
 
+def _looks_like_daytime_trip(raw_input: str) -> bool:
+    if any(keyword in raw_input for keyword in ("凌晨", "半夜", "深夜", "通宵", "夜里1点", "夜里2点")):
+        return False
+    return any(
+        keyword in raw_input
+        for keyword in ("周", "今天", "明天", "中午", "下午", "集合", "见面", "出发", "出去", "玩", "逛", "吃")
+    )
+
+
+def _normalize_trip_hour(hour: int, raw_input: str) -> int:
+    if hour >= 12:
+        return hour
+    if "下午" in raw_input or "晚上" in raw_input or "今晚" in raw_input:
+        return hour + 12
+    if "中午" in raw_input and 1 <= hour <= 2:
+        return hour + 12
+    if _looks_like_daytime_trip(raw_input) and 1 <= hour <= 7:
+        return hour + 12
+    return hour
+
+
 def _time_from_raw(raw_input: str) -> dict[str, Any]:
     date_text = None
     if "今晚" in raw_input:
@@ -363,10 +384,8 @@ def _time_from_raw(raw_input: str) -> dict[str, Any]:
     end_time = None
     range_match = re.search(r"(\d{1,2})\s*点\s*(?:到|至|-|~)\s*(\d{1,2})\s*点", raw_input)
     if range_match:
-        start_hour = int(range_match.group(1))
-        end_hour = int(range_match.group(2))
-        if "下午" in raw_input and start_hour < 12:
-            start_hour += 12
+        start_hour = _normalize_trip_hour(int(range_match.group(1)), raw_input)
+        end_hour = _normalize_trip_hour(int(range_match.group(2)), raw_input)
         if end_hour < start_hour:
             end_hour += 12
         start_time = f"{start_hour:02d}:00"
@@ -377,9 +396,7 @@ def _time_from_raw(raw_input: str) -> dict[str, Any]:
         for match in re.finditer(r"(\d{1,2})\s*点", raw_input):
             if raw_input[match.end(): match.end() + 1] == "前":
                 continue
-            hour = int(match.group(1))
-            if ("下午" in raw_input or ("到7点" in raw_input and hour < 8)) and hour < 12:
-                hour += 12
+            hour = _normalize_trip_hour(int(match.group(1)), raw_input)
             start_time = f"{hour:02d}:00"
             break
     if end_time:
@@ -392,6 +409,11 @@ def _time_from_raw(raw_input: str) -> dict[str, Any]:
         end_time = "18:00"
     if start_time is None and end_time and "下午" in raw_input:
         start_time = "13:00"
+    if start_time is None and end_time is None and "中午" in raw_input and any(
+        keyword in raw_input for keyword in ("出来玩", "出去玩", "吃和玩", "聚一下", "安排")
+    ):
+        start_time = "13:00"
+        end_time = "18:00"
     return {
         "dateText": date_text,
         "startTime": start_time,
@@ -550,6 +572,8 @@ def _preferences_from_raw(raw_input: str) -> dict[str, list[str]]:
         ("亲子", activity_types, "亲子"),
         ("孩子", activity_types, "儿童友好"),
         ("想玩", activity_types, "城市景点"),
+        ("先玩", activity_types, "城市景点"),
+        ("玩再吃", activity_types, "城市景点"),
         ("我要玩", activity_types, "城市景点"),
         ("景点", activity_types, "城市景点"),
         ("看电影", activity_types, "电影"),
@@ -567,6 +591,7 @@ def _preferences_from_raw(raw_input: str) -> dict[str, list[str]]:
         ("晚饭", food_tags, "晚餐"),
         ("晚餐", food_tags, "晚餐"),
         ("吃饭", food_tags, "正餐"),
+        ("再吃", food_tags, "正餐"),
         ("吃完晚饭", experience_tags, "饭后附近散步"),
         ("吃完饭", experience_tags, "饭后附近散步"),
         ("饭后", experience_tags, "饭后附近散步"),
@@ -584,7 +609,13 @@ def _preferences_from_raw(raw_input: str) -> dict[str, list[str]]:
         ("排太久", avoid_tags, "排队久"),
         ("别把时间都花在路上", avoid_tags, "通勤太久"),
     ]
+    explicit_avoid_terms = _avoid_terms_from_raw(raw_input)
+    for term in explicit_avoid_terms:
+        if term and term not in avoid_tags:
+            avoid_tags.append(f"避开:{term}")
     for keyword, target, tag in keyword_map:
+        if any(keyword in term for term in explicit_avoid_terms):
+            continue
         if keyword in raw_input and tag not in target:
             target.append(tag)
     return {
@@ -1165,9 +1196,20 @@ def basic_validate(result: dict[str, Any], schema: dict[str, Any]) -> list[str]:
     return _validate_schema(result, schema, "$")
 
 
+def _offline_structured_demand(user_input: str, schema: dict[str, Any]) -> dict[str, Any]:
+    result = normalize_structured_demand({}, user_input)
+    errors = basic_validate(result, schema)
+    if errors:
+        raise ValueError("Stage 2 local fallback validation failed: " + "; ".join(errors))
+    return result
+
+
 def extract_structured_demand(user_input: str, *, attempts: int = 2) -> dict[str, Any]:
-    prompt = build_prompt(user_input)
     schema = load_json(SCHEMA_PATH)
+    if os.getenv("FLOWCITY_EXTRACTOR_MODE", "").lower() in {"offline", "local", "deterministic"}:
+        return _offline_structured_demand(user_input, schema)
+
+    prompt = build_prompt(user_input)
     last_error: Exception | None = None
     for attempt in range(max(1, attempts)):
         retry_prompt = prompt
@@ -1190,6 +1232,9 @@ def extract_structured_demand(user_input: str, *, attempts: int = 2) -> dict[str
                 break
             print(f"[FlowCity][LLM] extraction retry after {type(exc).__name__}: {exc}", flush=True)
     assert last_error is not None
+    if os.getenv("FLOWCITY_EXTRACTOR_FALLBACK", "true").lower() != "false":
+        print(f"[FlowCity][LLM] extraction fallback after {type(last_error).__name__}: {last_error}", flush=True)
+        return _offline_structured_demand(user_input, schema)
     raise last_error
 
 

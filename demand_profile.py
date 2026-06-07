@@ -128,7 +128,12 @@ DIMENSION_EVIDENCE_TERMS: dict[str, tuple[str, ...]] = {
 ACTIVITY_REQUEST_TERMS = (
     "出去玩",
     "想玩",
+    "先玩",
+    "玩再吃",
+    "玩和吃",
+    "吃和玩",
     "去玩",
+    "出来玩",
     "活动",
     "景点",
     "逛",
@@ -143,6 +148,13 @@ RESTAURANT_REQUEST_TERMS = (
     "吃饭",
     "吃个饭",
     "吃一顿",
+    "再吃",
+    "先玩再吃",
+    "吃的",
+    "好吃",
+    "小吃",
+    "吃和玩",
+    "安排吃",
     "餐厅",
     "晚饭",
     "晚餐",
@@ -150,8 +162,22 @@ RESTAURANT_REQUEST_TERMS = (
     "火锅",
     "烤肉",
     "大排档",
-    "减脂",
-    "清淡",
+    "坐下来聊",
+    "坐下聊天",
+    "找个地方坐",
+)
+RESTAURANT_NEGATION_TERMS = (
+    "不吃饭",
+    "不用吃饭",
+    "不用吃",
+    "不要吃饭",
+    "不安排吃",
+    "不安排吃饭",
+    "不安排正餐",
+    "不吃正餐",
+    "不安排餐厅",
+    "只玩不吃",
+    "只逛不吃",
 )
 ACTIVITY_NEGATION_TERMS = (
     "别安排活动",
@@ -250,7 +276,7 @@ def _anchor_commitment(raw_input: str, name: str, preferred_area: str) -> str:
 def _has_destination_context(raw_input: str, name: str) -> bool:
     patterns = (
         rf"(想去|要去|必须去|一定去|专门去|主要去|顺路去|可以去|去){re.escape(name)}",
-        rf"{re.escape(name)}(玩|逛|吃|见面|约会|打卡|看展|看电影)",
+        rf"{re.escape(name)}(玩|逛|吃|见面|集合|会合|碰头|约会|打卡|看展|看电影)",
     )
     return any(re.search(pattern, raw_input) for pattern in patterns)
 
@@ -276,7 +302,11 @@ def resolve_destination_anchors(demand: dict[str, Any]) -> list[dict[str, Any]]:
     for name, area_id in AREA_ALIASES.items():
         if name not in raw_input and name not in preferred_area:
             continue
-        if name in start_point and not _has_destination_context(raw_input, name):
+        meetup_start = name in start_point and any(
+            marker in raw_input + start_point
+            for marker in ("集合", "见面", "会合", "碰头", "约在")
+        )
+        if name in start_point and not meetup_start and not _has_destination_context(raw_input, name):
             continue
         commitment = _anchor_commitment(raw_input, name, preferred_area)
         if commitment == "optional" and name not in preferred_area:
@@ -352,6 +382,32 @@ def _dimensions(demand: dict[str, Any]) -> list[dict[str, Any]]:
                 importance=0.65,
             )
 
+    people = demand.get("people", {}) if isinstance(demand.get("people"), dict) else {}
+    relationship = str(people.get("relationship") or "")
+    total = people.get("total")
+    is_group_trip = relationship == "friends" or (isinstance(total, int) and total >= 3 and "孩子" not in raw)
+    if is_group_trip:
+        evidence = ["多人同行"]
+        if relationship:
+            evidence.append(f"relationship={relationship}")
+        if isinstance(total, int) and total >= 3:
+            evidence.append(f"total={total}")
+        group_defaults = (
+            ("interactionLevel", 0.78, 0.72),
+            ("activityIntensity", 0.66, 0.62),
+            ("conversationFriendly", 0.7, 0.62),
+        )
+        for key, target, importance in group_defaults:
+            if key not in dimensions:
+                dimensions[key] = _dimension(
+                    key,
+                    target,
+                    source="llm_inference",
+                    confidence=0.68,
+                    evidence=evidence,
+                    importance=importance,
+                )
+
     return list(dimensions.values())
 
 
@@ -389,13 +445,17 @@ def _requested_components(demand: dict[str, Any]) -> list[str]:
     raw = str(demand.get("rawInput") or "")
     preferences = demand.get("preferences", {})
     activity_requested = bool(preferences.get("activityTypes")) or any(term in raw for term in ACTIVITY_REQUEST_TERMS)
-    restaurant_requested = bool(preferences.get("foodTags")) or any(term in raw for term in RESTAURANT_REQUEST_TERMS)
+    restaurant_requested = any(term in raw for term in RESTAURANT_REQUEST_TERMS)
+    restaurant_negated = any(term in raw for term in RESTAURANT_NEGATION_TERMS)
     if _implies_afternoon_activity_before_meal(demand, raw):
         activity_requested = True
         restaurant_requested = True
     if any(term in raw for term in ACTIVITY_NEGATION_TERMS):
         activity_requested = False
         restaurant_requested = True
+    if restaurant_negated:
+        restaurant_requested = False
+        activity_requested = True
     if not activity_requested and not restaurant_requested:
         return ["activity", "restaurant"]
     result = []

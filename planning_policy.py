@@ -92,6 +92,10 @@ def default_start_minutes(_: dict[str, Any]) -> int:
 
 
 def _requested_components(demand: dict[str, Any]) -> set[str]:
+    if _explicit_no_meal(demand):
+        profile = demand.get("demandProfile") if isinstance(demand.get("demandProfile"), dict) else {}
+        components = profile.get("requestedComponents") if isinstance(profile.get("requestedComponents"), list) else []
+        return {str(item) for item in components if str(item) != "restaurant"} or {"activity"}
     profile = demand.get("demandProfile") if isinstance(demand.get("demandProfile"), dict) else {}
     components = profile.get("requestedComponents") if isinstance(profile.get("requestedComponents"), list) else []
     if components:
@@ -104,6 +108,26 @@ def _requested_components(demand: dict[str, Any]) -> set[str]:
     if "餐饮" in must_text or "吃饭" in must_text:
         inferred.add("restaurant")
     return inferred
+
+
+def _explicit_no_meal(demand: dict[str, Any]) -> bool:
+    text = demand_text(demand)
+    return any(
+        keyword in text
+        for keyword in (
+            "不吃饭",
+            "不用吃饭",
+            "不用吃",
+            "不要吃饭",
+            "不安排吃",
+            "不安排吃饭",
+            "不安排正餐",
+            "不吃正餐",
+            "不安排餐厅",
+            "只玩不吃",
+            "只逛不吃",
+        )
+    )
 
 
 def _has_meal_component(demand: dict[str, Any]) -> bool:
@@ -153,18 +177,26 @@ def is_simple_trip_intent(demand: dict[str, Any]) -> bool:
         return True
     if isinstance(raw_policy.get("targetExperienceBlocks"), int) and raw_policy["targetExperienceBlocks"] <= 1:
         return True
-    profile = demand.get("demandProfile") if isinstance(demand.get("demandProfile"), dict) else {}
-    route_need = next(
-        (
-            item for item in _list_values(profile.get("dimensions"))
-            if isinstance(item, dict) and item.get("key") == "routeConvenience" and isinstance(item.get("target"), (int, float))
-        ),
-        None,
+    raw_text = demand_text(demand)
+    return any(
+        keyword in raw_text
+        for keyword in (
+            "简单",
+            "随便",
+            "不折腾",
+            "别折腾",
+            "不想太累",
+            "走不了太多路",
+            "轻松一点",
+            "少安排",
+            "别安排太满",
+        )
     )
-    return bool(route_need and float(route_need["target"]) >= 0.85 and float(route_need.get("importance") or 0) >= 0.75)
 
 
 def allow_single_node_itinerary(demand: dict[str, Any]) -> bool:
+    if has_low_cost_intent(demand):
+        return True
     requested = _requested_components(demand)
     if {"activity", "restaurant"}.issubset(requested) and time_window_duration_minutes(demand) >= 180:
         return is_simple_trip_intent(demand)
@@ -276,6 +308,8 @@ def resolve_planning_policy(demand: dict[str, Any], raw_input: str | None = None
         target_blocks = DEFAULT_TARGET_BLOCKS_SHORT
     if "activity" in requested and target_blocks < 1:
         target_blocks = 1
+    if has_low_cost_intent(demand) and simple_trip and not isinstance(patch_blocks, int):
+        target_blocks = min(target_blocks, 1)
     if {"activity", "restaurant"}.issubset(requested) and duration >= 180 and not simple_trip:
         target_blocks = max(DEFAULT_TARGET_BLOCKS_LOCAL, target_blocks)
     if duration >= LONG_TRIP_MINUTES and not simple_trip and target_blocks >= DEFAULT_TARGET_BLOCKS_LOCAL:

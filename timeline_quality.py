@@ -87,4 +87,11 @@ def rejection(
             "experienceBlockCount": metrics_value["experienceBlockCount"],
             "targetExperienceBlocks": target_experience_blocks,
         }
+    if target_experience_blocks >= 2 and metrics_value["unusedTailMinutes"] > max_idle_minutes and metrics_value["activeTimeUtilization"] < 0.7:
+        return {
+            "reason": "时间窗利用不足，结束得过早",
+            "unusedTailMinutes": metrics_value["unusedTailMinutes"],
+            "activeTimeUtilization": metrics_value["activeTimeUtilization"],
+            "targetExperienceBlocks": target_experience_blocks,
+        }
     return None

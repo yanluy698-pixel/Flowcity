@@ -114,11 +114,12 @@ function shareText(payload: Record<string, any>, totalDurationMs?: number) {
 
 function decisionDraft(option: Record<string, any>): ModifyDraft {
   const label = String(option.label ?? "这个走法");
-  const suggestion = String(option.userPrompt ?? label);
+  const suggestion = label.startsWith("按") ? `${label}重新排` : `按${label}重新排`;
+  const timing = option.constraintsPatch?.mealTiming;
   return {
     label,
     suggestion,
-    systemPrompt: `用户选择了这个走法：${label}。请按这个方向重新规划，保留原始时间、预算和人数约束；如果会牺牲吃饭、路程或游玩体验，要说明清楚。`,
+    systemPrompt: `用户已经明确选择饭点方案：${label}${timing ? `（mealTiming=${timing}）` : ""}。请直接按这个选择重新规划，保留原始时间、预算和人数约束；不要再次要求用户在饭点方案之间二选一。`,
     constraintsPatch: option.constraintsPatch,
     prefillInput: true
   };
@@ -126,19 +127,11 @@ function decisionDraft(option: Record<string, any>): ModifyDraft {
 
 export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, onHypothesisFeedback, totalDurationMs }: Props) {
   const [orderSubmitted, setOrderSubmitted] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const plan = finalPlan(payload);
   const draft = activeDraft(payload);
   const timeline = (plan.timeline ?? []) as TimelineItem[];
   const budget = plan.budgetEstimate ?? {};
-  const reasonBadges = Array.isArray(plan.reasonBadges) ? plan.reasonBadges.slice(0, 4) : [];
-  const recommendationReasons = Array.isArray(plan.recommendationReasons)
-    ? plan.recommendationReasons.slice(0, 3)
-    : [];
-  const activeHypotheses = (
-    (payload.structuredDemand?.demandProfile?.openHypotheses ?? []) as Array<Record<string, any>>
-  )
-    .filter((item) => item?.hypothesisId && item?.text && item?.status !== "user_rejected")
-    .slice(0, 2);
   const mealTimingDecision = plan.mealTimingDecision;
   const decisionOptions = Array.isArray(plan.decisionOptions) ? plan.decisionOptions.slice(0, 3) : [];
   const executionResult = payload.executionResult;
@@ -151,17 +144,17 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
   const needsUserReplanDecision = ["blocked", "partial"].includes(executionResult?.executionStatus);
   const planFailed = plan?.status === "failed";
   const decisionRequired = Boolean(plan?.decisionRequired || decisionOptions.length > 0 || draft?.requiresPlanChoice);
-  const friendlyBlockedReason = planFailed
-    ? (Array.isArray(plan.recommendationReasons) && plan.recommendationReasons[0]) || plan.summary
-    : draft?.blockedReason;
+  const friendlyBlockedReason = planFailed ? plan.summary : draft?.blockedReason;
   const draftActuallyBlocked = draft?.draftStatus === "blocked" && !decisionRequired;
   const hasConfirmablePlan = !planFailed && timeline.length > 0;
-  const canConfirm = !confirmed && hasConfirmablePlan;
+  const canConfirm = !confirmed && hasConfirmablePlan && !decisionRequired && !draftActuallyBlocked && !hasBlockingIssue && !needsUserReplanDecision;
   const canShare = !planFailed && timeline.length > 0;
   const canRefreshByRuntime = canReplan && !hasRuntimePlan && !confirmed;
 
   function copyShare() {
     navigator.clipboard?.writeText(shareText(payload, totalDurationMs));
+    setShareCopied(true);
+    window.setTimeout(() => setShareCopied(false), 1800);
   }
 
   return (
@@ -175,64 +168,17 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
         </p>
       </div>
 
-      {(reasonBadges.length > 0 || recommendationReasons.length > 0) && (
-        <div className="reason-panel">
-          {reasonBadges.length > 0 && (
-            <div className="reason-badges">
-              {reasonBadges.map((badge: string) => (
-                <span key={badge}>{userText(badge)}</span>
-              ))}
-            </div>
-          )}
-          {recommendationReasons.length > 0 && (
-            <ul>
-              {recommendationReasons.slice(0, 2).map((reason: string, index: number) => (
-                <li key={`${index}-${reason}`}>{userText(reason)}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {activeHypotheses.length > 0 && (
-        <div className="hypothesis-list" aria-label="可修正的隐性需求猜测">
-          {activeHypotheses.map((item) => (
-            <div className="hypothesis-item" key={String(item.hypothesisId)}>
-              <span>{userText(String(item.text))}</span>
-              <button
-                type="button"
-                aria-label="这个猜测不对"
-                onClick={() =>
-                  onHypothesisFeedback({
-                    action: "hypothesis_rejected",
-                    hypothesisId: item.hypothesisId,
-                    clusterKey: item.key,
-                    text: item.text
-                  })
-                }
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {mealTimingDecision && decisionOptions.length > 0 && (
         <div className="decision-panel">
-          <strong>{userText(mealTimingDecision.title ?? "这里想让你拍个板")}</strong>
-          <p>{userText(mealTimingDecision.message ?? "这次有两种都能走的安排，我把取舍说清楚，你选更舒服的那个。")}</p>
+          <strong>饭点有两种排法</strong>
           <div className="decision-options">
             {decisionOptions.map((option: any) => {
-              const active = option.id === mealTimingDecision.chosenOptionId;
               const previewTimeline = option.previewPlan?.timeline ?? [];
               return (
-                <div className={`decision-option${active ? " active" : ""}`} key={option.id ?? option.label}>
+                <div className="decision-option" key={option.id ?? option.label}>
                   <div className="decision-heading">
                     <span>{userText(option.label ?? "备选方案")}</span>
-                    <em>{active ? "现在看到的是这个" : option.status === "ok" ? "也可以这样走" : "要稍微取舍"}</em>
                   </div>
-                  <p>{userText(option.tradeoff ?? option.summary ?? "")}</p>
                   {Array.isArray(previewTimeline) && previewTimeline.length > 0 && (
                     <ul>
                       {previewTimeline.slice(0, 3).map((item: TimelineItem, index: number) => (
@@ -240,11 +186,9 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
                       ))}
                     </ul>
                   )}
-                  {!active && (
-                    <button type="button" onClick={() => onModifyPrompt(decisionDraft(option))}>
-                      就按这个来
-                    </button>
-                  )}
+                  <button type="button" onClick={() => onModifyPrompt(decisionDraft(option))}>
+                    就按这个来
+                  </button>
                 </div>
               );
             })}
@@ -275,7 +219,7 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
           {issues.slice(0, 4).map((issue: any, index: number) => (
             <p key={`${issue.code}-${index}`}>{userText(issue.message)}</p>
           ))}
-          {hasBlockingIssue && <p>如果现场状态变了，可以按最新状态再换一版；也可以先确认这版方案。</p>}
+          {hasBlockingIssue && <p>这一步先别直接确认，按最新状态换一版会更稳。</p>}
         </div>
       )}
 
@@ -321,6 +265,8 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
         </div>
       )}
 
+      {shareCopied && <div className="share-toast">分享文案已复制，可以直接发给朋友。</div>}
+
       <div className="primary-row">
         {canConfirm && (
           <button className="confirm-button" onClick={onConfirm}>
@@ -329,7 +275,7 @@ export function PlanCard({ payload, onConfirm, onRuntimeReplan, onModifyPrompt, 
         )}
         {canShare && (
           <button className="confirm-button secondary" onClick={copyShare}>
-            一键分享给朋友
+            {shareCopied ? "已复制分享文案" : "一键分享给朋友"}
           </button>
         )}
         {canRefreshByRuntime && (

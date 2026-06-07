@@ -754,12 +754,12 @@ def build_execution_draft(
     )
     validation_status = final_validation.get("status")
     decision_required = bool(final_plan.get("decisionRequired") or final_plan.get("decisionOptions"))
-    blocked = validation_status == "failed" or final_plan.get("status") == "failed"
+    blocked = validation_status == "failed" or final_plan.get("status") == "failed" or decision_required
     draft_status = (
         "blocked"
         if blocked
         else "warning"
-        if validation_status == "warning" or decision_required
+        if validation_status == "warning"
         else "ready"
     )
 
@@ -778,7 +778,9 @@ def build_execution_draft(
         "blockedReason": (
             "Timeline planning failed; execution is not allowed."
             if final_plan.get("status") == "failed"
-            else "Stage 5 validation failed; execution is not allowed."
+            else "这版还有需要你先选择的走法，选定后再确认行程。"
+            if decision_required
+            else "确认前发现这版还有风险，先按最新状态重新排一下更稳。"
             if blocked
             else None
         ),
@@ -822,9 +824,8 @@ def confirm_execution(
                 actual=action.get("reservedSlot"),
             )
             runtime_issues.append(issue)
-            if replan_on_runtime_failure:
-                blocked_actions.append({**action, "status": "draft_blocked", "runtimeIssues": [issue]})
-                continue
+            blocked_actions.append({**action, "status": "draft_blocked", "runtimeIssues": [issue]})
+            continue
         action_runtime_status, action_issues = _runtime_check_action(action, runtime_status)
         runtime_issues.extend(action_issues)
         if action_runtime_status and action_runtime_status.get("runtimeState") == "changed":
@@ -837,13 +838,14 @@ def confirm_execution(
                     "message": action_runtime_status.get("runtimeMessage"),
                 }
             )
-        if replan_on_runtime_failure and any(issue.get("blocking") for issue in action_issues):
+        blocking_action_issues = [issue for issue in action_issues if issue.get("blocking")]
+        if blocking_action_issues:
             blocked_actions.append(
                 {
                     **action,
                     "status": "runtime_blocked",
                     "runtimeStatus": action_runtime_status,
-                    "runtimeIssues": action_issues,
+                    "runtimeIssues": blocking_action_issues,
                 }
             )
             continue
@@ -851,11 +853,7 @@ def confirm_execution(
         confirmed = dict(action)
         if action_runtime_status:
             confirmed["runtimeStatus"] = action_runtime_status
-        warnings = (
-            action_issues
-            if not replan_on_runtime_failure
-            else [issue for issue in action_issues if not issue.get("blocking")]
-        )
+        warnings = [issue for issue in action_issues if not issue.get("blocking")]
         if warnings:
             confirmed["runtimeWarnings"] = warnings
         if action_type == "mock_ticket_lock":
@@ -879,9 +877,9 @@ def confirm_execution(
         confirmed_actions.append(confirmed)
 
     blocking_runtime_issues = [issue for issue in runtime_issues if issue.get("blocking")]
-    if blocking_runtime_issues and replan_on_runtime_failure:
+    if blocking_runtime_issues:
         available_alternatives = _runtime_alternative_candidates(execution_draft, runtime_status)
-        can_replan_with_context = bool(structured_demand and timeline_plan and mock_supply)
+        can_replan_with_context = bool(replan_on_runtime_failure and structured_demand and timeline_plan and mock_supply)
         runtime_replan_result = (
             _runtime_replan(
                 structured_demand=structured_demand,

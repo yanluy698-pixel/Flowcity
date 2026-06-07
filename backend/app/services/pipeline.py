@@ -647,6 +647,12 @@ def _apply_timeline_policy_controls(
     if isinstance(existing_patch, dict):
         existing_patch.update(patch)
         patch = existing_patch
+    meal_timing = patch.get("mealTiming")
+    if meal_timing in {"normal", "keep"}:
+        plan_control["mealTiming"] = "normal"
+        patch["mealTiming"] = "normal"
+    elif meal_timing == "earlier":
+        plan_control["mealTiming"] = "earlier"
     _apply_budget_constraints_patch(demand, patch)
     if patch.get("forbidLongBuffer"):
         plan_control["forbidLongBuffer"] = True
@@ -1038,6 +1044,8 @@ def _should_start_refinement_dialogue(request: FlowRunRequest, router_result: di
         return False
     patch = router_result.get("constraintsPatch", {})
     if patch.get("usePendingRefinement"):
+        return False
+    if router_result.get("clientConstraintsPatch") and patch.get("mealTiming") in {"earlier", "normal", "keep"}:
         return False
     text = str(request.input or "")
     if "【整体大改上下文】" in text:

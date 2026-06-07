@@ -972,6 +972,16 @@ button {
   color: #fff;
 }
 
+.share-toast {
+  margin-top: 8px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: #fff8cf;
+  color: #5a4300;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .primary-row {
   display: flex;
   align-items: center;

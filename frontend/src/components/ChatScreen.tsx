@@ -44,19 +44,6 @@ export function ChatScreen({
                   <StageProgress stages={turn.stages} totalDurationMs={turn.totalDurationMs} />
                 </div>
               )}
-              {turn.finalPayload?.planExplanation?.message && (
-                <div className="assistant-row compact">
-                  <Avatar />
-                  <div className="assistant-bubble explanation-bubble">
-                    <strong>方案解释</strong>
-                    {String(turn.finalPayload.planExplanation.message)
-                      .split("\n")
-                      .map((line, index) => (
-                        <span key={`${turn.id}-explain-${index}`}>{line}</span>
-                      ))}
-                  </div>
-                </div>
-              )}
               {turn.finalPayload?.assistantMessage && (
                 <div className="assistant-row compact">
                   <Avatar />
