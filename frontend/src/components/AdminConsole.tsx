@@ -126,7 +126,6 @@ type CoverageReport = {
 };
 
 const ADMIN_TOKEN_KEY = "flowcity.adminToken";
-const DEFAULT_ADMIN_TOKEN = "flowcity-admin-demo";
 
 const SAMPLE_PROPOSAL: LearningProposalPayload = {
   proposalId: "demo_open_hypothesis_low_walk_family",
@@ -198,7 +197,7 @@ function parseArrayField(text: string, originalValue: unknown[]) {
 }
 
 export function AdminConsole() {
-  const [token, setToken] = useState(() => window.localStorage.getItem(ADMIN_TOKEN_KEY) ?? DEFAULT_ADMIN_TOKEN);
+  const [token, setToken] = useState(() => window.localStorage.getItem(ADMIN_TOKEN_KEY) ?? "");
   const [datasets, setDatasets] = useState<AdminDataset[]>([]);
   const [coverage, setCoverage] = useState<CoverageReport>({});
   const [analysis, setAnalysis] = useState<LearningAnalysis>({});

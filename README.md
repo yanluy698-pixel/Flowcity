@@ -42,38 +42,37 @@ FlowCity 是一个面向周末本地生活短时活动的 AI 执行 Agent 原型
 
 ```text
 Flowcity/
-  backend/                 # FastAPI 流式接口
-  frontend/                # Vite + React 移动端 Demo
+  backend/app/             # FastAPI API 层：流式规划、确认执行、后台管理接口
+    routers/               # flow/admin/learning 路由
+    schemas/               # HTTP 请求响应模型
+    services/pipeline.py   # API 到核心规划引擎的编排适配层
+  frontend/src/            # Vite + React 移动端 Demo 和后台管理台
   data/                    # 西安活动、餐厅、路线、动态状态、团购 Mock 数据
-  demand_profile.py        # 推荐评分唯一画像真相源：事实、硬约束、底层维度、目的地锚点、开放假设
-  area_retrieval.py        # 商圈/景点圈粗排，点名目的地保护，供给不足时渐进扩展
-  poi_profiles.py          # POI 基础画像，把活动/餐厅转成稳定数值属性
-  semantic_retrieval.py    # 本地 Embedding + 内存余弦召回
-  learning_events.py       # 匿名学习事件：展示、删除、修改、确认、选择
-  ontology_evolution.py    # 自进化判官：聚类、阻断、提案、审批
-  intent_taxonomy.py       # 本地语义画像库、默认标签、权重和显式偏好策略
-  extractor.py             # LLM 需求抽取和结构化归一
-  mock_api.py              # Stage 3 供给过滤、矩阵打分、Top-K 海选
-  planning_policy.py       # 出行语义策略：时间窗含义、出发/返程、体验块、空窗和转场策略
-  route_identity.py        # 路线身份模型：routeId、legacyRouteRef 和运行时兼容索引
-  scheduler.py             # 多节点时间窗调度：主活动、补充体验、二级商圈、餐饮、路线和缓冲
-  supply_governance.py     # POI 治理派生层：sourceType、confidence、factTags、constraintTags
-  timeline_quality.py      # 时间利用率、空窗、路线和体验块质量度量
-  subarea_supply.py        # 二级商圈 open-access 供给导入与校验
-  temporal_utils.py        # 周末/周天等时间语义工具
-  validator.py             # 预算、营业、余票、座位、排队、路线风险校验
-  executor.py              # Mock 执行草案与确认后 Mock 执行
-  router.py                # 多轮交互路由：新规划、局部修改、解释、确认
-  refinement.py            # 会话内二次修改补丁
-  run_flow.py              # 命令行完整链路
-  test_examples.py         # 离线回归测试
-  backend/app/routers/admin.py       # 受 Token 保护的 POI 数据管理 API
-  backend/app/services/admin_auth.py # 后台接口统一鉴权
-  frontend/src/components/AdminConsole.tsx # POI 与自进化审核台
-  schema.json              # 结构化需求 Schema
-  prompt.md                # 需求抽取 Prompt
-  PROJECT.md               # 产品和架构说明
+
+  FlowCity Core            # 核心规划引擎，当前位于项目根目录，供 API/CLI/测试共同复用
+    extractor.py           # LLM 需求抽取、schema 校验和结构化归一
+    demand_profile.py      # 事实、硬约束、底层维度、目的地锚点、开放假设
+    planning_policy.py     # 时间窗含义、出发/返程、体验块、空窗和转场策略
+    area_retrieval.py      # 商圈/景点圈粗排，点名目的地保护
+    mock_api.py            # 供给召回、矩阵打分、Top-K 海选
+    scheduler.py           # 多节点时间窗调度
+    validator.py           # 预算、营业、余票、座位、排队、路线风险校验
+    executor.py            # Mock 执行草案与确认后 Mock 执行
+    router.py              # 多轮交互路由
+    refinement.py          # 会话内二次修改补丁
+    *_identity.py          # POI/路线稳定身份
+    *_supply.py / *_quality.py / *_governance.py
+
+  tests and tools
+    test_examples.py       # 离线业务样例回归
+    test_architecture_v5.py# 架构约束回归
+    run_flow.py            # 命令行完整链路调试
+    run_llm_capability_eval.py
+  schema.json / prompt.md / planner_prompt.md
+  README.md / PROJECT.md
 ```
+
+说明：根目录 Python 模块不是临时脚本，而是 FlowCity Core 规划引擎。当前为了保持已验证的 CLI、测试和 FastAPI import 边界稳定，暂不做物理搬迁；后续正式部署时可以把这组模块整体收敛为 `flowcity_core/` 包，API 层只保留适配代码。
 
 自测产物不保存在项目目录内。本轮 v5 真实 LLM 自测保存在：
 
@@ -142,14 +141,6 @@ npm install
 
 ```powershell
 cd "D:\产品\美团\周末闲时活动规划\Flowcity\backend"
-uvicorn app.main:app --reload --port 8010
-```
-
-如果要展示后台管理台，启动后端前先设置管理员 Token：
-
-```powershell
-cd "D:\产品\美团\周末闲时活动规划\Flowcity\backend"
-$env:FLOWCITY_ADMIN_TOKEN="flowcity-admin-demo"
 uvicorn app.main:app --reload --port 8010
 ```
 
@@ -248,8 +239,6 @@ X-FlowCity-Admin-Token: 你的后台token
 ```text
 http://localhost:5173/#admin
 ```
-
-管理台只有在后端配置 `FLOWCITY_ADMIN_TOKEN` 后才可用；页面里的 Token 填同一个值，例如本地演示可填 `flowcity-admin-demo`。
 
 这个页面可以查看当前 POI 覆盖 KPI、商圈供给缺口、POI 一对一运行时影子表比例，也可以用字段表单或 JSON 精修 `data/*.json` 里的 POI/商圈/路线/动态状态/团购数据，并审核自进化聚类、批准或拒绝学习提案。已有的 `D:\产品\美团\周末闲时活动规划\MockAPI数据管理台` 仍可作为旧版通用 JSON 编辑壳子参考，但不再是主项目的管理入口。
 

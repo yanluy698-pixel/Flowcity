@@ -227,6 +227,8 @@ budgetFlex=strict/flexible
 
 ## 10. 本轮新增和重点文件
 
+当前代码分三层：`frontend/src` 是用户端和管理台；`backend/app` 是 FastAPI API/鉴权/会话编排层；项目根目录的一组 Python 模块是 FlowCity Core 规划引擎，供 API、CLI 和回归测试共同复用。它们不是临时脚本，而是需求理解、供给召回、调度、校验和执行的领域层。临近交付阶段不做大规模物理搬迁，避免破坏已验证的 import、数据路径和测试；后续正式部署时可整体收敛为 `flowcity_core/` 包。
+
 - `intent_taxonomy.py`：语义画像库和显式偏好策略。
 - `router.py`：多轮交互路由，识别局部修改、整体大改、解释、确认。
 - `refinement.py`：会话内二次修改补丁，支持早饭/晚饭时间、少走路、只吃饭不活动等边界。
@@ -512,12 +514,3 @@ FLOWCITY_SESSION_MAX_COUNT=500
 这仍然不是接入真实美团交易。前端文案统一为“模拟执行”，避免把 Mock 票码、Mock 预约号说成真实下单。
 
 后台接口默认关闭。只有配置 `FLOWCITY_ADMIN_TOKEN` 才挂载 `/api/admin/*` 和 `/api/learning/*`，并且每次请求必须带 `X-FlowCity-Admin-Token`。普通用户聊天页不会看到后台入口，也不会携带管理员 Token。
-
-本地展示管理台时，先用 PowerShell 设置管理员 Token 再启动后端：
-
-```powershell
-$env:FLOWCITY_ADMIN_TOKEN="flowcity-admin-demo"
-uvicorn app.main:app --reload --port 8010
-```
-
-然后访问 `http://localhost:5173/#admin`，页面 Token 填同一个值。
